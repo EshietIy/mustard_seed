@@ -1,0 +1,6 @@
+allowBuilds:
+  '@parcel/watcher': false
+  '@scarf/scarf': false
+  unrs-resolver: false
+overrides:
+  js-yaml: '>=5.4.1'
