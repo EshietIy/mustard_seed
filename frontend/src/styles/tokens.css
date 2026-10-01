@@ -1,0 +1,30 @@
+/*
+ * Design tokens (AGENT.md §4). The five brand colours are the ONLY colours in the app.
+ * Muted text, borders and soft backgrounds are derived from them with opacity, never new hex values.
+ */
+:root {
+  /* Brand palette */
+  --color-crimson: #9f2d2d;
+  --color-gold: #c5a059;
+  --color-charcoal: #1e221e;
+  --color-cream: #f4f2ee;
+  --color-white: #ffffff;
+
+  /* Derived (opacity only) */
+  --color-text: var(--color-charcoal);
+  --color-text-muted: color-mix(in srgb, var(--color-charcoal) 70%, transparent);
+  --color-text-on-dark: var(--color-cream);
+  --color-text-on-dark-muted: color-mix(in srgb, var(--color-cream) 75%, transparent);
+  --color-border: color-mix(in srgb, var(--color-charcoal) 12%, transparent);
+  --color-surface-soft: color-mix(in srgb, var(--color-gold) 10%, transparent);
+  --color-crimson-soft: color-mix(in srgb, var(--color-crimson) 8%, transparent);
+
+  /* Typography */
+  --font-heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-body: 'Plus Jakarta Sans', Arial, Helvetica, sans-serif;
+
+  /* Shape */
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-gold) 70%, transparent);
+}
