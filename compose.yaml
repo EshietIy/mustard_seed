@@ -1,0 +1,49 @@
+# Local development stack: backend API + frontend site, each in its own container.
+#
+#   docker compose up --build      # site: http://localhost:8080   API: http://localhost:3000
+#   docker compose down
+#
+# LOCAL USE ONLY. Payments run through the built-in Paystack Simulator and nothing here
+# is suitable for staging or production (those need https origins and real secrets).
+#
+# The browser (not the frontend container) calls the API, so the frontend is built with the
+# API address as seen from your machine, and the backend allows the site's origin for CORS.
+
+name: mustard-seed
+
+services:
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      APP_ENV: local
+      PORT: "3000"
+      LOG_LEVEL: info
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+      PAYSTACK_SIMULATOR_ENABLED: "true"
+      PAYSTACK_BASE_URL: http://localhost:3000/simulator/paystack
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:3000/api/v1
+    ports:
+      - "8080:8080"
+    environment:
+      API_ORIGIN: http://localhost:3000
+      # Placeholder until Supabase Storage is set up; required by the CSP startup check.
+      SUPABASE_STORAGE_ORIGIN: http://localhost
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
