@@ -1,22 +1,29 @@
 import { fileURLToPath, URL } from 'node:url';
 import vue from '@vitejs/plugin-vue';
+import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
-  },
-  test: {
-    environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
-    env: { VITE_API_BASE_URL: 'http://api.test/api/v1' },
-    restoreMocks: true,
-    unstubGlobals: true,
-    coverage: {
-      include: ['src/**/*.{ts,vue}'],
-      exclude: ['src/**/*.spec.ts', 'src/main.ts', 'src/env.d.ts'],
-      thresholds: { lines: 80, branches: 80, functions: 80, statements: 80 },
+export default defineConfig(({ command, mode }) => {
+  // Fail the build rather than ship a bundle that cannot reach the API.
+  if (command === 'build' && !loadEnv(mode, process.cwd()).VITE_API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL must be set to build the frontend (see .env.example).');
+  }
+  return {
+    plugins: [vue()],
+    resolve: {
+      alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
-  },
+    test: {
+      environment: 'jsdom',
+      include: ['src/**/*.spec.ts'],
+      env: { VITE_API_BASE_URL: 'http://api.test/api/v1' },
+      restoreMocks: true,
+      unstubGlobals: true,
+      coverage: {
+        include: ['src/**/*.{ts,vue}'],
+        exclude: ['src/**/*.spec.ts', 'src/main.ts', 'src/env.d.ts'],
+        thresholds: { lines: 80, branches: 80, functions: 80, statements: 80 },
+      },
+    },
+  };
 });
