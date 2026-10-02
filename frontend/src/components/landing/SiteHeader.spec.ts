@@ -1,6 +1,7 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
 import { useToastStore } from '@/stores/toast';
 import { menuItem } from '@/test-utils/fixtures';
@@ -37,11 +38,37 @@ describe('SiteHeader', () => {
     expect(wrapper.emitted('open-cart')).toHaveLength(1);
   });
 
-  it('explains that sign-in is coming soon', async () => {
+  it('opens the sign-in dialog when signed out', async () => {
+    const auth = useAuthStore();
+    auth.status = 'signed-out';
     const wrapper = mount(SiteHeader);
     await wrapper.get('[data-test="sign-in"]').trigger('click');
-    expect(useToastStore().messages[0]?.text).toBe(
-      'Sign in with Google is coming soon. You can still build your order.',
-    );
+    expect(auth.signInOpen).toBe(true);
+  });
+
+  it('shows the signed-in user and lets them sign out', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    const auth = useAuthStore();
+    auth.status = 'signed-in';
+    auth.user = {
+      id: 'u-1',
+      email: 'ekaette@example.com',
+      firstName: 'Ekaette',
+      fullName: 'Ekaette Bassey',
+      avatarUrl: null,
+      role: 'customer',
+    };
+    const wrapper = mount(SiteHeader);
+    expect(wrapper.find('[data-test="sign-in"]').exists()).toBe(false);
+    const account = wrapper.get('[data-test="account"]');
+    expect(account.text()).toContain('E');
+    expect(account.text()).toContain('Ekaette');
+    expect(account.attributes('aria-expanded')).toBe('false');
+    await account.trigger('click');
+    expect(account.attributes('aria-expanded')).toBe('true');
+    await wrapper.get('[data-test="sign-out"]').trigger('click');
+    await flushPromises();
+    expect(auth.status).toBe('signed-out');
+    expect(useToastStore().messages.at(-1)?.text).toBe('You’ve signed out.');
   });
 });

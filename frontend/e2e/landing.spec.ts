@@ -115,13 +115,6 @@ test.describe('Feature: landing page', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 
-  test('Scenario: sign-in explains it is coming soon', async ({ page }) => {
-    await mockApi(page);
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByText('Sign in with Google is coming soon.')).toBeVisible();
-  });
-
   test('Scenario: the page never scrolls sideways', async ({ page }) => {
     await mockApi(page);
     await page.goto('/');

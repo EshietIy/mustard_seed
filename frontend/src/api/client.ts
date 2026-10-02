@@ -113,6 +113,8 @@ export interface ApiClientOptions {
   timeoutMs?: number;
   fetch?: typeof fetch;
   isOnline?: () => boolean;
+  /** Called for every 401 (e.g. to show "session expired, please sign in"). */
+  onUnauthorized?: (path: string) => void;
 }
 
 export interface ApiClient {
@@ -152,7 +154,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       clearTimeout(timer);
     }
 
-    if (!res.ok) throw await toApiError(res);
+    if (!res.ok) {
+      const error = await toApiError(res);
+      if (error.kind === 'unauthorized') options.onUnauthorized?.(path);
+      throw error;
+    }
     if (res.status === 204) return undefined as T;
     try {
       return (await res.json()) as T;
@@ -175,4 +181,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 }
 
-export const api = createApiClient({ baseUrl: import.meta.env.VITE_API_BASE_URL });
+let unauthorizedHandler: ((path: string) => void) | undefined;
+
+/** Registers the app-wide 401 handler used by the shared `api` client. */
+export function setUnauthorizedHandler(handler: ((path: string) => void) | undefined): void {
+  unauthorizedHandler = handler;
+}
+
+export const api = createApiClient({
+  baseUrl: import.meta.env.VITE_API_BASE_URL,
+  onUnauthorized: (path) => unauthorizedHandler?.(path),
+});

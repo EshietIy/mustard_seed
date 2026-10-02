@@ -170,6 +170,20 @@ describe('createApiClient', () => {
     expect(err.kind).toBe('timeout');
   });
 
+  it('reports 401s to the unauthorized handler with the request path', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(401, { error: { code: 'UNAUTHORIZED' } }));
+    const client = createApiClient({
+      baseUrl: 'http://api.test/api/v1',
+      fetch: fetchMock,
+      onUnauthorized,
+    });
+    await caught(client.post('/orders', {}));
+    expect(onUnauthorized).toHaveBeenCalledWith('/orders');
+  });
+
   it('treats an unparseable success body as an unknown error', async () => {
     const fetchMock = vi
       .fn()

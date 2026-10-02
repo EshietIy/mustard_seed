@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import IconBag from '@/components/icons/IconBag.vue';
 import BrandMark from '@/components/ui/BrandMark.vue';
 import ZigzagTrim from '@/components/ui/ZigzagTrim.vue';
 import { landing } from '@/content/landing';
+import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
-import { useToastStore } from '@/stores/toast';
 
 defineEmits<{ 'open-cart': [] }>();
 
 const cart = useCartStore();
-const toast = useToastStore();
+const auth = useAuthStore();
+const accountOpen = ref(false);
 
 const orderLabel = computed(
   () => `Your order, ${cart.count} ${cart.count === 1 ? 'item' : 'items'}`,
 );
 
-function signIn(): void {
-  // Google sign-in arrives in the next slice.
-  toast.show('Sign in with Google is coming soon. You can still build your order.');
+async function signOut(): Promise<void> {
+  accountOpen.value = false;
+  await auth.signOut();
 }
 </script>
 
@@ -39,7 +40,33 @@ function signIn(): void {
       </nav>
 
       <div class="actions">
-        <button type="button" class="sign-in" data-test="sign-in" @click="signIn">
+        <div v-if="auth.status === 'signed-in' && auth.user" class="account">
+          <button
+            type="button"
+            class="sign-in"
+            data-test="account"
+            aria-haspopup="menu"
+            :aria-expanded="accountOpen"
+            :aria-label="`Account: ${auth.user.firstName || auth.user.email}`"
+            @click="accountOpen = !accountOpen"
+          >
+            <img
+              v-if="auth.user.avatarUrl"
+              :src="auth.user.avatarUrl"
+              alt=""
+              class="avatar"
+              referrerpolicy="no-referrer"
+            />
+            <span v-else class="g" aria-hidden="true">{{ auth.initial }}</span>
+            <span class="sign-in-text">{{ auth.user.firstName || 'Account' }}</span>
+          </button>
+          <div v-if="accountOpen" class="account-menu" role="menu">
+            <button type="button" role="menuitem" data-test="sign-out" @click="signOut">
+              Sign out
+            </button>
+          </div>
+        </div>
+        <button v-else type="button" class="sign-in" data-test="sign-in" @click="auth.openSignIn()">
           <span class="g" aria-hidden="true">G</span>
           <span class="sign-in-text">Sign in</span>
         </button>
@@ -143,6 +170,40 @@ function signIn(): void {
   background: var(--color-gold);
   color: var(--color-charcoal);
   font-weight: 700;
+}
+.account {
+  position: relative;
+}
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.375rem);
+  min-width: 9rem;
+  padding: 0.375rem;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-charcoal) 15%, transparent);
+}
+.account-menu button {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text);
+  font: 600 0.875rem var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+.account-menu button:hover {
+  background: var(--color-surface-soft);
 }
 .order {
   padding: 0.25rem 0.375rem 0.25rem 1rem;

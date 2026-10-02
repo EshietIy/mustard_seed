@@ -10,10 +10,9 @@ RUN pnpm install --frozen-lockfile
 
 # Vite inlines VITE_* values at build time, so they are build args, not runtime env.
 # The build fails if VITE_API_BASE_URL is missing (see vite.config.ts).
+# (The Google sign-in client ID comes from the API at runtime, not from the build.)
 ARG VITE_API_BASE_URL
-ARG VITE_GOOGLE_CLIENT_ID=""
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL \
-    VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
 # Sources (filtered by .dockerignore).
 COPY . .

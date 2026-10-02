@@ -185,7 +185,11 @@ function businessRuleErrors(config: AppConfig): string[] {
 
 /** Validates raw environment variables. Throws (fail fast) with every problem listed. */
 export function validateEnv(raw: Record<string, unknown>): AppConfig {
-  const config = plainToInstance(AppConfig, raw, { excludeExtraneousValues: false });
+  // `KEY=` (empty) in a .env file means "not set": drop it so defaults and optionality apply.
+  const present = Object.fromEntries(
+    Object.entries(raw).filter(([, v]) => !(typeof v === 'string' && v.trim() === '')),
+  );
+  const config = plainToInstance(AppConfig, present, { excludeExtraneousValues: false });
   const fieldErrors = validateSync(config, { whitelist: true, skipMissingProperties: false }).map(
     (e) => `${e.property}: ${Object.values(e.constraints ?? {}).join('; ')}`,
   );

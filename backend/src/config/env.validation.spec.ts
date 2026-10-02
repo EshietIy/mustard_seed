@@ -228,6 +228,16 @@ describe('validateEnv', () => {
       );
     });
 
+    it('treats an empty value (KEY= in .env) as not set', () => {
+      const env = validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: '', PAYSTACK_BASE_URL: '  ' });
+      expect(env.SEED_SUPER_ADMIN_EMAIL).toBeUndefined();
+      expect(env.PAYSTACK_BASE_URL).toBeUndefined();
+    });
+
+    it('still reports an empty required value as missing', () => {
+      expect(() => validateEnv({ ...base, JWT_SECRET: '' })).toThrow(/JWT_SECRET/);
+    });
+
     it('lower-cases the seed email', () => {
       expect(
         validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: ' Owner@MustardSeed.ng ' })

@@ -6,6 +6,7 @@ export type PaymentMode = 'simulated' | 'live';
 
 export const useConfigStore = defineStore('config', () => {
   const paymentMode = ref<PaymentMode | null>(null);
+  const googleClientId = ref<string | null>(null);
   const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const error = ref<ApiError | null>(null);
 
@@ -15,8 +16,11 @@ export const useConfigStore = defineStore('config', () => {
     status.value = 'loading';
     error.value = null;
     try {
-      const config = await api.get<{ paymentMode: PaymentMode }>('/config/public');
+      const config = await api.get<{ paymentMode: PaymentMode; googleClientId?: string }>(
+        '/config/public',
+      );
       paymentMode.value = config.paymentMode;
+      googleClientId.value = config.googleClientId ?? null;
       status.value = 'ready';
     } catch (err) {
       error.value =
@@ -27,5 +31,5 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  return { paymentMode, status, error, isTestMode, load };
+  return { paymentMode, googleClientId, status, error, isTestMode, load };
 });
