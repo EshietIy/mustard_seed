@@ -33,7 +33,7 @@ export function menuFixture() {
         id: 'drinks',
         label: 'Drinks',
         items: [
-          item('zobo', 'Zobo', { isFreshJuice: true, description: '' }),
+          item('zobo', 'Zobo', { isFreshJuice: true, description: '', priceKobo: 80000 }),
           item('pineapple-ginger', 'Pineapple & ginger', { isFreshJuice: true, description: '' }),
           item('watermelon', 'Watermelon', { isFreshJuice: true, description: '' }),
         ],
@@ -103,12 +103,68 @@ window.google = { accounts: { id: {
   cancel() {}, disableAutoSelect() {}
 } } };`;
 
+interface QuoteRequest {
+  fulfilment: 'delivery' | 'pickup';
+  items: Array<{ menuItemId: string; quantity: number }>;
+}
+
+let placedOrder: unknown = null;
+
+/** Prices a cart from the fixture menu, like the real quote endpoint. */
+export function quoteFor(body: QuoteRequest, open: boolean) {
+  const all = menuFixture().categories.flatMap((c) => c.items);
+  const lines = body.items.map(({ menuItemId, quantity }) => {
+    const found = all.find((i) => i.id === menuItemId);
+    const price = (found?.priceKobo as number | null | undefined) ?? null;
+    return {
+      menuItemId,
+      name: found?.name ?? '?',
+      unitPriceKobo: price,
+      quantity,
+      lineTotalKobo: price === null ? null : price * quantity,
+      isAvailable: true,
+    };
+  });
+  const priced = lines.every((l) => l.lineTotalKobo !== null);
+  const subtotalKobo = priced ? lines.reduce((s, l) => s + (l.lineTotalKobo ?? 0), 0) : null;
+  const deliveryFeeKobo = body.fulfilment === 'delivery' ? 150000 : 0;
+  const problems = [
+    ...(open
+      ? []
+      : [
+          {
+            code: 'ORDERING_CLOSED',
+            message: 'Online orders are open 8am – 10:30pm. Please come back then.',
+          },
+        ]),
+    ...lines
+      .filter((l) => l.unitPriceKobo === null)
+      .map((l) => ({
+        code: 'ITEM_PRICE_UNAVAILABLE',
+        menuItemId: l.menuItemId,
+        message: `${l.name} can’t be ordered online yet.`,
+      })),
+  ];
+  return {
+    lines,
+    subtotalKobo,
+    deliveryFeeKobo,
+    totalKobo: subtotalKobo === null ? null : subtotalKobo + deliveryFeeKobo,
+    ordering: { open, opensAt: '08:00', onlineOrdersCloseAt: '22:30', timezone: 'Africa/Lagos' },
+    problems,
+    canPlaceOrder: problems.length === 0 && subtotalKobo !== null,
+  };
+}
+
 export interface MockOptions {
   paymentMode?: 'simulated' | 'live';
   /** The session the API reports on load (default: signed out). */
   session?: typeof SIGNED_IN_USER | null;
   signIn?: { status: number; body: unknown };
   googleScript?: 'ok' | 'blocked';
+  /** Ordering window reported by the quote endpoint. */
+  orderingOpen?: boolean;
+  placeOrder?: { status: number; body: unknown };
   menu?: { status: number; body: unknown } | 'abort';
   site?: { status: number; body: unknown };
   config?: { status: number; body: unknown } | 'abort';
@@ -139,6 +195,37 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<vo
     json(route, options.signIn?.status ?? 200, options.signIn?.body ?? { user: SIGNED_IN_USER }),
   );
   await page.route(`${API}/auth/logout`, (route) => route.fulfill({ status: 204 }));
+  await page.route(`${API}/orders/quote`, (route) => {
+    const body = route.request().postDataJSON() as QuoteRequest;
+    return json(route, 200, quoteFor(body, options.orderingOpen ?? true));
+  });
+  await page.route(`${API}/orders`, (route) => {
+    if (options.placeOrder) return json(route, options.placeOrder.status, options.placeOrder.body);
+    const body = route.request().postDataJSON() as QuoteRequest & {
+      contact: { fullName: string; phone: string };
+      delivery?: { streetAddress: string };
+    };
+    const quote = quoteFor(body, true);
+    placedOrder = {
+      id: 'order-1',
+      orderNumber: '#MS-0001',
+      status: 'awaiting_payment',
+      fulfilment: body.fulfilment,
+      branch: { id: 'calabar', city: 'Calabar' },
+      items: quote.lines,
+      subtotalKobo: quote.subtotalKobo,
+      deliveryFeeKobo: quote.deliveryFeeKobo,
+      totalKobo: quote.totalKobo,
+      currency: 'NGN',
+      contact: { fullName: body.contact.fullName, phone: '+2348031234567' },
+      delivery: body.delivery
+        ? { streetAddress: body.delivery.streetAddress, city: 'Calabar' }
+        : null,
+      createdAt: '2026-10-05T11:00:00Z',
+    };
+    return json(route, 201, placedOrder);
+  });
+  await page.route(`${API}/orders/order-1`, (route) => json(route, 200, placedOrder));
   await page.route('https://accounts.google.com/gsi/client', (route) =>
     options.googleScript === 'blocked'
       ? route.abort('blockedbyclient')

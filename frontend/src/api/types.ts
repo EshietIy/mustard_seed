@@ -50,3 +50,54 @@ export interface SiteInfo {
   delivery: { feeKobo: number; area: string };
   branches: Branch[];
 }
+
+export type Fulfilment = 'delivery' | 'pickup';
+
+export interface QuoteLine {
+  menuItemId: string;
+  name: string;
+  unitPriceKobo: number | null;
+  quantity: number;
+  lineTotalKobo: number | null;
+  isAvailable: boolean;
+}
+
+export interface QuoteProblem {
+  code: string;
+  message: string;
+  menuItemId?: string;
+}
+
+export interface Quote {
+  lines: QuoteLine[];
+  subtotalKobo: number | null;
+  deliveryFeeKobo: number;
+  totalKobo: number | null;
+  ordering: { open: boolean; opensAt: string; onlineOrdersCloseAt: string; timezone: string };
+  problems: QuoteProblem[];
+  canPlaceOrder: boolean;
+}
+
+export interface OrderLine {
+  menuItemId: string;
+  name: string;
+  unitPriceKobo: number;
+  quantity: number;
+  lineTotalKobo: number;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  fulfilment: Fulfilment;
+  branch: { id: string; city: string };
+  items: OrderLine[];
+  subtotalKobo: number;
+  deliveryFeeKobo: number;
+  totalKobo: number;
+  currency: 'NGN';
+  contact: { fullName: string; phone: string };
+  delivery: { streetAddress: string; city: string } | null;
+  createdAt: string;
+}

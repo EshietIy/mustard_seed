@@ -8,7 +8,7 @@ import { useSiteStore } from '@/stores/site';
 import { formatNaira, priceLabel, PRICE_PLACEHOLDER } from '@/utils/format';
 
 const props = defineProps<{ open: boolean }>();
-const emit = defineEmits<{ 'update:open': [value: boolean] }>();
+const emit = defineEmits<{ 'update:open': [value: boolean]; checkout: [] }>();
 
 const cart = useCartStore();
 const site = useSiteStore();
@@ -121,10 +121,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             <strong data-test="subtotal">{{ subtotal }}</strong>
           </div>
           <p v-if="deliveryNote" class="note">{{ deliveryNote }}</p>
-          <button type="button" class="btn-primary checkout" data-test="checkout" disabled>
+          <button
+            type="button"
+            class="btn-primary checkout"
+            data-test="checkout"
+            :disabled="cart.hasUnavailable"
+            @click="emit('checkout')"
+          >
             Checkout
           </button>
-          <p class="note">Online checkout opens soon.</p>
         </div>
       </template>
     </aside>

@@ -85,7 +85,7 @@ test.describe('Feature: landing page', () => {
     await expect(drawer).toContainText(
       'Delivery is ₦1,500 anywhere in Calabar, or pick up for free.',
     );
-    await expect(drawer.getByRole('button', { name: 'Checkout' })).toBeDisabled();
+    await expect(drawer.getByRole('button', { name: 'Checkout' })).toBeEnabled();
 
     await drawer.getByRole('button', { name: 'Remove one Edikang Ikong' }).click();
     await expect(drawer.locator('[data-test="subtotal"]')).toHaveText('₦9,000');

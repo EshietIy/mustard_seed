@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import CartDrawer from '@/components/cart/CartDrawer.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
 import HowItWorks from '@/components/landing/HowItWorks.vue';
@@ -20,6 +21,12 @@ const site = useSiteStore();
 const cart = useCartStore();
 const toast = useToastStore();
 const cartOpen = ref(false);
+const router = useRouter();
+
+async function goToCheckout(): Promise<void> {
+  cartOpen.value = false;
+  await router.push('/checkout');
+}
 
 onMounted(() => {
   if (menu.status === 'idle') void menu.load();
@@ -51,6 +58,6 @@ watch(
     <VisitSection />
   </main>
   <SiteFooter />
-  <CartDrawer v-model:open="cartOpen" />
+  <CartDrawer v-model:open="cartOpen" @checkout="goToCheckout" />
   <ToastHost />
 </template>

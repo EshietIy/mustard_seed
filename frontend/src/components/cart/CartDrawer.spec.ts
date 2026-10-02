@@ -46,15 +46,24 @@ describe('CartDrawer', () => {
     expect(wrapper.get('[data-test="subtotal"]').text()).toBe('[PRICE]');
   });
 
-  it('mentions the delivery fee from site info and keeps checkout disabled for now', () => {
+  it('mentions the delivery fee from site info and goes to checkout', async () => {
     useCartStore().add(menuItem());
     const wrapper = mount(CartDrawer, { props: { open: true } });
     expect(wrapper.text()).toContain(
       'Delivery is ₦1,500 anywhere in Calabar, or pick up for free.',
     );
     const checkout = wrapper.get('[data-test="checkout"]');
-    expect(checkout.attributes('disabled')).toBeDefined();
-    expect(wrapper.text()).toContain('Online checkout opens soon.');
+    expect(checkout.attributes('disabled')).toBeUndefined();
+    await checkout.trigger('click');
+    expect(wrapper.emitted('checkout')).toHaveLength(1);
+  });
+
+  it('blocks checkout while a sold-out item is in the order', () => {
+    const cart = useCartStore();
+    cart.add(menuItem());
+    cart.reconcile([menuItem({ isAvailable: false })]);
+    const wrapper = mount(CartDrawer, { props: { open: true } });
+    expect(wrapper.get('[data-test="checkout"]').attributes('disabled')).toBeDefined();
   });
 
   it('warns about items that have sold out since they were added', () => {
