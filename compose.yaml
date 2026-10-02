@@ -8,6 +8,10 @@
 #
 # The browser (not the frontend container) calls the API, so the frontend is built with the
 # API address as seen from your machine, and the backend allows the site's origin for CORS.
+#
+# Database: the API reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY from backend/.env
+# (your development Supabase project, with the migrations applied). Values set under
+# `environment:` below take precedence over that file.
 
 name: mustard-seed
 
@@ -17,6 +21,9 @@ services:
       context: ./backend
     ports:
       - "3000:3000"
+    env_file:
+      - path: ./backend/.env
+        required: true
     environment:
       APP_ENV: local
       PORT: "3000"

@@ -1,21 +1,56 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { onMounted, ref, watch } from 'vue';
+import CartDrawer from '@/components/cart/CartDrawer.vue';
+import HeroSection from '@/components/landing/HeroSection.vue';
+import HowItWorks from '@/components/landing/HowItWorks.vue';
+import JuicesSection from '@/components/landing/JuicesSection.vue';
+import MenuSection from '@/components/landing/MenuSection.vue';
+import SiteFooter from '@/components/landing/SiteFooter.vue';
+import SiteHeader from '@/components/landing/SiteHeader.vue';
+import StorySection from '@/components/landing/StorySection.vue';
+import VisitSection from '@/components/landing/VisitSection.vue';
+import ToastHost from '@/components/ui/ToastHost.vue';
+import { useCartStore } from '@/stores/cart';
+import { useMenuStore } from '@/stores/menu';
+import { useSiteStore } from '@/stores/site';
+import { useToastStore } from '@/stores/toast';
+
+const menu = useMenuStore();
+const site = useSiteStore();
+const cart = useCartStore();
+const toast = useToastStore();
+const cartOpen = ref(false);
+
+onMounted(() => {
+  if (menu.status === 'idle') void menu.load();
+  if (site.status === 'idle') void site.load();
+});
+
+// Keep a saved cart in step with the live menu (renamed, repriced or sold-out items).
+watch(
+  () => menu.status,
+  (status) => {
+    if (status !== 'ready') return;
+    const { removed, unavailable } = cart.reconcile(menu.allItems);
+    if (removed > 0)
+      toast.show('Some items in your order are no longer on the menu and were removed.');
+    else if (unavailable > 0) toast.show('Some items in your order have sold out.');
+  },
+  { immediate: true },
+);
+</script>
 
 <template>
-  <main class="home">
-    <p class="eyebrow">Calabar · Uyo</p>
-    <h1>Mustard Seed Restaurant &amp; Bar</h1>
-    <p>Efik and Ibibio cooking, served warm. Our full menu is coming soon.</p>
+  <SiteHeader @open-cart="cartOpen = true" />
+  <main>
+    <HeroSection />
+    <HowItWorks />
+    <MenuSection />
+    <JuicesSection />
+    <StorySection />
+    <VisitSection />
   </main>
+  <SiteFooter />
+  <CartDrawer v-model:open="cartOpen" />
+  <ToastHost />
 </template>
-
-<style scoped>
-.home {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 3rem 1.25rem;
-}
-h1 {
-  font-size: clamp(2.25rem, 8vw, 3.5rem);
-  margin: 0.5rem 0 1rem;
-}
-</style>
