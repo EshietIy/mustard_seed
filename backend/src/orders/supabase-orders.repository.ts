@@ -7,10 +7,10 @@ import {
 import { SUPABASE_CLIENT } from '../database/supabase.token';
 import type { NewOrder, OrdersRepository } from './orders.repository';
 import type { Fulfilment } from './pricing';
-import type { AuditEvent, OrderRecord, OrderStatus } from './orders.types';
+import type { AuditEvent, OrderRecord, OrderStatus, PaymentStatus } from './orders.types';
 
 const COLUMNS =
-  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position)';
+  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, payment_expires_at, payments(reference, authorization_url, status, channel, paid_at), order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position)';
 
 interface OrderRow {
   id: string;
@@ -28,6 +28,8 @@ interface OrderRow {
   delivery_fee_kobo: number;
   total_kobo: number;
   created_at: string;
+  payment_expires_at: string;
+  payments: PaymentRow | PaymentRow[] | null;
   order_items: Array<{
     menu_item_id: string;
     name: string;
@@ -38,8 +40,29 @@ interface OrderRow {
   }>;
 }
 
+interface PaymentRow {
+  reference: string;
+  authorization_url: string;
+  status: PaymentStatus;
+  channel: string | null;
+  paid_at: string | null;
+}
+
 const fail = (op: string, message: string) =>
   new UpstreamUnavailableException('supabase', op, message);
+
+/** One payment per order; PostgREST may embed it as an object or a one-element array. */
+function toPayment(raw: PaymentRow | PaymentRow[] | null): OrderRecord['payment'] {
+  const row = Array.isArray(raw) ? raw[0] : raw;
+  if (!row) return null;
+  return {
+    reference: row.reference,
+    authorizationUrl: row.authorization_url,
+    status: row.status,
+    channel: row.channel,
+    paidAt: row.paid_at,
+  };
+}
 
 @Injectable()
 export class SupabaseOrdersRepository implements OrdersRepository {
@@ -68,6 +91,7 @@ export class SupabaseOrdersRepository implements OrdersRepository {
           subtotal_kobo: order.subtotalKobo,
           delivery_fee_kobo: order.deliveryFeeKobo,
           total_kobo: order.totalKobo,
+          payment_expires_at: order.paymentExpiresAt,
         },
         p_items: order.items.map((i) => ({
           menu_item_id: i.menuItemId,
@@ -108,6 +132,8 @@ export class SupabaseOrdersRepository implements OrdersRepository {
       deliveryFeeKobo: data.delivery_fee_kobo,
       totalKobo: data.total_kobo,
       createdAt: data.created_at,
+      paymentExpiresAt: data.payment_expires_at,
+      payment: toPayment(data.payments),
       items: [...data.order_items]
         .sort((a, b) => a.position - b.position)
         .map((i) => ({

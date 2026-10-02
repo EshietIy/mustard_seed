@@ -14,6 +14,8 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
+import { PaystackSimulatorModule } from './simulator/paystack/simulator.module';
 import { SiteModule } from './site/site.module';
 import { ROOT_LOGGER } from './logging/logger.token';
 import { resolveLimit } from './throttling/throttling';
@@ -42,6 +44,9 @@ export class AppModule {
         SiteModule,
         AuthModule,
         OrdersModule,
+        PaymentsModule,
+        // Never mounted unless explicitly enabled (and never in production; see env checks).
+        ...(config.PAYSTACK_SIMULATOR_ENABLED ? [PaystackSimulatorModule] : []),
         ...extraModules,
       ],
       providers: [

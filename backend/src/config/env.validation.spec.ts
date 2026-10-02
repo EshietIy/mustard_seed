@@ -5,6 +5,18 @@ const supabase = {
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test_key_0123456789',
   GOOGLE_CLIENT_ID: '1234567890-abc.apps.googleusercontent.com',
   JWT_SECRET: 'a'.repeat(48),
+  PAYSTACK_BASE_URL: 'https://api.paystack.co',
+  PAYSTACK_SECRET_KEY: 'sk_test_0123456789abcdef',
+  FRONTEND_BASE_URL: 'http://localhost:5173',
+};
+
+/** Settings that come together whenever the built-in simulator is on. */
+const simulator = {
+  PAYSTACK_SIMULATOR_ENABLED: 'true',
+  PAYSTACK_SECRET_KEY: 'sk_sim_0123456789abcdef',
+  PAYSTACK_BASE_URL: 'http://localhost:3000/simulator/paystack',
+  PAYSTACK_WEBHOOK_URL: 'http://localhost:3000/api/v1/payments/webhook',
+  SIMULATOR_CONTROL_KEY: 'control-key-0123456789',
 };
 
 const base = {
@@ -13,7 +25,12 @@ const base = {
   ...supabase,
 };
 
-const prodSupabase = { ...supabase, SUPABASE_URL: 'https://abc.supabase.co' };
+const prodSupabase = {
+  ...supabase,
+  SUPABASE_URL: 'https://abc.supabase.co',
+  PAYSTACK_SECRET_KEY: 'sk_live_0123456789abcdef',
+  FRONTEND_BASE_URL: 'https://mustardseed.ng',
+};
 
 describe('validateEnv', () => {
   it.each(['local', 'test', 'staging', 'production'])('accepts APP_ENV=%s', (appEnv) => {
@@ -84,9 +101,7 @@ describe('validateEnv', () => {
   });
 
   it('parses PAYSTACK_SIMULATOR_ENABLED strictly', () => {
-    expect(
-      validateEnv({ ...base, PAYSTACK_SIMULATOR_ENABLED: 'true' }).PAYSTACK_SIMULATOR_ENABLED,
-    ).toBe(true);
+    expect(validateEnv({ ...base, ...simulator }).PAYSTACK_SIMULATOR_ENABLED).toBe(true);
     expect(
       validateEnv({ ...base, PAYSTACK_SIMULATOR_ENABLED: 'false' }).PAYSTACK_SIMULATOR_ENABLED,
     ).toBe(false);
@@ -103,9 +118,7 @@ describe('validateEnv', () => {
     };
 
     it('refuses production with the simulator enabled', () => {
-      expect(() => validateEnv({ ...prod, PAYSTACK_SIMULATOR_ENABLED: 'true' })).toThrow(
-        /simulator/i,
-      );
+      expect(() => validateEnv({ ...prod, ...simulator })).toThrow(/simulator/i);
     });
 
     it('refuses production when PAYSTACK_BASE_URL points at the simulator', () => {
@@ -128,8 +141,9 @@ describe('validateEnv', () => {
         APP_ENV: 'staging',
         NODE_ENV: 'production',
         CORS_ALLOWED_ORIGINS: 'https://staging.mustardseed.ng',
-        PAYSTACK_SIMULATOR_ENABLED: 'true',
+        ...simulator,
         PAYSTACK_BASE_URL: 'https://staging-api.mustardseed.ng/simulator/paystack',
+        FRONTEND_BASE_URL: 'https://staging.mustardseed.ng',
       });
       expect(env.PAYSTACK_SIMULATOR_ENABLED).toBe(true);
     });
@@ -229,9 +243,9 @@ describe('validateEnv', () => {
     });
 
     it('treats an empty value (KEY= in .env) as not set', () => {
-      const env = validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: '', PAYSTACK_BASE_URL: '  ' });
+      const env = validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: '', PAYSTACK_WEBHOOK_URL: '  ' });
       expect(env.SEED_SUPER_ADMIN_EMAIL).toBeUndefined();
-      expect(env.PAYSTACK_BASE_URL).toBeUndefined();
+      expect(env.PAYSTACK_WEBHOOK_URL).toBeUndefined();
     });
 
     it('still reports an empty required value as missing', () => {
@@ -260,6 +274,78 @@ describe('validateEnv', () => {
           GOOGLE_JWKS_URL: 'https://evil.example.com/certs',
         }),
       ).toThrow(/GOOGLE_JWKS_URL/);
+    });
+  });
+
+  describe('payments', () => {
+    it('applies payment defaults', () => {
+      expect(validateEnv(base)).toMatchObject({
+        PAYMENT_WINDOW_MINUTES: 15,
+        PAYMENT_SWEEP_INTERVAL_MS: 60_000,
+        PAYSTACK_TIMEOUT_MS: 10_000,
+      });
+    });
+
+    it.each(['PAYSTACK_BASE_URL', 'PAYSTACK_SECRET_KEY', 'FRONTEND_BASE_URL'])(
+      'fails when %s is missing',
+      (key) => {
+        const env: Record<string, string> = { ...base };
+        delete env[key];
+        expect(() => validateEnv(env)).toThrow(new RegExp(key));
+      },
+    );
+
+    it('requires an exact frontend origin', () => {
+      expect(() =>
+        validateEnv({ ...base, FRONTEND_BASE_URL: 'http://localhost:5173/app' }),
+      ).toThrow(/FRONTEND_BASE_URL/);
+    });
+
+    it('allows the sweep to be switched off with 0', () => {
+      expect(
+        validateEnv({ ...base, PAYMENT_SWEEP_INTERVAL_MS: '0' }).PAYMENT_SWEEP_INTERVAL_MS,
+      ).toBe(0);
+    });
+
+    it('requires a simulator key (sk_sim_) when the simulator is on, never a real one', () => {
+      expect(() =>
+        validateEnv({ ...base, ...simulator, PAYSTACK_SECRET_KEY: 'sk_test_0123456789abcdef' }),
+      ).toThrow(/sk_sim_/);
+    });
+
+    it('requires a real key (sk_test_ / sk_live_) when the simulator is off', () => {
+      expect(() =>
+        validateEnv({ ...base, PAYSTACK_SECRET_KEY: 'sk_sim_0123456789abcdef' }),
+      ).toThrow(/sk_test_/);
+    });
+
+    it.each(['SIMULATOR_CONTROL_KEY', 'PAYSTACK_WEBHOOK_URL'])(
+      'requires %s when the simulator is on',
+      (key) => {
+        const env: Record<string, string> = { ...base, ...simulator };
+        delete env[key];
+        expect(() => validateEnv(env)).toThrow(new RegExp(key));
+      },
+    );
+
+    it('rejects a short control key', () => {
+      expect(() => validateEnv({ ...base, ...simulator, SIMULATOR_CONTROL_KEY: 'short' })).toThrow(
+        /SIMULATOR_CONTROL_KEY/,
+      );
+    });
+
+    it('requires a live key and https frontend in production', () => {
+      const prod = {
+        ...prodSupabase,
+        APP_ENV: 'production',
+        CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+      };
+      expect(() =>
+        validateEnv({ ...prod, PAYSTACK_SECRET_KEY: 'sk_test_0123456789abcdef' }),
+      ).toThrow(/sk_live_/);
+      expect(() => validateEnv({ ...prod, FRONTEND_BASE_URL: 'http://mustardseed.ng' })).toThrow(
+        /FRONTEND_BASE_URL must use https/,
+      );
     });
   });
 });

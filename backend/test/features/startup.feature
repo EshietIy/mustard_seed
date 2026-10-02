@@ -61,13 +61,44 @@ Feature: Startup configuration guard
       | GOOGLE_JWKS_URL      | https://keys.example.com/certs   |
     Then startup fails with a message containing "GOOGLE_JWKS_URL"
 
+  Scenario: The simulator refuses a real Paystack key
+    When the API starts with:
+      | APP_ENV                    | staging                    |
+      | CORS_ALLOWED_ORIGINS       | https://staging.example.ng |
+      | PAYSTACK_SIMULATOR_ENABLED | true                       |
+      | PAYSTACK_SECRET_KEY        | sk_test_real_key_012345    |
+      | PAYSTACK_WEBHOOK_URL       | https://x.example/webhook  |
+      | SIMULATOR_CONTROL_KEY      | control-key-0123456789     |
+    Then startup fails with a message containing "sk_sim_"
+
+  Scenario: The simulator needs a control key
+    When the API starts with:
+      | APP_ENV                    | local                     |
+      | CORS_ALLOWED_ORIGINS       | http://localhost:5173     |
+      | PAYSTACK_SIMULATOR_ENABLED | true                      |
+      | PAYSTACK_SECRET_KEY        | sk_sim_0123456789abcdef   |
+      | PAYSTACK_WEBHOOK_URL       | http://localhost/webhook  |
+    Then startup fails with a message containing "SIMULATOR_CONTROL_KEY"
+
+  Scenario: Production requires a live Paystack key
+    When the API starts with:
+      | APP_ENV              | production               |
+      | CORS_ALLOWED_ORIGINS | https://mustardseed.ng   |
+      | SUPABASE_URL         | https://abc.supabase.co  |
+      | FRONTEND_BASE_URL    | https://mustardseed.ng   |
+    Then startup fails with a message containing "sk_live_"
+
   Scenario: Staging with NODE_ENV=production may run the simulator
     When the API starts with:
       | APP_ENV                    | staging                                           |
       | NODE_ENV                   | production                                        |
       | CORS_ALLOWED_ORIGINS       | https://staging.mustardseed.ng                    |
-      | PAYSTACK_SIMULATOR_ENABLED | true                                              |
+      | PAYSTACK_SIMULATOR_ENABLED | true                                                  |
+      | PAYSTACK_SECRET_KEY        | sk_sim_staging_0123456789                             |
       | PAYSTACK_BASE_URL          | https://staging-api.mustardseed.ng/simulator/paystack |
+      | PAYSTACK_WEBHOOK_URL       | https://staging-api.mustardseed.ng/api/v1/payments/webhook |
+      | SIMULATOR_CONTROL_KEY      | staging-control-key-0123456789                        |
+      | FRONTEND_BASE_URL          | https://staging.mustardseed.ng                        |
     Then startup succeeds
     When I GET "/api/v1/config/public"
     Then the response JSON at "paymentMode" is "simulated"

@@ -16,6 +16,8 @@ export interface NewOrder {
   subtotalKobo: number;
   deliveryFeeKobo: number;
   totalKobo: number;
+  /** ISO time after which the unpaid order expires. */
+  paymentExpiresAt: string;
   items: OrderItemRecord[];
 }
 

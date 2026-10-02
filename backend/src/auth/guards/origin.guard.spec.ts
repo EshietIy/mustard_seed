@@ -34,6 +34,12 @@ describe('OriginGuard (CSRF defence)', () => {
     expect(() => guard.canActivate(ctx('POST', headers))).toThrow(ForbiddenException);
   });
 
+  it('leaves the test-only Paystack Simulator alone', () => {
+    expect(guard.canActivate(ctx('POST', { cookie }, '/simulator/paystack/checkout/abc'))).toBe(
+      true,
+    );
+  });
+
   it('always checks the origin on sign-in, to stop login CSRF', () => {
     expect(() =>
       guard.canActivate(ctx('POST', { origin: 'https://evil.com' }, '/api/v1/auth/google')),

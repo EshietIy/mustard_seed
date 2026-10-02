@@ -33,6 +33,8 @@ export class OriginGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<OriginRequest>();
     if (SAFE_METHODS.has(req.method)) return true;
+    // The test-only Paystack Simulator imitates a third party; it has no session semantics.
+    if (req.originalUrl.startsWith('/simulator/')) return true;
     const hasSession = readCookie(req.headers.cookie, SESSION_COOKIE) !== undefined;
     const isSignIn = req.originalUrl.split('?')[0] === SIGN_IN_PATH;
     if (!hasSession && !isSignIn) return true;

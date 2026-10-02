@@ -62,6 +62,7 @@ export async function resetTestDatabase(): Promise<void> {
   const db = testDb();
   // Children before parents (orders reference users and menu items).
   await must(db.from('audit_events').delete().not('id', 'is', null));
+  await must(db.from('simulator_paystack_transactions').delete().not('reference', 'is', null));
   await must(db.from('orders').delete().not('id', 'is', null));
   await must(db.from('menu_items').delete().not('id', 'is', null));
   await must(db.from('staff_members').delete().not('id', 'is', null));

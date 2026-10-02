@@ -29,8 +29,13 @@ services:
       PORT: "3000"
       LOG_LEVEL: info
       CORS_ALLOWED_ORIGINS: http://localhost:8080
+      # Payments go through the built-in Paystack Simulator (test payments, no real money).
       PAYSTACK_SIMULATOR_ENABLED: "true"
       PAYSTACK_BASE_URL: http://localhost:3000/simulator/paystack
+      PAYSTACK_SECRET_KEY: sk_sim_local_compose_only
+      PAYSTACK_WEBHOOK_URL: http://localhost:3000/api/v1/payments/webhook
+      SIMULATOR_CONTROL_KEY: local-compose-control-key
+      FRONTEND_BASE_URL: http://localhost:8080
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s

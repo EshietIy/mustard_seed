@@ -36,7 +36,20 @@ export interface OrderRecord {
   deliveryFeeKobo: number;
   totalKobo: number;
   createdAt: string;
+  /** After this the order expires if unpaid. */
+  paymentExpiresAt: string;
   items: OrderItemRecord[];
+  payment: OrderPaymentRecord | null;
+}
+
+export type PaymentStatus = 'initialized' | 'ongoing' | 'success' | 'failed' | 'abandoned';
+
+export interface OrderPaymentRecord {
+  reference: string;
+  authorizationUrl: string;
+  status: PaymentStatus;
+  channel: string | null;
+  paidAt: string | null;
 }
 
 export interface AuditEvent {

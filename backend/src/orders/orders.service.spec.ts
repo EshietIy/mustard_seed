@@ -78,7 +78,9 @@ function setup(now = '2026-10-04T12:00:00+01:00') {
     item(AFANG, 'Afang Soup', 400000, false),
   ]);
   const orders = new InMemoryOrdersRepository();
-  const service = new OrdersService(menu, site, orders, () => new Date(now));
+  const service = new OrdersService(menu, site, orders, () => new Date(now), {
+    PAYMENT_WINDOW_MINUTES: 15,
+  });
   return { service, orders };
 }
 
@@ -137,6 +139,8 @@ describe('OrdersService.place', () => {
       },
       { menuItemId: ZOBO, name: 'Zobo', unitPriceKobo: 80000, quantity: 1, lineTotalKobo: 80000 },
     ]);
+    expect(order.paymentExpiresAt).toBe('2026-10-04T11:15:00.000Z');
+    expect(order.payment).toBeNull();
     const stored = orders.all()[0];
     expect(stored?.userId).toBe('user-1');
     expect(stored?.trackingToken).toMatch(/^[\w-]{43}$/);
@@ -190,6 +194,7 @@ describe('OrdersService.place', () => {
       site,
       open.orders,
       () => new Date('2026-10-04T22:45:00+01:00'),
+      { PAYMENT_WINDOW_MINUTES: 15 },
     );
     await expect(closed.place(user, delivery(), 'c')).resolves.toMatchObject({
       created: false,

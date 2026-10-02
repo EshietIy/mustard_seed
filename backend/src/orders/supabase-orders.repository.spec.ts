@@ -21,6 +21,7 @@ const newOrder: NewOrder = {
   subtotalKobo: 900000,
   deliveryFeeKobo: 150000,
   totalKobo: 1050000,
+  paymentExpiresAt: '2026-10-04T11:15:00.000Z',
   items: [
     {
       menuItemId: 'm-1',
@@ -48,6 +49,16 @@ const row = {
   delivery_fee_kobo: 150000,
   total_kobo: 1050000,
   created_at: '2026-10-04T11:00:00Z',
+  payment_expires_at: '2026-10-04T11:15:00Z',
+  payments: [
+    {
+      reference: 'MS0007-x',
+      authorization_url: 'http://sim/checkout/ac',
+      status: 'initialized',
+      channel: null,
+      paid_at: null,
+    },
+  ],
   order_items: [
     {
       menu_item_id: 'm-2',
@@ -120,6 +131,16 @@ describe('SupabaseOrdersRepository', () => {
       deliveryCity: 'Calabar',
     });
     expect(order?.items.map((i) => i.name)).toEqual(['Edikang Ikong', 'Zobo']);
+    expect(order?.paymentExpiresAt).toBe('2026-10-04T11:15:00Z');
+    expect(order?.payment).toEqual({
+      reference: 'MS0007-x',
+      authorizationUrl: 'http://sim/checkout/ac',
+      status: 'initialized',
+      channel: null,
+      paidAt: null,
+    });
+    const single = await repo(fakeSupabase(ok({ ...row, payments: null })).client).findById('o-1');
+    expect(single?.payment).toBeNull();
     expect(await repo(fakeSupabase(ok(null)).client).findById('o-2')).toBeNull();
   });
 

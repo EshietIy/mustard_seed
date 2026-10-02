@@ -72,7 +72,13 @@ export async function createApp(
     );
   });
 
-  app.setGlobalPrefix('api', { exclude: [{ path: 'health', method: RequestMethod.GET }] });
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: 'health', method: RequestMethod.GET },
+      // The simulator imitates Paystack's own paths, outside our /api/v1.
+      { path: 'simulator/paystack/{*path}', method: RequestMethod.ALL },
+    ],
+  });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
   app.useGlobalPipes(
     new ValidationPipe({

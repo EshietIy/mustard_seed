@@ -108,14 +108,21 @@ When('I ask for a quote with:', async function (this: ApiWorld, table: DataTable
   });
 });
 
+function rememberOrder(world: ApiWorld): void {
+  if (world.response?.status === 201)
+    world.lastOrderId = (world.response.body as { id: string }).id;
+}
+
 When('I place an order', async function (this: ApiWorld) {
   lastBody = await buildOrder(this, {});
   this.response = await req(this, 'post', '/api/v1/orders').send(lastBody);
+  rememberOrder(this);
 });
 
 When('I place an order with:', async function (this: ApiWorld, table: DataTable) {
   lastBody = await buildOrder(this, table.rowsHash());
   this.response = await req(this, 'post', '/api/v1/orders').send(lastBody);
+  rememberOrder(this);
 });
 
 When('I prepare an order with:', async function (this: ApiWorld, table: DataTable) {

@@ -24,6 +24,7 @@ export class InMemoryOrdersRepository implements OrdersRepository {
       orderNumber: ++this.sequence,
       status: 'awaiting_payment',
       createdAt: new Date().toISOString(),
+      payment: null,
       ...order,
     });
     this.audit.push({
@@ -36,6 +37,12 @@ export class InMemoryOrdersRepository implements OrdersRepository {
       correlationId,
     });
     return { orderId: id, created: true };
+  }
+
+  /** Test helper: change an order directly (status, payment). */
+  patch(id: string, changes: Partial<OrderRecord>): void {
+    const order = this.orders.get(id);
+    if (order) this.orders.set(id, { ...order, ...changes });
   }
 
   findById(id: string): Promise<OrderRecord | null> {

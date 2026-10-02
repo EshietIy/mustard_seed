@@ -11,6 +11,8 @@ import {
 import { randomBytes } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CLOCK, type Clock } from '../common/clock';
+import { APP_CONFIG } from '../config/app-config.token';
+import type { AppConfig } from '../config/env.validation';
 import { MENU_REPOSITORY, type MenuRepository } from '../menu/menu.repository';
 import { SITE_REPOSITORY, type SiteRepository } from '../site/site.repository';
 import { formatOrderNumber } from './order-number';
@@ -54,6 +56,8 @@ export interface OrderView {
   contact: { fullName: string; phone: string };
   delivery: { streetAddress: string; city: string } | null;
   createdAt: string;
+  paymentExpiresAt: string;
+  payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }
 
 /** Most important first: the code reported when several problems apply. */
@@ -82,6 +86,7 @@ export class OrdersService {
     @Inject(SITE_REPOSITORY) private readonly site: SiteRepository,
     @Inject(ORDERS_REPOSITORY) private readonly orders: OrdersRepository,
     @Inject(CLOCK) private readonly clock: Clock,
+    @Inject(APP_CONFIG) private readonly config: Pick<AppConfig, 'PAYMENT_WINDOW_MINUTES'>,
   ) {}
 
   async quote(input: QuoteInput): Promise<Quote> {
@@ -155,6 +160,9 @@ export class OrdersService {
           subtotalKobo: quote.subtotalKobo,
           deliveryFeeKobo: quote.deliveryFeeKobo,
           totalKobo: quote.totalKobo,
+          paymentExpiresAt: new Date(
+            this.clock().getTime() + this.config.PAYMENT_WINDOW_MINUTES * 60_000,
+          ).toISOString(),
           items: quote.lines.map((l) => ({
             menuItemId: l.menuItemId,
             name: l.name,
@@ -233,6 +241,11 @@ export class OrdersService {
     }
   }
 
+  /** The customer-facing view of any order (callers check ownership). */
+  async viewById(id: string): Promise<OrderView> {
+    return this.view(id);
+  }
+
   private async view(id: string): Promise<OrderView> {
     const order = await this.orders.findById(id);
     if (!order) throw new Error(`order ${id} vanished after creation`);
@@ -259,6 +272,14 @@ export class OrdersService {
           ? { streetAddress: order.deliveryStreetAddress, city: order.deliveryCity }
           : null,
       createdAt: order.createdAt,
+      paymentExpiresAt: order.paymentExpiresAt,
+      payment: order.payment
+        ? {
+            status: order.payment.status,
+            channel: order.payment.channel,
+            paidAt: order.payment.paidAt,
+          }
+        : null,
     };
   }
 }

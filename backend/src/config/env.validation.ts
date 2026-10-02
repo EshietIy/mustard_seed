@@ -101,9 +101,50 @@ export class AppConfig {
   @IsBoolean()
   PAYSTACK_SIMULATOR_ENABLED = false;
 
+  /** https://api.paystack.co in production; the built-in simulator elsewhere. */
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  PAYSTACK_BASE_URL!: string;
+
+  /** sk_live_/sk_test_ for real Paystack; sk_sim_ for the simulator. Never logged. */
+  @Matches(/^sk_(live|test|sim)_[A-Za-z0-9_]{8,}$/, {
+    message: 'PAYSTACK_SECRET_KEY must look like sk_test_…, sk_live_… or sk_sim_…',
+  })
+  PAYSTACK_SECRET_KEY!: string;
+
+  /** Where the simulator delivers webhooks (the backend's /api/v1/payments/webhook). */
   @IsOptional()
   @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
-  PAYSTACK_BASE_URL?: string;
+  PAYSTACK_WEBHOOK_URL?: string;
+
+  /** Protects the simulator's /_control endpoints (required when the simulator is on). */
+  @IsOptional()
+  @IsString()
+  @MinLength(16)
+  SIMULATOR_CONTROL_KEY?: string;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(1000)
+  PAYSTACK_TIMEOUT_MS = 10_000;
+
+  /** The customer site's origin, for payment return links (and email links later). */
+  @Matches(EXACT_ORIGIN, {
+    message: 'FRONTEND_BASE_URL must be an exact origin such as https://mustardseed.ng',
+  })
+  FRONTEND_BASE_URL!: string;
+
+  /** How long an order may wait for payment before it expires. */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(24 * 60)
+  PAYMENT_WINDOW_MINUTES = 15;
+
+  /** How often unpaid orders are checked for expiry; 0 switches the sweep off (tests). */
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  PAYMENT_SWEEP_INTERVAL_MS = 60_000;
 
   /** Supabase project URL. Also the base of public image URLs. */
   @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
@@ -160,6 +201,23 @@ export class AppConfig {
 
 function businessRuleErrors(config: AppConfig): string[] {
   const errors: string[] = [];
+  const key = typeof config.PAYSTACK_SECRET_KEY === 'string' ? config.PAYSTACK_SECRET_KEY : '';
+  if (config.PAYSTACK_SIMULATOR_ENABLED) {
+    // The simulator uses its own key; a real Paystack key must never be reused here.
+    if (key && !key.startsWith('sk_sim_')) {
+      errors.push(
+        'PAYSTACK_SECRET_KEY must be a simulator key (sk_sim_…) when the simulator is on',
+      );
+    }
+    if (!config.SIMULATOR_CONTROL_KEY) {
+      errors.push('SIMULATOR_CONTROL_KEY is required when the simulator is on');
+    }
+    if (!config.PAYSTACK_WEBHOOK_URL) {
+      errors.push('PAYSTACK_WEBHOOK_URL is required when the simulator is on');
+    }
+  } else if (key.startsWith('sk_sim_')) {
+    errors.push('PAYSTACK_SECRET_KEY must be sk_test_… or sk_live_… when the simulator is off');
+  }
   if (config.APP_ENV === AppEnv.Production) {
     // Keyed off APP_ENV only, never NODE_ENV (AGENT.md §3.1).
     if (config.PAYSTACK_SIMULATOR_ENABLED) {
@@ -167,6 +225,15 @@ function businessRuleErrors(config: AppConfig): string[] {
     }
     if (config.PAYSTACK_BASE_URL?.includes('/simulator')) {
       errors.push('PAYSTACK_BASE_URL must not point at the simulator when APP_ENV=production');
+    }
+    if (key && !key.startsWith('sk_live_')) {
+      errors.push('PAYSTACK_SECRET_KEY must be a live key (sk_live_…) in production');
+    }
+    if (
+      typeof config.FRONTEND_BASE_URL === 'string' &&
+      !config.FRONTEND_BASE_URL.startsWith('https://')
+    ) {
+      errors.push('FRONTEND_BASE_URL must use https in production');
     }
     if (config.GOOGLE_JWKS_URL !== GOOGLE_JWKS_URL) {
       errors.push(`GOOGLE_JWKS_URL must be ${GOOGLE_JWKS_URL} in production`);

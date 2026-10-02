@@ -10,5 +10,6 @@ import { SupabaseOrdersRepository } from './supabase-orders.repository';
   imports: [MenuModule, SiteModule],
   controllers: [OrdersController],
   providers: [OrdersService, { provide: ORDERS_REPOSITORY, useClass: SupabaseOrdersRepository }],
+  exports: [OrdersService, ORDERS_REPOSITORY],
 })
 export class OrdersModule {}

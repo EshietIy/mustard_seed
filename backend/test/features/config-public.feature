@@ -11,7 +11,9 @@ Feature: Public configuration
 
   Scenario: Simulator disabled reports live payments
     Given the API is running with:
-      | PAYSTACK_SIMULATOR_ENABLED | false |
+      | PAYSTACK_SIMULATOR_ENABLED | false                    |
+      | PAYSTACK_SECRET_KEY        | sk_test_bdd_0123456789   |
+      | PAYSTACK_BASE_URL          | https://api.paystack.co  |
     When I GET "/api/v1/config/public"
     Then the response status is 200
     And the response JSON at "paymentMode" is "live"
