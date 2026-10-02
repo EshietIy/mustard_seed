@@ -28,4 +28,10 @@ values
    'calabar_classics', false, false, 60, 678900),
   ('zobo', 'Zobo', '', 'drinks', false, true, 10, 12300),
   ('pineapple-ginger', 'Pineapple & ginger', '', 'drinks', false, true, 20, 23400),
-  ('watermelon', 'Watermelon', '', 'drinks', false, true, 30, 34500);
+  ('watermelon', 'Watermelon', '', 'drinks', false, true, 30, 34500),
+  -- Swallow & sides (fake test prices; the owner will supply the real list and prices).
+  ('pounded-yam', 'Pounded Yam', 'Smooth pounded yam, to go with any soup.', 'swallow_sides', false, false, 10, 78900),
+  ('eba', 'Eba', 'Garri swallow, to go with any soup.', 'swallow_sides', false, false, 20, 45600),
+  ('fufu', 'Fufu', 'Cassava fufu, to go with any soup.', 'swallow_sides', false, false, 30, 56700),
+  ('semo', 'Semo', 'Semovita swallow, to go with any soup.', 'swallow_sides', false, false, 40, 67800),
+  ('wheat', 'Wheat', 'Wheat swallow, to go with any soup.', 'swallow_sides', false, false, 50, 34500);
