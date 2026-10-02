@@ -1,14 +1,23 @@
 import { AppEnv, validateEnv } from './env.validation';
 
+const supabase = {
+  SUPABASE_URL: 'http://127.0.0.1:54321',
+  SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test_key_0123456789',
+};
+
 const base = {
   APP_ENV: 'local',
   CORS_ALLOWED_ORIGINS: 'http://localhost:5173',
+  ...supabase,
 };
+
+const prodSupabase = { ...supabase, SUPABASE_URL: 'https://abc.supabase.co' };
 
 describe('validateEnv', () => {
   it.each(['local', 'test', 'staging', 'production'])('accepts APP_ENV=%s', (appEnv) => {
     const env = validateEnv({
       ...base,
+      ...prodSupabase,
       APP_ENV: appEnv,
       CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
     });
@@ -29,9 +38,9 @@ describe('validateEnv', () => {
   });
 
   it('fails when APP_ENV is missing', () => {
-    expect(() => validateEnv({ CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng' })).toThrow(
-      /APP_ENV/,
-    );
+    expect(() =>
+      validateEnv({ ...supabase, CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng' }),
+    ).toThrow(/APP_ENV/);
   });
 
   it('fails when APP_ENV is not one of the four values', () => {
@@ -39,7 +48,7 @@ describe('validateEnv', () => {
   });
 
   it('fails when CORS_ALLOWED_ORIGINS is missing', () => {
-    expect(() => validateEnv({ APP_ENV: 'local' })).toThrow(/CORS_ALLOWED_ORIGINS/);
+    expect(() => validateEnv({ ...supabase, APP_ENV: 'local' })).toThrow(/CORS_ALLOWED_ORIGINS/);
   });
 
   it('parses a comma-separated origin list', () => {
@@ -64,7 +73,11 @@ describe('validateEnv', () => {
 
   it('rejects plain http origins in production', () => {
     expect(() =>
-      validateEnv({ APP_ENV: 'production', CORS_ALLOWED_ORIGINS: 'http://mustardseed.ng' }),
+      validateEnv({
+        ...prodSupabase,
+        APP_ENV: 'production',
+        CORS_ALLOWED_ORIGINS: 'http://mustardseed.ng',
+      }),
     ).toThrow(/https/);
   });
 
@@ -81,7 +94,11 @@ describe('validateEnv', () => {
   });
 
   describe('production simulator guard', () => {
-    const prod = { APP_ENV: 'production', CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng' };
+    const prod = {
+      ...prodSupabase,
+      APP_ENV: 'production',
+      CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+    };
 
     it('refuses production with the simulator enabled', () => {
       expect(() => validateEnv({ ...prod, PAYSTACK_SIMULATOR_ENABLED: 'true' })).toThrow(
@@ -105,6 +122,7 @@ describe('validateEnv', () => {
 
     it('ignores NODE_ENV: staging with NODE_ENV=production may run the simulator', () => {
       const env = validateEnv({
+        ...prodSupabase,
         APP_ENV: 'staging',
         NODE_ENV: 'production',
         CORS_ALLOWED_ORIGINS: 'https://staging.mustardseed.ng',
@@ -123,5 +141,55 @@ describe('validateEnv', () => {
 
   it('rejects a non-numeric PORT', () => {
     expect(() => validateEnv({ ...base, PORT: 'abc' })).toThrow(/PORT/);
+  });
+
+  describe('Supabase', () => {
+    it('applies the default bucket and timeout', () => {
+      const env = validateEnv(base);
+      expect(env.SUPABASE_STORAGE_BUCKET).toBe('site-images');
+      expect(env.SUPABASE_TIMEOUT_MS).toBe(5000);
+    });
+
+    it.each(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'])('fails when %s is missing', (key) => {
+      const env: Record<string, string> = { ...base };
+      delete env[key];
+      expect(() => validateEnv(env)).toThrow(new RegExp(key));
+    });
+
+    it('rejects a malformed SUPABASE_URL', () => {
+      expect(() => validateEnv({ ...base, SUPABASE_URL: 'not-a-url' })).toThrow(/SUPABASE_URL/);
+    });
+
+    it('rejects an implausibly short service-role key', () => {
+      expect(() => validateEnv({ ...base, SUPABASE_SERVICE_ROLE_KEY: 'short' })).toThrow(
+        /SUPABASE_SERVICE_ROLE_KEY/,
+      );
+    });
+
+    it('rejects an invalid bucket name', () => {
+      expect(() => validateEnv({ ...base, SUPABASE_STORAGE_BUCKET: 'Bad Bucket!' })).toThrow(
+        /SUPABASE_STORAGE_BUCKET/,
+      );
+    });
+
+    it('requires https for Supabase in production', () => {
+      expect(() =>
+        validateEnv({
+          ...supabase,
+          APP_ENV: 'production',
+          CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+        }),
+      ).toThrow(/SUPABASE_URL must use https/);
+    });
+
+    it('reports business-rule problems alongside field errors', () => {
+      expect(() =>
+        validateEnv({
+          APP_ENV: 'production',
+          CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+          PAYSTACK_SIMULATOR_ENABLED: 'true',
+        }),
+      ).toThrow(/SUPABASE_URL[\s\S]*PAYSTACK_SIMULATOR_ENABLED/);
+    });
   });
 });

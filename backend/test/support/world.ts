@@ -1,7 +1,8 @@
-import { After, setDefaultTimeout, setWorldConstructor, World } from '@cucumber/cucumber';
+import { After, Before, setDefaultTimeout, setWorldConstructor, World } from '@cucumber/cucumber';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Response } from 'supertest';
 import { createApp } from '../../src/app.factory';
+import { resetTestDatabase, testSupabaseEnv } from './test-database';
 import { TestSupportModule } from './test-support.module';
 
 setDefaultTimeout(15_000);
@@ -13,6 +14,7 @@ export const DEFAULT_ENV: Record<string, string> = {
   LOG_LEVEL: 'info',
   CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng,http://localhost:5173',
   PAYSTACK_SIMULATOR_ENABLED: 'false',
+  ...testSupabaseEnv(),
 };
 
 export class ApiWorld extends World {
@@ -64,6 +66,10 @@ export function getPath(obj: unknown, path: string): unknown {
 }
 
 setWorldConstructor(ApiWorld);
+
+Before(async function () {
+  await resetTestDatabase();
+});
 
 After(async function (this: ApiWorld) {
   await this.stop();

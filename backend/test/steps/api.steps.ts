@@ -1,6 +1,7 @@
 import { DataTable, Given, Then, When } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { testSupabaseEnv } from '../support/test-database';
 import { ApiWorld, DEFAULT_ENV, getPath, LogEntry } from '../support/world';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -18,7 +19,10 @@ Given('the API is running with:', async function (this: ApiWorld, table: DataTab
 
 When('the API starts with:', async function (this: ApiWorld, table: DataTable) {
   try {
-    await this.start(table.rowsHash());
+    // Database settings are supplied unless the scenario overrides or blanks them.
+    const env: Record<string, string> = { ...testSupabaseEnv(), ...table.rowsHash() };
+    for (const [k, v] of Object.entries(env)) if (v === '<unset>') delete env[k];
+    await this.start(env);
   } catch (err) {
     this.startupError = err as Error;
   }

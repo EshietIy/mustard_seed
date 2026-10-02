@@ -7,10 +7,12 @@ import {
   IsIn,
   IsInt,
   IsOptional,
+  IsString,
   IsUrl,
   Matches,
   Max,
   Min,
+  MinLength,
   validateSync,
 } from 'class-validator';
 
@@ -95,6 +97,26 @@ export class AppConfig {
   @IsOptional()
   @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
   PAYSTACK_BASE_URL?: string;
+
+  /** Supabase project URL. Also the base of public image URLs. */
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  SUPABASE_URL!: string;
+
+  /** Service-role (secret) key. Backend only; never logged, never sent to the frontend. */
+  @IsString()
+  @MinLength(20)
+  SUPABASE_SERVICE_ROLE_KEY!: string;
+
+  @Matches(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/, {
+    message: 'SUPABASE_STORAGE_BUCKET must be a lowercase bucket name such as site-images',
+  })
+  SUPABASE_STORAGE_BUCKET = 'site-images';
+
+  /** Per-request timeout for database calls, so a slow upstream fails fast (503). */
+  @Transform(toInt)
+  @IsInt()
+  @Min(100)
+  SUPABASE_TIMEOUT_MS = 5000;
 }
 
 function businessRuleErrors(config: AppConfig): string[] {
@@ -107,7 +129,11 @@ function businessRuleErrors(config: AppConfig): string[] {
     if (config.PAYSTACK_BASE_URL?.includes('/simulator')) {
       errors.push('PAYSTACK_BASE_URL must not point at the simulator when APP_ENV=production');
     }
-    const insecure = config.CORS_ALLOWED_ORIGINS.filter((o) => !o.startsWith('https://'));
+    if (typeof config.SUPABASE_URL === 'string' && !config.SUPABASE_URL.startsWith('https://')) {
+      errors.push('SUPABASE_URL must use https in production');
+    }
+    const origins = Array.isArray(config.CORS_ALLOWED_ORIGINS) ? config.CORS_ALLOWED_ORIGINS : [];
+    const insecure = origins.filter((o) => !o.startsWith('https://'));
     if (insecure.length > 0) {
       errors.push(`CORS_ALLOWED_ORIGINS must use https in production: ${insecure.join(', ')}`);
     }
@@ -121,7 +147,8 @@ export function validateEnv(raw: Record<string, unknown>): AppConfig {
   const fieldErrors = validateSync(config, { whitelist: true, skipMissingProperties: false }).map(
     (e) => `${e.property}: ${Object.values(e.constraints ?? {}).join('; ')}`,
   );
-  const errors = fieldErrors.length > 0 ? fieldErrors : businessRuleErrors(config);
+  // Report everything at once so a broken deployment is fixed in one pass.
+  const errors = [...fieldErrors, ...businessRuleErrors(config)];
   if (errors.length > 0) {
     throw new Error(`Invalid environment configuration:\n  - ${errors.join('\n  - ')}`);
   }

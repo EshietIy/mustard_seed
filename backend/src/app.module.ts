@@ -6,7 +6,10 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { AppConfig } from './config/env.validation';
 import { ConfigPublicModule } from './config-public/config-public.module';
 import { CoreModule } from './core.module';
+import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { MenuModule } from './menu/menu.module';
+import { SiteModule } from './site/site.module';
 import { ROOT_LOGGER } from './logging/logger.token';
 import { resolveLimit } from './throttling/throttling';
 
@@ -21,6 +24,7 @@ export class AppModule {
       module: AppModule,
       imports: [
         CoreModule.register(config, logger),
+        DatabaseModule,
         ThrottlerModule.forRoot({
           throttlers: [
             { name: 'default', ttl: config.THROTTLE_TTL_MS, limit: resolveLimit(config) },
@@ -28,6 +32,8 @@ export class AppModule {
         }),
         HealthModule,
         ConfigPublicModule,
+        MenuModule,
+        SiteModule,
         ...extraModules,
       ],
       providers: [

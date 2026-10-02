@@ -14,6 +14,7 @@ const config: Config = {
     '!app.factory.ts',
     '!**/*.module.ts',
     '!**/*.token.ts',
+    '!**/testing/**',
   ],
   coverageDirectory: '../coverage',
   coverageThreshold: { global: { lines: 80, branches: 80, functions: 80, statements: 80 } },

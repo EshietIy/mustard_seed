@@ -32,6 +32,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test:cov
+      - name: Start local Supabase (BDD database; never a real project)
+        run: pnpm db:start
       - run: pnpm test:bdd
       - run: pnpm build
       - run: pnpm audit --audit-level high

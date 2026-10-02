@@ -32,6 +32,20 @@ Feature: Startup configuration guard
       | CORS_ALLOWED_ORIGINS | *     |
     Then startup fails with a message containing "CORS_ALLOWED_ORIGINS"
 
+  Scenario: Missing database settings refuse to start
+    When the API starts with:
+      | APP_ENV                   | local                 |
+      | CORS_ALLOWED_ORIGINS      | http://localhost:5173 |
+      | SUPABASE_SERVICE_ROLE_KEY | <unset>               |
+    Then startup fails with a message containing "SUPABASE_SERVICE_ROLE_KEY"
+
+  Scenario: Production refuses a non-https database URL
+    When the API starts with:
+      | APP_ENV              | production             |
+      | CORS_ALLOWED_ORIGINS | https://mustardseed.ng |
+      | SUPABASE_URL         | http://db.example.com  |
+    Then startup fails with a message containing "SUPABASE_URL must use https"
+
   Scenario: Staging with NODE_ENV=production may run the simulator
     When the API starts with:
       | APP_ENV                    | staging                                           |

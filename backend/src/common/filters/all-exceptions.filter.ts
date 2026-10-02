@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { UpstreamUnavailableException } from '../errors/upstream-unavailable.exception';
 
 export interface FilterLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -75,11 +76,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       method: req.method,
       url: req.originalUrl,
     };
+    const reason = exception instanceof Error ? exception.message : String(exception);
     if (isServerError) {
-      res.err = exception instanceof Error ? exception : new Error(String(exception));
-      log.error({ ...logFields, err: exception }, 'Request failed with server error');
+      res.err = exception instanceof Error ? exception : new Error(reason);
+      const upstream =
+        exception instanceof UpstreamUnavailableException
+          ? { upstream: exception.upstream, operation: exception.operation }
+          : {};
+      log.error(
+        { ...logFields, ...upstream, reason, err: exception },
+        'Request failed with server error',
+      );
     } else {
-      const reason = exception instanceof Error ? exception.message : String(exception);
       log.warn({ ...logFields, reason }, 'Request rejected');
     }
 

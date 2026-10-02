@@ -8,6 +8,7 @@ import {
 import { ThrottlerException } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 import { validationExceptionFactory } from '../validation';
+import { UpstreamUnavailableException } from '../errors/upstream-unavailable.exception';
 
 function makeHost() {
   const res = {
@@ -121,6 +122,36 @@ describe('AllExceptionsFilter', () => {
     filter.catch(new ForbiddenException(), host);
     expect(reqLog.warn).toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 for upstream failures, logging the upstream detail but never sending it', () => {
+    const { host, res } = makeHost();
+    filter.catch(
+      new UpstreamUnavailableException(
+        'supabase',
+        'menu_items.list',
+        'connect ECONNREFUSED 10.0.0.5',
+      ),
+      host,
+    );
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(JSON.stringify(res.json.mock.calls[0][0])).not.toContain('ECONNREFUSED');
+    expect(res.json).toHaveBeenCalledWith({
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'The service is temporarily unavailable. Please try again.',
+        requestId: 'req-123',
+      },
+    });
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'SERVICE_UNAVAILABLE',
+        upstream: 'supabase',
+        operation: 'menu_items.list',
+        reason: expect.stringContaining('ECONNREFUSED'),
+      }),
+      expect.any(String),
+    );
   });
 
   it('does nothing if headers were already sent', () => {
