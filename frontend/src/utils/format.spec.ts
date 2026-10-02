@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatNaira, formatTime, priceLabel, PRICE_PLACEHOLDER } from './format';
+import { formatNaira, formatTime, formatWatClock, priceLabel, PRICE_PLACEHOLDER } from './format';
 
 describe('formatNaira', () => {
   it.each([
@@ -39,5 +39,16 @@ describe('formatTime', () => {
 
   it('returns the input when it is not HH:MM', () => {
     expect(formatTime('late')).toBe('late');
+  });
+});
+
+describe('formatWatClock', () => {
+  it('shows an ISO time as a West Africa Time clock time', () => {
+    expect(formatWatClock('2026-10-05T11:15:00.000Z')).toBe('12:15pm');
+    expect(formatWatClock('2026-10-05T07:00:00.000Z')).toBe('8am');
+  });
+
+  it('returns an empty string for an invalid time', () => {
+    expect(formatWatClock('nope')).toBe('');
   });
 });

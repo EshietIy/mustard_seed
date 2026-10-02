@@ -12,6 +12,7 @@ defineEmits<{ retry: [] }>();
     <div>
       <p class="title">{{ title }}</p>
       <p class="message">{{ error?.message ?? 'Please try again.' }}</p>
+      <slot />
       <button type="button" class="btn-primary" @click="$emit('retry')">Try again</button>
       <p v-if="error?.requestId" class="reference">Reference: {{ error.requestId }}</p>
     </div>

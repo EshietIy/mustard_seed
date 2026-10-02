@@ -165,6 +165,9 @@ export interface MockOptions {
   /** Ordering window reported by the quote endpoint. */
   orderingOpen?: boolean;
   placeOrder?: { status: number; body: unknown };
+  /** What the server reports when the customer returns from the payment page. */
+  paymentResult?: 'paid' | 'payment_failed' | 'pending-then-paid' | 'verify-down';
+  startPayment?: { status: number; body: unknown };
   menu?: { status: number; body: unknown } | 'abort';
   site?: { status: number; body: unknown };
   config?: { status: number; body: unknown } | 'abort';
@@ -222,10 +225,60 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<vo
         ? { streetAddress: body.delivery.streetAddress, city: 'Calabar' }
         : null,
       createdAt: '2026-10-05T11:00:00Z',
+      paymentExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      payment: null,
     };
     return json(route, 201, placedOrder);
   });
   await page.route(`${API}/orders/order-1`, (route) => json(route, 200, placedOrder));
+  await page.route(`${API}/orders/order-1/payments`, (route) =>
+    options.startPayment
+      ? json(route, options.startPayment.status, options.startPayment.body)
+      : json(route, 201, {
+          reference: 'MS0001-test',
+          authorizationUrl: 'https://pay.test/checkout/abc',
+        }),
+  );
+  // Stand-in for Paystack's hosted page: one link back to the site, as Paystack redirects.
+  await page.route('https://pay.test/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><title>TEST PAYMENT</title><h1>TEST PAYMENT</h1>
+        <a href="${new URL(page.url()).origin}/orders/order-1?reference=MS0001-test&trxref=MS0001-test">Pay successfully</a>`,
+    }),
+  );
+  let verifyCalls = 0;
+  await page.route(`${API}/payments/verify`, (route) => {
+    verifyCalls += 1;
+    const base = placedOrder as Record<string, unknown>;
+    switch (options.paymentResult ?? 'paid') {
+      case 'verify-down':
+        return verifyCalls === 1
+          ? json(route, 503, { error: { code: 'SERVICE_UNAVAILABLE', requestId: 'ref-verify' } })
+          : json(route, 200, { ...base, status: 'paid' });
+      case 'payment_failed':
+        return json(route, 200, {
+          ...base,
+          status: 'payment_failed',
+          payment: { status: 'failed', channel: null, paidAt: null },
+        });
+      case 'pending-then-paid':
+        return json(
+          route,
+          200,
+          verifyCalls < 2
+            ? { ...base, payment: { status: 'ongoing', channel: null, paidAt: null } }
+            : { ...base, status: 'paid' },
+        );
+      default:
+        return json(route, 200, {
+          ...base,
+          status: 'paid',
+          payment: { status: 'success', channel: 'card', paidAt: '2026-10-05T11:05:00Z' },
+        });
+    }
+  });
   await page.route('https://accounts.google.com/gsi/client', (route) =>
     options.googleScript === 'blocked'
       ? route.abort('blockedbyclient')

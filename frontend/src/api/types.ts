@@ -100,4 +100,7 @@ export interface Order {
   contact: { fullName: string; phone: string };
   delivery: { streetAddress: string; city: string } | null;
   createdAt: string;
+  /** ISO time after which an unpaid order expires. */
+  paymentExpiresAt: string;
+  payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }

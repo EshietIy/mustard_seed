@@ -28,3 +28,16 @@ export function formatTime(hhmm: string): string {
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   return minutes === '00' ? `${h12}${suffix}` : `${h12}:${minutes}${suffix}`;
 }
+
+/** ISO timestamp → clock time in Calabar (WAT), e.g. "12:15pm". */
+export function formatWatClock(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const hhmm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Lagos',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date);
+  return formatTime(hhmm);
+}
