@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import type { DestinationStream, Logger } from 'pino';
 import { AppModule } from './app.module';
+import type { Clock } from './common/clock';
 import { createCorsOptions } from './common/cors';
 import { validationExceptionFactory } from './common/validation';
 import { AppEnv, validateEnv } from './config/env.validation';
@@ -18,6 +19,8 @@ export interface CreateAppOptions {
   logStream?: DestinationStream;
   /** Additional modules (tests only). */
   extraModules?: Array<Type | DynamicModule>;
+  /** Source of "now" (tests set the time of day for opening-hours rules). */
+  clock?: Clock;
 }
 
 /**
@@ -32,7 +35,7 @@ export async function createApp(
   const logger = createRootLogger(config, options.logStream);
 
   const app = await NestFactory.create<NestExpressApplication>(
-    AppModule.register(config, logger, options.extraModules),
+    AppModule.register(config, logger, options.extraModules, options.clock),
     { logger: new PinoNestLogger(logger), rawBody: true, abortOnError: false },
   );
 

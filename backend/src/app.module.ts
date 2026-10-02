@@ -5,6 +5,7 @@ import type { Logger } from 'pino';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { OriginGuard } from './auth/guards/origin.guard';
+import { systemClock, type Clock } from './common/clock';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { AppConfig } from './config/env.validation';
 import { ConfigPublicModule } from './config-public/config-public.module';
@@ -12,6 +13,7 @@ import { CoreModule } from './core.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MenuModule } from './menu/menu.module';
+import { OrdersModule } from './orders/orders.module';
 import { SiteModule } from './site/site.module';
 import { ROOT_LOGGER } from './logging/logger.token';
 import { resolveLimit } from './throttling/throttling';
@@ -22,11 +24,12 @@ export class AppModule {
     config: AppConfig,
     logger: Logger,
     extraModules: Array<Type | DynamicModule> = [],
+    clock: Clock = systemClock,
   ): DynamicModule {
     return {
       module: AppModule,
       imports: [
-        CoreModule.register(config, logger),
+        CoreModule.register(config, logger, clock),
         DatabaseModule,
         ThrottlerModule.forRoot({
           throttlers: [
@@ -38,6 +41,7 @@ export class AppModule {
         MenuModule,
         SiteModule,
         AuthModule,
+        OrdersModule,
         ...extraModules,
       ],
       providers: [

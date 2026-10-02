@@ -58,7 +58,10 @@ Given('the phone number is {string}', async function (phone: string) {
 
 Given('the database is unreachable', async function (this: ApiWorld) {
   // Port 9 (discard) refuses connections: a fast, deterministic upstream failure.
+  // Keep any session: the cookie stays valid (same JWT secret) across the restart.
+  const session = this.sessionCookie;
   await this.start({ ...DEFAULT_ENV, SUPABASE_URL: 'http://127.0.0.1:9' });
+  this.sessionCookie = session;
 });
 
 // ---------- menu assertions ----------

@@ -60,6 +60,9 @@ async function must(p: PromiseLike<{ error: { message: string } | null }>): Prom
 /** Puts every table back to its migrated default state, with an empty menu. */
 export async function resetTestDatabase(): Promise<void> {
   const db = testDb();
+  // Children before parents (orders reference users and menu items).
+  await must(db.from('audit_events').delete().not('id', 'is', null));
+  await must(db.from('orders').delete().not('id', 'is', null));
   await must(db.from('menu_items').delete().not('id', 'is', null));
   await must(db.from('staff_members').delete().not('id', 'is', null));
   await must(db.from('users').delete().not('id', 'is', null));

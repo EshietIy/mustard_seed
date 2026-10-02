@@ -43,6 +43,10 @@ export class ApiWorld extends World {
   sessionCookie?: string;
   /** Session cookies of other named people, for multi-user scenarios. */
   sessions = new Map<string, string>();
+  /** The app's "now"; undefined means the real time. */
+  now?: Date;
+  lastOrderId?: string;
+  lastAudit?: Record<string, unknown>;
 
   /** Starts a fresh app (fresh rate-limit state and logs) with the given env. */
   async start(env: Record<string, string>): Promise<void> {
@@ -58,7 +62,11 @@ export class ApiWorld extends World {
         }
       },
     };
-    this.app = await createApp(env, { logStream, extraModules: [TestSupportModule] });
+    this.app = await createApp(env, {
+      logStream,
+      extraModules: [TestSupportModule],
+      clock: () => this.now ?? new Date(),
+    });
   }
 
   async stop(): Promise<void> {

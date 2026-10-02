@@ -1,0 +1,264 @@
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
+import type { AuthenticatedUser } from '../auth/auth.types';
+import { CLOCK, type Clock } from '../common/clock';
+import { MENU_REPOSITORY, type MenuRepository } from '../menu/menu.repository';
+import { SITE_REPOSITORY, type SiteRepository } from '../site/site.repository';
+import { formatOrderNumber } from './order-number';
+import { ORDERS_REPOSITORY, type OrdersRepository } from './orders.repository';
+import type { OrderRecord, OrderStatus } from './orders.types';
+import { normalizeNigerianPhone } from './phone';
+import {
+  buildQuote,
+  type Fulfilment,
+  type Quote,
+  type QuoteInput,
+  type QuoteProblemCode,
+} from './pricing';
+
+export interface PlaceOrderInput extends QuoteInput {
+  contact: { fullName: string; phone: string };
+  delivery?: { streetAddress: string; city?: string };
+  /** The total the customer was shown; the order is refused if the server total differs. */
+  expectedTotalKobo: number;
+  /** One per checkout attempt; a retried submit returns the same order. */
+  clientRequestId: string;
+}
+
+export interface OrderView {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  fulfilment: Fulfilment;
+  branch: { id: string; city: string };
+  items: Array<{
+    menuItemId: string;
+    name: string;
+    unitPriceKobo: number;
+    quantity: number;
+    lineTotalKobo: number;
+  }>;
+  subtotalKobo: number;
+  deliveryFeeKobo: number;
+  totalKobo: number;
+  currency: 'NGN';
+  contact: { fullName: string; phone: string };
+  delivery: { streetAddress: string; city: string } | null;
+  createdAt: string;
+}
+
+/** Most important first: the code reported when several problems apply. */
+const PROBLEM_PRIORITY: QuoteProblemCode[] = [
+  'ORDERING_CLOSED',
+  'BRANCH_NOT_ACCEPTING_ORDERS',
+  'EMPTY_CART',
+  'ITEM_NOT_FOUND',
+  'ITEM_UNAVAILABLE',
+  'ITEM_PRICE_UNAVAILABLE',
+];
+
+const fieldError = (field: string, message: string) =>
+  new BadRequestException({
+    code: 'VALIDATION_FAILED',
+    message: 'Some fields are invalid.',
+    details: [{ field, messages: [message] }],
+  });
+
+@Injectable()
+export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
+  constructor(
+    @Inject(MENU_REPOSITORY) private readonly menu: MenuRepository,
+    @Inject(SITE_REPOSITORY) private readonly site: SiteRepository,
+    @Inject(ORDERS_REPOSITORY) private readonly orders: OrdersRepository,
+    @Inject(CLOCK) private readonly clock: Clock,
+  ) {}
+
+  async quote(input: QuoteInput): Promise<Quote> {
+    const [menu, info, branches] = await Promise.all([
+      this.menu.listItems(),
+      this.site.getRestaurantInfo(),
+      this.site.listBranches(),
+    ]);
+    if (!info) throw new Error('restaurant_info row is missing');
+    return buildQuote({ menu, info, branches, now: this.clock() }, input);
+  }
+
+  async place(
+    user: AuthenticatedUser,
+    input: PlaceOrderInput,
+    correlationId: string,
+  ): Promise<{ order: OrderView; created: boolean }> {
+    // A retried submit returns the order already placed, whatever has changed since.
+    const existing = await this.orders.findIdByClientRequest(user.id, input.clientRequestId);
+    if (existing) return { order: await this.view(existing), created: false };
+
+    this.validateShape(input);
+    const phone = normalizeNigerianPhone(input.contact.phone);
+    if (!phone)
+      throw fieldError('contact.phone', 'Enter a valid Nigerian phone number, e.g. 0803 123 4567');
+
+    let quote: Quote | undefined;
+    try {
+      const info = await this.site.getRestaurantInfo();
+      if (!info) throw new Error('restaurant_info row is missing');
+      const deliveryCity =
+        input.fulfilment === 'delivery' ? this.deliveryCity(input, info.deliveryArea) : null;
+
+      quote = await this.quote(input);
+      const problem = PROBLEM_PRIORITY.map((code) =>
+        quote?.problems.find((p) => p.code === code),
+      ).find(Boolean);
+      if (problem) {
+        throw new UnprocessableEntityException({
+          code: problem.code,
+          message: problem.message,
+          details: quote.problems,
+        });
+      }
+      if (quote.totalKobo === null || quote.subtotalKobo === null) {
+        throw new Error('quote without a total despite no problems');
+      }
+      if (quote.totalKobo !== input.expectedTotalKobo) {
+        throw new ConflictException({
+          code: 'PRICE_CHANGED',
+          message: 'Prices have changed since you started checkout. Please review your order.',
+          details: {
+            subtotalKobo: quote.subtotalKobo,
+            deliveryFeeKobo: quote.deliveryFeeKobo,
+            totalKobo: quote.totalKobo,
+          },
+        });
+      }
+
+      const { orderId, created } = await this.orders.create(
+        {
+          userId: user.id,
+          clientRequestId: input.clientRequestId,
+          trackingToken: randomBytes(32).toString('base64url'),
+          fulfilment: input.fulfilment,
+          branchId: input.branchId,
+          contactFullName: input.contact.fullName.trim(),
+          contactPhone: phone,
+          deliveryStreetAddress: input.delivery?.streetAddress.trim() ?? null,
+          deliveryCity,
+          subtotalKobo: quote.subtotalKobo,
+          deliveryFeeKobo: quote.deliveryFeeKobo,
+          totalKobo: quote.totalKobo,
+          items: quote.lines.map((l) => ({
+            menuItemId: l.menuItemId,
+            name: l.name,
+            unitPriceKobo: l.unitPriceKobo as number,
+            quantity: l.quantity,
+            lineTotalKobo: l.lineTotalKobo as number,
+          })),
+        },
+        correlationId,
+      );
+      return { order: await this.view(orderId), created };
+    } catch (err) {
+      if (err instanceof HttpException && err.getStatus() < 500) {
+        await this.auditFailure(user, err, quote, correlationId);
+      }
+      throw err;
+    }
+  }
+
+  async getForUser(user: AuthenticatedUser, id: string): Promise<OrderView> {
+    const order = await this.orders.findById(id);
+    // 404 (not 403) for someone else's order, so ids can't be probed.
+    if (!order || order.userId !== user.id) {
+      throw new NotFoundException({
+        code: 'ORDER_NOT_FOUND',
+        message: 'We could not find that order.',
+      });
+    }
+    return this.toView(order);
+  }
+
+  private validateShape(input: PlaceOrderInput): void {
+    const ids = input.items.map((i) => i.menuItemId);
+    if (new Set(ids).size !== ids.length) {
+      throw fieldError('items', 'Each item may appear only once; change its quantity instead');
+    }
+    if (input.fulfilment === 'delivery' && !input.delivery) {
+      throw fieldError('delivery.streetAddress', 'Enter a delivery address');
+    }
+    if (input.fulfilment === 'pickup' && input.delivery) {
+      throw fieldError('delivery', 'Leave out the delivery address for pickup');
+    }
+  }
+
+  private deliveryCity(input: PlaceOrderInput, area: string): string {
+    const city = input.delivery?.city?.trim();
+    if (city && city.toLowerCase() !== area.toLowerCase()) {
+      throw new UnprocessableEntityException({
+        code: 'DELIVERY_AREA_NOT_SERVED',
+        message: `We deliver within ${area} only. Choose pickup, or use a ${area} address.`,
+      });
+    }
+    return area;
+  }
+
+  private async auditFailure(
+    user: AuthenticatedUser,
+    err: HttpException,
+    quote: Quote | undefined,
+    correlationId: string,
+  ): Promise<void> {
+    const body = err.getResponse() as { code?: string };
+    try {
+      await this.orders.recordAudit({
+        event: 'order.create',
+        outcome: 'FAILED',
+        userId: user.id,
+        errorCode: body.code ?? null,
+        amountKobo: quote?.totalKobo ?? null,
+        correlationId,
+        details: { problems: quote?.problems.map((p) => p.code) ?? [] },
+      });
+    } catch (auditErr) {
+      // Never let the audit trail hide the real error from the customer.
+      this.logger.error(`Failed to record order failure audit: ${String(auditErr)}`);
+    }
+  }
+
+  private async view(id: string): Promise<OrderView> {
+    const order = await this.orders.findById(id);
+    if (!order) throw new Error(`order ${id} vanished after creation`);
+    return this.toView(order);
+  }
+
+  private async toView(order: OrderRecord): Promise<OrderView> {
+    const branches = await this.site.listBranches();
+    const branch = branches.find((b) => b.id === order.branchId);
+    return {
+      id: order.id,
+      orderNumber: formatOrderNumber(order.orderNumber),
+      status: order.status,
+      fulfilment: order.fulfilment,
+      branch: { id: order.branchId, city: branch?.city ?? order.branchId },
+      items: order.items,
+      subtotalKobo: order.subtotalKobo,
+      deliveryFeeKobo: order.deliveryFeeKobo,
+      totalKobo: order.totalKobo,
+      currency: 'NGN',
+      contact: { fullName: order.contactFullName, phone: order.contactPhone },
+      delivery:
+        order.deliveryStreetAddress && order.deliveryCity
+          ? { streetAddress: order.deliveryStreetAddress, city: order.deliveryCity }
+          : null,
+      createdAt: order.createdAt,
+    };
+  }
+}

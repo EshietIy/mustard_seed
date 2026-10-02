@@ -6,6 +6,7 @@ import { SupabaseMenuRepository } from './supabase-menu.repository';
 
 @Module({
   controllers: [MenuController],
+  exports: [MENU_REPOSITORY],
   providers: [MenuService, { provide: MENU_REPOSITORY, useClass: SupabaseMenuRepository }],
 })
 export class MenuModule {}

@@ -6,6 +6,7 @@ import { SupabaseSiteRepository } from './supabase-site.repository';
 
 @Module({
   controllers: [SiteController],
+  exports: [SITE_REPOSITORY],
   providers: [SiteService, { provide: SITE_REPOSITORY, useClass: SupabaseSiteRepository }],
 })
 export class SiteModule {}

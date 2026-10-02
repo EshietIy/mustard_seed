@@ -1,5 +1,6 @@
 import { DynamicModule, Global, Module } from '@nestjs/common';
 import type { Logger } from 'pino';
+import { CLOCK, type Clock } from './common/clock';
 import { APP_CONFIG } from './config/app-config.token';
 import type { AppConfig } from './config/env.validation';
 import { ROOT_LOGGER } from './logging/logger.token';
@@ -8,14 +9,15 @@ import { ROOT_LOGGER } from './logging/logger.token';
 @Global()
 @Module({})
 export class CoreModule {
-  static register(config: AppConfig, logger: Logger): DynamicModule {
+  static register(config: AppConfig, logger: Logger, clock: Clock): DynamicModule {
     return {
       module: CoreModule,
       providers: [
         { provide: APP_CONFIG, useValue: config },
         { provide: ROOT_LOGGER, useValue: logger },
+        { provide: CLOCK, useValue: clock },
       ],
-      exports: [APP_CONFIG, ROOT_LOGGER],
+      exports: [APP_CONFIG, ROOT_LOGGER, CLOCK],
     };
   }
 }
