@@ -131,6 +131,31 @@ describe('OrderView', () => {
     expect(wrapper.find('[data-test="pay-now"]').exists()).toBe(false);
   });
 
+  it('a paid order shows the estimated time and that the email is on its way', async () => {
+    routeFetch({
+      'GET /orders/o-1': () =>
+        Response.json({ ...order, status: 'paid', estimatedReadyAt: '2026-10-05T18:45:00.000Z' }),
+    });
+    const { wrapper } = await mountOrder();
+    expect(wrapper.text()).toContain('Estimated arrival: 7:45pm');
+    expect(wrapper.text()).toContain('We’ll email your confirmation shortly.');
+  });
+
+  it('a paid pickup order shows when it will be ready', async () => {
+    routeFetch({
+      'GET /orders/o-1': () =>
+        Response.json({
+          ...order,
+          status: 'paid',
+          fulfilment: 'pickup',
+          delivery: null,
+          estimatedReadyAt: '2026-10-05T18:25:00.000Z',
+        }),
+    });
+    const { wrapper } = await mountOrder();
+    expect(wrapper.text()).toContain('Ready for pickup by: 7:25pm');
+  });
+
   it('confirms a returning payment with the server before saying it was paid', async () => {
     const fetchMock = routeFetch({
       'POST /payments/verify': () =>

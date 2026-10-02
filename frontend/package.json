@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:docker": "docker run --rm --ipc=host --user \"$(id -u):$(id -g)\" -e HOME=/tmp -e CI=1 -v \"$PWD\":/work -w /work mcr.microsoft.com/playwright:v1.63.0-noble npx playwright test"
+    "test:e2e:docker": "docker run --rm --ipc=host --user \"$(id -u):$(id -g)\" -e HOME=/tmp -e CI=1 -v \"$PWD\":/work -w /work mcr.microsoft.com/playwright:v1.63.0-noble npx playwright test",
+    "email:assets": "node scripts/render-email-assets.mjs"
   },
   "dependencies": {
     "pinia": "^4.0.3",

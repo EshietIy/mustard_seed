@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="8" viewBox="0 0 600 8">
+  <defs>
+    <pattern id="zz" width="12" height="8" patternUnits="userSpaceOnUse">
+      <rect width="12" height="8" fill="#C5A059"/>
+      <polygon points="0,0 6,8 12,0" fill="#9F2D2D"/>
+    </pattern>
+  </defs>
+  <rect width="600" height="8" fill="url(#zz)"/>
+</svg>

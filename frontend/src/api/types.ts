@@ -102,5 +102,7 @@ export interface Order {
   createdAt: string;
   /** ISO time after which an unpaid order expires. */
   paymentExpiresAt: string;
+  /** Set when payment clears: estimated arrival (delivery) or ready time (pickup). */
+  estimatedReadyAt?: string | null;
   payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }

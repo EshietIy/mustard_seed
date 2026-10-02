@@ -215,6 +215,12 @@ onBeforeUnmount(() => clearTimeout(pollTimer));
               : 'We’ll have it ready for you to collect.'
           }}
         </p>
+        <p v-if="order.estimatedReadyAt" class="eta">
+          {{ order.fulfilment === 'delivery' ? 'Estimated arrival' : 'Ready for pickup by' }}:
+          <strong>{{ formatWatClock(order.estimatedReadyAt) }}</strong>
+        </p>
+        <!-- This page, not the email, is the source of truth if the email is delayed. -->
+        <p class="muted small">We’ll email your confirmation shortly.</p>
       </div>
 
       <div v-else-if="order.status === 'payment_failed'" class="notice" role="alert">
@@ -335,6 +341,10 @@ h2 {
 }
 .success {
   border-left: 4px solid var(--color-gold);
+}
+.eta {
+  margin: 0;
+  font-size: 1.0625rem;
 }
 .success-title {
   margin: 0;
