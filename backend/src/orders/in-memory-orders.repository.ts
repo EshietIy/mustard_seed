@@ -25,6 +25,7 @@ export class InMemoryOrdersRepository implements OrdersRepository {
       status: 'awaiting_payment',
       createdAt: new Date().toISOString(),
       payment: null,
+      estimatedReadyAt: null,
       ...order,
     });
     this.audit.push({

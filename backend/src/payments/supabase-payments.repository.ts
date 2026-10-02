@@ -100,6 +100,10 @@ export class SupabasePaymentsRepository implements PaymentsRepository {
         p_paid_at: input.paidAt,
         p_source: input.source,
         p_correlation_id: input.correlationId,
+        p_now: input.now.toISOString(),
+        p_eta_prep_minutes: input.eta.prepMinutes,
+        p_eta_per_queued_order_minutes: input.eta.perQueuedOrderMinutes,
+        p_eta_delivery_minutes: input.eta.deliveryMinutes,
       }),
     );
     const row = (

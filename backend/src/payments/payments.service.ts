@@ -11,6 +11,7 @@ import {
 import { randomBytes } from 'node:crypto';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { CLOCK, type Clock } from '../common/clock';
+import { ORDER_EVENTS, type OrderEvents } from '../common/order-events';
 import { APP_CONFIG } from '../config/app-config.token';
 import type { AppConfig } from '../config/env.validation';
 import { formatOrderNumber } from '../orders/order-number';
@@ -64,7 +65,15 @@ export class PaymentsService {
     private readonly ordersService: OrdersService,
     @Inject(CLOCK) private readonly clock: Clock,
     @Inject(APP_CONFIG)
-    private readonly config: Pick<AppConfig, 'FRONTEND_BASE_URL' | 'PAYSTACK_SECRET_KEY'>,
+    private readonly config: Pick<
+      AppConfig,
+      | 'FRONTEND_BASE_URL'
+      | 'PAYSTACK_SECRET_KEY'
+      | 'ETA_PREP_MINUTES'
+      | 'ETA_PER_QUEUED_ORDER_MINUTES'
+      | 'ETA_DELIVERY_MINUTES'
+    >,
+    @Inject(ORDER_EVENTS) private readonly events: OrderEvents,
   ) {}
 
   /** Starts (or resumes) the Paystack payment for an order the user owns. */
@@ -357,7 +366,18 @@ export class PaymentsService {
       ...input,
       source,
       correlationId: ctx.correlationId,
+      now: this.clock(),
+      eta: {
+        prepMinutes: this.config.ETA_PREP_MINUTES,
+        perQueuedOrderMinutes: this.config.ETA_PER_QUEUED_ORDER_MINUTES,
+        deliveryMinutes: this.config.ETA_DELIVERY_MINUTES,
+      },
     });
+    if (result.outcome === 'paid' && result.orderId) {
+      // The confirmation email is already queued in the same transaction; this only asks the
+      // dispatcher to send it now rather than on its next tick. Never blocks payment handling.
+      this.events.emit('order.paid', { orderId: result.orderId });
+    }
     const fields = {
       event: 'payment.result',
       orderId: result.orderId,

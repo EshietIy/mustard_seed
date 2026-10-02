@@ -57,6 +57,7 @@ export interface OrderView {
   delivery: { streetAddress: string; city: string } | null;
   createdAt: string;
   paymentExpiresAt: string;
+  estimatedReadyAt: string | null;
   payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }
 
@@ -273,6 +274,7 @@ export class OrdersService {
           : null,
       createdAt: order.createdAt,
       paymentExpiresAt: order.paymentExpiresAt,
+      estimatedReadyAt: order.estimatedReadyAt,
       payment: order.payment
         ? {
             status: order.payment.status,

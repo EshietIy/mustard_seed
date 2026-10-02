@@ -27,6 +27,10 @@ const base = {
 
 const prodSupabase = {
   ...supabase,
+  // Production always sends real email.
+  MAIL_PROVIDER: 'mailgun',
+  MAILGUN_API_KEY: 'test-mailgun-key-not-real',
+  MAILGUN_DOMAIN: 'mg.mustardseed.ng',
   SUPABASE_URL: 'https://abc.supabase.co',
   PAYSTACK_SECRET_KEY: 'sk_live_0123456789abcdef',
   FRONTEND_BASE_URL: 'https://mustardseed.ng',
@@ -346,6 +350,70 @@ describe('validateEnv', () => {
       expect(() => validateEnv({ ...prod, FRONTEND_BASE_URL: 'http://mustardseed.ng' })).toThrow(
         /FRONTEND_BASE_URL must use https/,
       );
+    });
+  });
+
+  describe('email', () => {
+    const mailgun = {
+      MAIL_PROVIDER: 'mailgun',
+      MAILGUN_API_KEY: 'test-mailgun-key-not-real',
+      MAILGUN_DOMAIN: 'mg.mustardseed.ng',
+    };
+
+    it('defaults to logging emails locally, with sensible delivery and ETA settings', () => {
+      expect(validateEnv(base)).toMatchObject({
+        MAIL_PROVIDER: 'log',
+        MAIL_FROM: 'Mustard Seed Restaurant & Bar <orders@mustardseed.ng>',
+        MAILGUN_BASE_URL: 'https://api.mailgun.net',
+        EMAIL_DISPATCH_INTERVAL_MS: 30_000,
+        EMAIL_MAX_ATTEMPTS: 5,
+        ETA_PREP_MINUTES: 30,
+        ETA_PER_QUEUED_ORDER_MINUTES: 5,
+        ETA_DELIVERY_MINUTES: 25,
+      });
+    });
+
+    it('accepts Mailgun settings, including the EU region', () => {
+      expect(
+        validateEnv({ ...base, ...mailgun, MAILGUN_BASE_URL: 'https://api.eu.mailgun.net' }),
+      ).toMatchObject({
+        MAIL_PROVIDER: 'mailgun',
+        MAILGUN_BASE_URL: 'https://api.eu.mailgun.net',
+      });
+    });
+
+    it.each(['MAILGUN_API_KEY', 'MAILGUN_DOMAIN'])('requires %s for Mailgun', (key) => {
+      const env: Record<string, string> = { ...base, ...mailgun };
+      delete env[key];
+      expect(() => validateEnv(env)).toThrow(new RegExp(key));
+    });
+
+    it('rejects an unknown provider and a malformed From', () => {
+      expect(() => validateEnv({ ...base, MAIL_PROVIDER: 'sendgrid' })).toThrow(/MAIL_PROVIDER/);
+      expect(() => validateEnv({ ...base, MAIL_FROM: 'orders@mustardseed.ng' })).toThrow(
+        /MAIL_FROM/,
+      );
+    });
+
+    it('only allows the in-memory provider in tests', () => {
+      expect(validateEnv({ ...base, APP_ENV: 'test', MAIL_PROVIDER: 'memory' }).MAIL_PROVIDER).toBe(
+        'memory',
+      );
+      expect(() => validateEnv({ ...base, MAIL_PROVIDER: 'memory' })).toThrow(
+        /MAIL_PROVIDER=memory/,
+      );
+    });
+
+    it('requires Mailgun in production', () => {
+      const prod = {
+        ...prodSupabase,
+        APP_ENV: 'production',
+        CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+      };
+      expect(() => validateEnv({ ...prod, MAIL_PROVIDER: 'log' })).toThrow(
+        /MAIL_PROVIDER must be mailgun/,
+      );
+      expect(validateEnv({ ...prod, ...mailgun }).MAIL_PROVIDER).toBe('mailgun');
     });
   });
 });

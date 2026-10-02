@@ -10,7 +10,7 @@ import type { Fulfilment } from './pricing';
 import type { AuditEvent, OrderRecord, OrderStatus, PaymentStatus } from './orders.types';
 
 const COLUMNS =
-  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, payment_expires_at, payments(reference, authorization_url, status, channel, paid_at), order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position)';
+  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, payment_expires_at, estimated_ready_at, payments(reference, authorization_url, status, channel, paid_at), order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position)';
 
 interface OrderRow {
   id: string;
@@ -29,6 +29,7 @@ interface OrderRow {
   total_kobo: number;
   created_at: string;
   payment_expires_at: string;
+  estimated_ready_at: string | null;
   payments: PaymentRow | PaymentRow[] | null;
   order_items: Array<{
     menu_item_id: string;
@@ -133,6 +134,7 @@ export class SupabaseOrdersRepository implements OrdersRepository {
       totalKobo: data.total_kobo,
       createdAt: data.created_at,
       paymentExpiresAt: data.payment_expires_at,
+      estimatedReadyAt: data.estimated_ready_at,
       payment: toPayment(data.payments),
       items: [...data.order_items]
         .sort((a, b) => a.position - b.position)

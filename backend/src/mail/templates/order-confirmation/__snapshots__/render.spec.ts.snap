@@ -1,0 +1,241 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`order confirmation email renders a long order with long names consistently (snapshot) 1`] = `
+{
+  "html": "<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Payment received — your Mustard Seed order #MS-0042</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,500&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+  img { border:0; outline:none; text-decoration:none; }
+  @media (max-width: 620px) {
+    .container { width:100% !important; }
+    .px { padding-left:20px !important; padding-right:20px !important; }
+    .stack { display:block !important; width:100% !important; box-sizing:border-box !important; }
+    .stack-box-top { border-radius:12px 12px 0 0 !important; }
+    .stack-box-bottom { border-radius:0 0 12px 12px !important; }
+    .stack-gap { padding-top:20px !important; }
+    .h1 { font-size:28px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#F4F2EE" style="margin:0;padding:0;background-color:#F4F2EE;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;opacity:0;mso-hide:all;">Payment received — the kitchen has your order #MS-0042.&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F4F2EE" style="background-color:#F4F2EE;">
+<tr><td align="center" style="padding:0;">
+<table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="width:600px;max-width:600px;background-color:#FFFFFF;">
+<tr><td bgcolor="#C5A059" style="background-color:#C5A059;line-height:0;font-size:0;height:8px;">
+<img src="https://mustardseed.ng/email/zigzag@2x.png" width="600" height="8" alt="" style="display:block;width:100%;max-width:600px;height:8px;border:0;">
+</td></tr>
+<tr><td bgcolor="#1E221E" align="center" style="background-color:#1E221E;padding:24px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="middle" style="padding-right:12px;"><img src="https://mustardseed.ng/email/logo@2x.png" width="36" height="36" alt="Mustard Seed" style="display:block;width:36px;height:36px;"></td>
+<td valign="middle" style="font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;color:#F4F2EE;font-size:24px;font-weight:600;line-height:1;">Mustard Seed<br><span style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;color:#C5A059;font-size:10px;font-weight:700;letter-spacing:2px;">RESTAURANT &amp; BAR</span></td>
+</tr></table>
+</td></tr>
+
+<tr><td class="px" align="center" style="padding:36px 40px 8px;">
+<img src="https://mustardseed.ng/email/check@2x.png" width="44" height="44" alt="Payment received" style="display:block;width:44px;height:44px;margin:0 auto;">
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:16px 0 8px;color:#9F2D2D;font-size:12px;font-weight:700;letter-spacing:2px;">PAYMENT RECEIVED</p>
+<h1 class="h1" style="font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;margin:0;color:#1E221E;font-size:34px;line-height:1.15;font-weight:600;word-break:break-word;">Amedi, Ekaette!<br>Your order is in the kitchen.</h1>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:16px auto 0;max-width:420px;color:#626462;font-size:15px;line-height:1.6;">We’ve started cooking. Your food will be handed to our rider as soon as it’s ready.</p>
+</td></tr>
+
+<tr><td class="px" style="padding:24px 40px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #E4E4E4;border-radius:12px;border-collapse:separate;">
+<tr>
+<td class="stack stack-box-top" width="50%" bgcolor="#FFFFFF" style="background-color:#FFFFFF;padding:16px;border-radius:12px 0 0 12px;">
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0;color:#626462;font-size:12px;">Order number</p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:4px 0 0;color:#1E221E;font-size:18px;font-weight:700;">#MS-0042</p>
+</td>
+<td class="stack stack-box-bottom" width="50%" bgcolor="#1E221E" style="background-color:#1E221E;padding:16px;border-radius:0 12px 12px 0;">
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0;color:#C5A059;font-size:12px;">Estimated arrival</p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:4px 0 0;color:#F4F2EE;font-size:18px;font-weight:700;">7:45pm</p>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td class="px" style="padding:20px 40px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td align="center" bgcolor="#9F2D2D" style="background-color:#9F2D2D;border-radius:999px;">
+<a href="https://mustardseed.ng/track/kJ8sP2xQ9vLm3nR7tY1wZ4aB6cD0eF5gH8iJ2kL4mNo" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;display:block;padding:14px 24px;color:#FFFFFF;font-size:16px;font-weight:700;text-decoration:none;border-radius:999px;">Track your order live</a>
+</td></tr></table>
+</td></tr>
+
+<tr><td class="px" style="padding:24px 40px 28px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td width="25%" valign="top" style="padding:0 6px 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#9F2D2D" style="background-color:#9F2D2D;height:5px;line-height:5px;font-size:5px;border-radius:3px;">&nbsp;</td></tr></table>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:8px 0 0;font-size:12px;color:#1E221E;font-weight:700;">Confirmed</p>
+</td>
+<td width="25%" valign="top" style="padding:0 6px 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#E8DEC9" style="background-color:#E8DEC9;height:5px;line-height:5px;font-size:5px;border-radius:3px;">&nbsp;</td></tr></table>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:8px 0 0;font-size:12px;color:#626462;font-weight:400;">Preparing</p>
+</td>
+<td width="25%" valign="top" style="padding:0 6px 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#E8DEC9" style="background-color:#E8DEC9;height:5px;line-height:5px;font-size:5px;border-radius:3px;">&nbsp;</td></tr></table>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:8px 0 0;font-size:12px;color:#626462;font-weight:400;">Ready</p>
+</td>
+<td width="25%" valign="top" style="padding:0 0 0 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#E8DEC9" style="background-color:#E8DEC9;height:5px;line-height:5px;font-size:5px;border-radius:3px;">&nbsp;</td></tr></table>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:8px 0 0;font-size:12px;color:#626462;font-weight:400;">Delivered</p>
+</td></tr></table></td></tr>
+
+<tr><td bgcolor="#F4F2EE" style="background-color:#F4F2EE;height:8px;line-height:8px;font-size:8px;">&nbsp;</td></tr>
+
+<tr><td class="px" style="padding:28px 40px;">
+<h2 style="font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;margin:0 0 8px;color:#1E221E;font-size:26px;font-weight:600;">Your order</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr data-line="1">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">1×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Edikang Ikong with extra periwinkle, kpomo, stockfish and assorted meat (large family pot)<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦1,234</td>
+</tr>
+<tr data-line="2">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">2×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 2</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦2,468</td>
+</tr>
+<tr data-line="3">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">3×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 3<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦3,702</td>
+</tr>
+<tr data-line="4">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">1×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 4</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦1,234</td>
+</tr>
+<tr data-line="5">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">2×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 5<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦2,468</td>
+</tr>
+<tr data-line="6">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">3×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 6</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦3,702</td>
+</tr>
+<tr data-line="7">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">1×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 7<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦1,234</td>
+</tr>
+<tr data-line="8">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">2×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 8</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦2,468</td>
+</tr>
+<tr data-line="9">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">3×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 9<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦3,702</td>
+</tr>
+<tr data-line="10">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">1×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 10</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦1,234</td>
+</tr>
+<tr data-line="11">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">2×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 11<br><span data-note style="font-weight:400;font-size:13px;color:#626462;">House signature</span></td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦2,468</td>
+</tr>
+<tr data-line="12">
+<td valign="top" width="36" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#9F2D2D;font-weight:700;font-size:15px;">3×</td>
+<td valign="top" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 8px 12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:600;word-break:break-word;overflow-wrap:anywhere;">Dish 12</td>
+<td valign="top" align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;padding:12px 0;border-bottom:1px solid #E4E4E4;color:#1E221E;font-size:15px;font-weight:700;white-space:nowrap;">₦3,702</td>
+</tr>
+<tr>
+<td colspan="2" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:15px;padding-top:8px;padding-bottom:8px;color:#626462;">Subtotal</td>
+<td align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:15px;padding-top:8px;padding-bottom:8px;color:#626462;white-space:nowrap;">₦14,600</td>
+</tr>
+<tr>
+<td colspan="2" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:15px;padding-top:8px;padding-bottom:8px;color:#626462;">Delivery (anywhere in Calabar)</td>
+<td align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-size:15px;padding-top:8px;padding-bottom:8px;color:#626462;white-space:nowrap;">₦1,500</td>
+</tr>
+<tr>
+<td colspan="2" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-weight:700;font-size:18px;border-top:2px solid #1E221E;padding-top:12px;color:#1E221E;">Total paid</td>
+<td align="right" style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;font-weight:700;font-size:18px;border-top:2px solid #1E221E;padding-top:12px;color:#1E221E;white-space:nowrap;">₦16,100</td>
+</tr>
+</table>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:12px 0 0;color:#626462;font-size:12px;">Paid with Paystack · Card · 5 Oct 2026, 6:55pm</p>
+</td></tr>
+
+<tr><td bgcolor="#F4F2EE" style="background-color:#F4F2EE;height:8px;line-height:8px;font-size:8px;">&nbsp;</td></tr>
+
+<tr><td class="px" style="padding:28px 40px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td class="stack" width="50%" valign="top" style="padding-right:16px;">
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0 0 8px;color:#9F2D2D;font-size:12px;font-weight:700;letter-spacing:2px;">DELIVERING TO</p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0;color:#1E221E;font-size:15px;line-height:1.6;word-break:break-word;">Ekaette Abasiama Bassey-Okon Etim-Inyang<br>12 Marian Road<br>Calabar, Cross River State<br>+234 803 123 4567</p>
+</td>
+<td class="stack stack-gap" width="50%" valign="top">
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0 0 8px;color:#9F2D2D;font-size:12px;font-weight:700;letter-spacing:2px;">NEED HELP?</p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0;color:#1E221E;font-size:15px;line-height:1.6;">Call or WhatsApp us on +234 800 000 0000 and quote your order number.</p>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td bgcolor="#1E221E" align="center" class="px" style="background-color:#1E221E;padding:28px 40px;">
+<p style="font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;margin:0 0 12px;color:#C5A059;font-size:20px;font-style:italic;">Sosongo — thank you for eating with us.</p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:0;color:#BFBEBA;font-size:13px;line-height:1.6;">Mustard Seed Restaurant &amp; Bar · Calabar · Uyo · Since 2012<br>Open daily 8am – 11pm · <a href="https://mustardseed.ng" style="color:#BFBEBA;text-decoration:none;">mustardseed.ng</a></p>
+<p style="font-family:'Plus Jakarta Sans', Arial, Helvetica, sans-serif;margin:16px 0 0;color:#949490;font-size:12px;line-height:1.5;">You’re receiving this because you placed an order at mustardseed.ng with your Google account.</p>
+</td></tr>
+<tr><td bgcolor="#C5A059" style="background-color:#C5A059;line-height:0;font-size:0;height:8px;">
+<img src="https://mustardseed.ng/email/zigzag@2x.png" width="600" height="8" alt="" style="display:block;width:100%;max-width:600px;height:8px;border:0;">
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>",
+  "text": "PAYMENT RECEIVED
+
+Amedi, Ekaette! Your order is in the kitchen.
+We’ve started cooking. Your food will be handed to our rider as soon as it’s ready.
+
+Order number: #MS-0042
+Estimated arrival: 7:45pm
+Track your order live: https://mustardseed.ng/track/kJ8sP2xQ9vLm3nR7tY1wZ4aB6cD0eF5gH8iJ2kL4mNo
+
+YOUR ORDER
+1× Edikang Ikong with extra periwinkle, kpomo, stockfish and assorted meat (large family pot) (House signature) — ₦1,234
+2× Dish 2 — ₦2,468
+3× Dish 3 (House signature) — ₦3,702
+1× Dish 4 — ₦1,234
+2× Dish 5 (House signature) — ₦2,468
+3× Dish 6 — ₦3,702
+1× Dish 7 (House signature) — ₦1,234
+2× Dish 8 — ₦2,468
+3× Dish 9 (House signature) — ₦3,702
+1× Dish 10 — ₦1,234
+2× Dish 11 (House signature) — ₦2,468
+3× Dish 12 — ₦3,702
+
+Subtotal: ₦14,600
+Delivery (anywhere in Calabar): ₦1,500
+Total paid: ₦16,100
+Paid with Paystack · Card · 5 Oct 2026, 6:55pm
+
+DELIVERING TO
+Ekaette Abasiama Bassey-Okon Etim-Inyang
+12 Marian Road
+Calabar, Cross River State
++234 803 123 4567
+
+NEED HELP?
+Call or WhatsApp us on +234 800 000 0000 and quote your order number.
+
+Sosongo — thank you for eating with us.
+Mustard Seed Restaurant & Bar · Calabar · Uyo · Since 2012
+Open daily 8am – 11pm · mustardseed.ng
+
+You’re receiving this because you placed an order at mustardseed.ng with your Google account.",
+}
+`;

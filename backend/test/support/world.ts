@@ -37,6 +37,10 @@ export const DEFAULT_ENV: Record<string, string> = {
   SIMULATOR_CONTROL_KEY: 'bdd-simulator-control-key',
   FRONTEND_BASE_URL: 'http://localhost:5173',
   PAYMENT_SWEEP_INTERVAL_MS: '0',
+  // Tests never send real email: messages stay in memory; the dispatcher is run explicitly
+  // (or prompted by a payment), never on a timer.
+  MAIL_PROVIDER: 'memory',
+  EMAIL_DISPATCH_INTERVAL_MS: '0',
   ...testSupabaseEnv(),
 };
 
@@ -140,6 +144,12 @@ Before(async function () {
   await resetTestDatabase();
 });
 
-After(async function (this: ApiWorld) {
+After(async function (this: ApiWorld, { result }) {
+  // On failure, show the app's error logs: usually the fastest route to the cause.
+  if (result?.status === 'FAILED') {
+    for (const entry of this.logs.filter((l) => Number(l.level) >= 50)) {
+      process.stderr.write(`  app error log: ${JSON.stringify(entry).slice(0, 600)}\n`);
+    }
+  }
   await this.stop();
 });

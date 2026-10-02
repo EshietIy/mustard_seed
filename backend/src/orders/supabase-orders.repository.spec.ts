@@ -50,6 +50,7 @@ const row = {
   total_kobo: 1050000,
   created_at: '2026-10-04T11:00:00Z',
   payment_expires_at: '2026-10-04T11:15:00Z',
+  estimated_ready_at: null,
   payments: [
     {
       reference: 'MS0007-x',

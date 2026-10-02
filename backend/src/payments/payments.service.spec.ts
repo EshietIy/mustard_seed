@@ -14,6 +14,7 @@ import type { SiteRepository } from '../site/site.repository';
 import { InMemoryPaymentsRepository } from './in-memory-payments.repository';
 import type { PaymentGateway, VerifyResult } from './payment-gateway';
 import { PaymentsService } from './payments.service';
+import { createOrderEvents } from '../common/order-events';
 import { paystackSignature } from './webhook-signature';
 
 const ITEM = '11111111-1111-4111-8111-111111111111';
@@ -88,10 +89,24 @@ async function setup(now = '2026-10-05T12:00:00+01:00') {
     { PAYMENT_WINDOW_MINUTES: 15 },
   );
   const gateway = fakeGateway();
-  const service = new PaymentsService(orders, payments, gateway, ordersService, () => clock.now, {
-    FRONTEND_BASE_URL: 'http://localhost:5173',
-    PAYSTACK_SECRET_KEY: SECRET,
-  });
+  const events = createOrderEvents();
+  const paidEvents: string[] = [];
+  events.on('order.paid', ({ orderId }) => paidEvents.push(orderId));
+  const service = new PaymentsService(
+    orders,
+    payments,
+    gateway,
+    ordersService,
+    () => clock.now,
+    {
+      FRONTEND_BASE_URL: 'http://localhost:5173',
+      PAYSTACK_SECRET_KEY: SECRET,
+      ETA_PREP_MINUTES: 30,
+      ETA_PER_QUEUED_ORDER_MINUTES: 5,
+      ETA_DELIVERY_MINUTES: 25,
+    },
+    events,
+  );
   const { order } = await ordersService.place(
     user,
     {
@@ -104,7 +119,7 @@ async function setup(now = '2026-10-05T12:00:00+01:00') {
     },
     'corr-0',
   );
-  return { service, orders, payments, gateway, order, clock };
+  return { service, orders, payments, gateway, order, clock, paidEvents };
 }
 
 const verified = (
@@ -338,8 +353,19 @@ describe('PaymentsService.handleWebhook', () => {
     );
   });
 
+  it('fixes the estimated time, queues the confirmation email and announces the payment', async () => {
+    const { service, order, payments, orders, paidEvents } = await setup();
+    const { reference } = await service.initialize(user, order.id, ctx);
+    const w = webhook(reference);
+    await service.handleWebhook(w.raw, w.signature, w.body, ctx);
+    // Pickup: 30 min prep, nothing else in the kitchen.
+    expect((await orders.findById(order.id))?.estimatedReadyAt).toBe('2026-10-05T11:30:00.000Z');
+    expect(payments.queuedEmails).toEqual([order.id]);
+    expect(paidEvents).toEqual([order.id]);
+  });
+
   it('processes a duplicate webhook only once', async () => {
-    const { service, order, payments } = await setup();
+    const { service, order, payments, paidEvents } = await setup();
     const { reference } = await service.initialize(user, order.id, ctx);
     const w = webhook(reference);
     await service.handleWebhook(w.raw, w.signature, w.body, ctx);
@@ -347,6 +373,8 @@ describe('PaymentsService.handleWebhook', () => {
       result: 'duplicate',
     });
     expect(payments.audit.filter((a) => a.event === 'order.paid')).toHaveLength(1);
+    expect(payments.queuedEmails).toHaveLength(1);
+    expect(paidEvents).toHaveLength(1);
   });
 
   it.each([

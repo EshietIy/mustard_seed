@@ -14,6 +14,8 @@ import type {
  */
 export class InMemoryPaymentsRepository implements PaymentsRepository {
   private readonly payments = new Map<string, PaymentRecord>();
+  /** Orders whose confirmation email was queued (the DB function inserts into email_outbox). */
+  readonly queuedEmails: string[] = [];
 
   constructor(private readonly orders: InMemoryOrdersRepository) {}
 
@@ -81,7 +83,18 @@ export class InMemoryPaymentsRepository implements PaymentsRepository {
       });
       this.syncOrder(payment);
       if (['awaiting_payment', 'expired', 'payment_failed'].includes(from)) {
-        this.orders.patch(order.id, { status: 'paid' });
+        const queue = this.orders
+          .all()
+          .filter((o) => o.id !== order.id && ['paid', 'preparing'].includes(o.status)).length;
+        const minutes =
+          input.eta.prepMinutes +
+          queue * input.eta.perQueuedOrderMinutes +
+          (order.fulfilment === 'delivery' ? input.eta.deliveryMinutes : 0);
+        this.orders.patch(order.id, {
+          status: 'paid',
+          estimatedReadyAt: new Date(input.now.getTime() + minutes * 60_000).toISOString(),
+        });
+        if (!this.queuedEmails.includes(order.id)) this.queuedEmails.push(order.id);
         this.audit.push({
           event: 'order.paid',
           outcome: 'SUCCESS',

@@ -38,6 +38,8 @@ export interface OrderRecord {
   createdAt: string;
   /** After this the order expires if unpaid. */
   paymentExpiresAt: string;
+  /** Fixed when payment clears: estimated arrival (delivery) or ready time (pickup). */
+  estimatedReadyAt: string | null;
   items: OrderItemRecord[];
   payment: OrderPaymentRecord | null;
 }

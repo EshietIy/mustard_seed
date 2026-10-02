@@ -26,6 +26,10 @@ export interface ApplyResultInput {
   paidAt: string | null;
   source: PaymentSource;
   correlationId: string;
+  /** "Now" from the app clock: payment time and the estimated ready time are based on it. */
+  now: Date;
+  /** Configurable estimate (AGENT.md: never hard-code a promise). */
+  eta: { prepMinutes: number; perQueuedOrderMinutes: number; deliveryMinutes: number };
 }
 
 export type ApplyOutcome =

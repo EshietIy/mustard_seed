@@ -12,6 +12,7 @@ import { ConfigPublicModule } from './config-public/config-public.module';
 import { CoreModule } from './core.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { MailModule } from './mail/mail.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -45,6 +46,7 @@ export class AppModule {
         AuthModule,
         OrdersModule,
         PaymentsModule,
+        MailModule,
         // Never mounted unless explicitly enabled (and never in production; see env checks).
         ...(config.PAYSTACK_SIMULATOR_ENABLED ? [PaystackSimulatorModule] : []),
         ...extraModules,

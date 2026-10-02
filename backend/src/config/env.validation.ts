@@ -140,6 +140,63 @@ export class AppConfig {
   @Max(24 * 60)
   PAYMENT_WINDOW_MINUTES = 15;
 
+  /**
+   * mailgun: real sending (required in production). log: write emails to the log instead
+   * (local development). memory: keep them in memory (automated tests only).
+   */
+  @IsIn(['mailgun', 'log', 'memory'])
+  MAIL_PROVIDER: 'mailgun' | 'log' | 'memory' = 'log';
+
+  @IsOptional()
+  @IsString()
+  @MinLength(10)
+  MAILGUN_API_KEY?: string;
+
+  /** The verified sending domain, e.g. mg.mustardseed.ng (or a sandbox domain). */
+  @IsOptional()
+  @Matches(/^[a-z0-9.-]+\.[a-z]{2,}$/i, { message: 'MAILGUN_DOMAIN must be a domain name' })
+  MAILGUN_DOMAIN?: string;
+
+  /** https://api.mailgun.net (US) or https://api.eu.mailgun.net (EU). */
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  MAILGUN_BASE_URL = 'https://api.mailgun.net';
+
+  @Matches(/^[^<>]+ <[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$/, {
+    message: 'MAIL_FROM must look like: Mustard Seed Restaurant & Bar <orders@mustardseed.ng>',
+  })
+  MAIL_FROM = 'Mustard Seed Restaurant & Bar <orders@mustardseed.ng>';
+
+  /** How often queued emails are sent/retried; 0 switches the dispatcher off (tests). */
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  EMAIL_DISPATCH_INTERVAL_MS = 30_000;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  EMAIL_MAX_ATTEMPTS = 5;
+
+  /**
+   * Estimated ready/arrival time, fixed when payment clears (until the owner confirms the
+   * real formula): now + prep + (orders already in the kitchen × per-order) + delivery.
+   */
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  ETA_PREP_MINUTES = 30;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  ETA_PER_QUEUED_ORDER_MINUTES = 5;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(0)
+  ETA_DELIVERY_MINUTES = 25;
+
   /** How often unpaid orders are checked for expiry; 0 switches the sweep off (tests). */
   @Transform(toInt)
   @IsInt()
@@ -218,6 +275,15 @@ function businessRuleErrors(config: AppConfig): string[] {
   } else if (key.startsWith('sk_sim_')) {
     errors.push('PAYSTACK_SECRET_KEY must be sk_test_… or sk_live_… when the simulator is off');
   }
+  if (config.MAIL_PROVIDER === 'mailgun') {
+    if (!config.MAILGUN_API_KEY)
+      errors.push('MAILGUN_API_KEY is required when MAIL_PROVIDER=mailgun');
+    if (!config.MAILGUN_DOMAIN)
+      errors.push('MAILGUN_DOMAIN is required when MAIL_PROVIDER=mailgun');
+  }
+  if (config.MAIL_PROVIDER === 'memory' && config.APP_ENV !== AppEnv.Test) {
+    errors.push('MAIL_PROVIDER=memory is only allowed when APP_ENV=test');
+  }
   if (config.APP_ENV === AppEnv.Production) {
     // Keyed off APP_ENV only, never NODE_ENV (AGENT.md §3.1).
     if (config.PAYSTACK_SIMULATOR_ENABLED) {
@@ -225,6 +291,9 @@ function businessRuleErrors(config: AppConfig): string[] {
     }
     if (config.PAYSTACK_BASE_URL?.includes('/simulator')) {
       errors.push('PAYSTACK_BASE_URL must not point at the simulator when APP_ENV=production');
+    }
+    if (config.MAIL_PROVIDER !== 'mailgun') {
+      errors.push('MAIL_PROVIDER must be mailgun in production');
     }
     if (key && !key.startsWith('sk_live_')) {
       errors.push('PAYSTACK_SECRET_KEY must be a live key (sk_live_…) in production');

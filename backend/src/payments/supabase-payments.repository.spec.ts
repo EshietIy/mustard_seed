@@ -68,6 +68,8 @@ describe('SupabasePaymentsRepository', () => {
         paidAt: null,
         source: 'webhook',
         correlationId: 'c',
+        now: new Date('2026-10-05T11:00:00Z'),
+        eta: { prepMinutes: 30, perQueuedOrderMinutes: 5, deliveryMinutes: 25 },
       }),
     ).resolves.toEqual({
       outcome: 'paid',
@@ -86,6 +88,10 @@ describe('SupabasePaymentsRepository', () => {
         p_paid_at: null,
         p_source: 'webhook',
         p_correlation_id: 'c',
+        p_now: '2026-10-05T11:00:00.000Z',
+        p_eta_prep_minutes: 30,
+        p_eta_per_queued_order_minutes: 5,
+        p_eta_delivery_minutes: 25,
       },
     ]);
   });
@@ -153,6 +159,8 @@ describe('SupabasePaymentsRepository', () => {
         paidAt: null,
         source: 'verify',
         correlationId: 'c',
+        now: new Date('2026-10-05T11:00:00Z'),
+        eta: { prepMinutes: 30, perQueuedOrderMinutes: 5, deliveryMinutes: 25 },
       }),
     ).rejects.toBeInstanceOf(UpstreamUnavailableException);
   });
