@@ -3,6 +3,8 @@ import { AppEnv, validateEnv } from './env.validation';
 const supabase = {
   SUPABASE_URL: 'http://127.0.0.1:54321',
   SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_test_key_0123456789',
+  GOOGLE_CLIENT_ID: '1234567890-abc.apps.googleusercontent.com',
+  JWT_SECRET: 'a'.repeat(48),
 };
 
 const base = {
@@ -190,6 +192,64 @@ describe('validateEnv', () => {
           PAYSTACK_SIMULATOR_ENABLED: 'true',
         }),
       ).toThrow(/SUPABASE_URL[\s\S]*PAYSTACK_SIMULATOR_ENABLED/);
+    });
+  });
+
+  describe('auth', () => {
+    it('applies auth defaults', () => {
+      const env = validateEnv(base);
+      expect(env).toMatchObject({
+        GOOGLE_JWKS_URL: 'https://www.googleapis.com/oauth2/v3/certs',
+        SESSION_TTL_HOURS_CUSTOMER: 168,
+        SESSION_TTL_HOURS_STAFF: 12,
+      });
+      expect(env.SEED_SUPER_ADMIN_EMAIL).toBeUndefined();
+    });
+
+    it.each(['GOOGLE_CLIENT_ID', 'JWT_SECRET'])('fails when %s is missing', (key) => {
+      const env: Record<string, string> = { ...base };
+      delete env[key];
+      expect(() => validateEnv(env)).toThrow(new RegExp(key));
+    });
+
+    it('rejects a malformed Google client ID', () => {
+      expect(() => validateEnv({ ...base, GOOGLE_CLIENT_ID: 'my-client' })).toThrow(
+        /GOOGLE_CLIENT_ID/,
+      );
+    });
+
+    it('rejects a JWT secret shorter than 32 characters', () => {
+      expect(() => validateEnv({ ...base, JWT_SECRET: 'short-secret' })).toThrow(/JWT_SECRET/);
+    });
+
+    it('rejects an invalid seed email', () => {
+      expect(() => validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: 'not-an-email' })).toThrow(
+        /SEED_SUPER_ADMIN_EMAIL/,
+      );
+    });
+
+    it('lower-cases the seed email', () => {
+      expect(
+        validateEnv({ ...base, SEED_SUPER_ADMIN_EMAIL: ' Owner@MustardSeed.ng ' })
+          .SEED_SUPER_ADMIN_EMAIL,
+      ).toBe('owner@mustardseed.ng');
+    });
+
+    it('allows a test JWKS URL outside production', () => {
+      expect(
+        validateEnv({ ...base, GOOGLE_JWKS_URL: 'http://127.0.0.1:4999/certs' }).GOOGLE_JWKS_URL,
+      ).toBe('http://127.0.0.1:4999/certs');
+    });
+
+    it("requires Google's real JWKS URL in production", () => {
+      expect(() =>
+        validateEnv({
+          ...prodSupabase,
+          APP_ENV: 'production',
+          CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng',
+          GOOGLE_JWKS_URL: 'https://evil.example.com/certs',
+        }),
+      ).toThrow(/GOOGLE_JWKS_URL/);
     });
   });
 });

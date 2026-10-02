@@ -2,7 +2,17 @@ import { DataTable, Given, Then, When } from '@cucumber/cucumber';
 import assert from 'node:assert/strict';
 import request from 'supertest';
 import { testSupabaseEnv } from '../support/test-database';
-import { ApiWorld, DEFAULT_ENV, getPath, LogEntry } from '../support/world';
+import { ApiWorld, DEFAULT_ENV, getPath, LogEntry, SITE_ORIGIN } from '../support/world';
+
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
+
+/** Builds a request that behaves like the site in a browser: session cookie + allowed Origin. */
+export function req(world: ApiWorld, method: Method, path: string) {
+  let r = request(world.server())[method](path);
+  if (world.sessionCookie) r = r.set('Cookie', world.sessionCookie);
+  if (method !== 'get' && method !== 'options') r = r.set('Origin', SITE_ORIGIN);
+  return r;
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const LEVELS: Record<string, number> = { debug: 20, info: 30, warn: 40, error: 50, fatal: 60 };
@@ -20,7 +30,12 @@ Given('the API is running with:', async function (this: ApiWorld, table: DataTab
 When('the API starts with:', async function (this: ApiWorld, table: DataTable) {
   try {
     // Database settings are supplied unless the scenario overrides or blanks them.
-    const env: Record<string, string> = { ...testSupabaseEnv(), ...table.rowsHash() };
+    const env: Record<string, string> = {
+      ...testSupabaseEnv(),
+      GOOGLE_CLIENT_ID: DEFAULT_ENV.GOOGLE_CLIENT_ID,
+      JWT_SECRET: DEFAULT_ENV.JWT_SECRET,
+      ...table.rowsHash(),
+    };
     for (const [k, v] of Object.entries(env)) if (v === '<unset>') delete env[k];
     await this.start(env);
   } catch (err) {
@@ -42,26 +57,37 @@ Then('startup succeeds', function (this: ApiWorld) {
 // ---------- requests ----------
 
 When('I GET {string}', async function (this: ApiWorld, path: string) {
-  this.response = await request(this.server()).get(path);
+  this.response = await req(this, 'get', path);
 });
 
 When('I GET {string} {int} times', async function (this: ApiWorld, path: string, n: number) {
-  for (let i = 0; i < n; i++) this.response = await request(this.server()).get(path);
+  for (let i = 0; i < n; i++) this.response = await req(this, 'get', path);
 });
 
 When('I POST {string}', async function (this: ApiWorld, path: string) {
-  this.response = await request(this.server()).post(path);
+  this.response = await req(this, 'post', path);
 });
 
 When('I POST {string} {int} times', async function (this: ApiWorld, path: string, n: number) {
-  for (let i = 0; i < n; i++) this.response = await request(this.server()).post(path);
+  for (let i = 0; i < n; i++) this.response = await req(this, 'post', path);
 });
 
+When('I PATCH {string} with JSON:', async function (this: ApiWorld, path: string, body: string) {
+  this.response = await req(this, 'patch', path).set('Content-Type', 'application/json').send(body);
+});
+
+When(
+  'I POST {string} with JSON from origin {string}:',
+  async function (this: ApiWorld, path: string, origin: string, body: string) {
+    let r = request(this.server()).post(path).set('Content-Type', 'application/json');
+    if (this.sessionCookie) r = r.set('Cookie', this.sessionCookie);
+    if (origin !== 'none') r = r.set('Origin', origin);
+    this.response = await r.send(body);
+  },
+);
+
 When('I POST {string} with JSON:', async function (this: ApiWorld, path: string, body: string) {
-  this.response = await request(this.server())
-    .post(path)
-    .set('Content-Type', 'application/json')
-    .send(body);
+  this.response = await req(this, 'post', path).set('Content-Type', 'application/json').send(body);
 });
 
 When(
@@ -74,7 +100,7 @@ When(
 When(
   'I GET {string} with headers:',
   async function (this: ApiWorld, path: string, table: DataTable) {
-    this.response = await request(this.server()).get(path).set(table.rowsHash());
+    this.response = await req(this, 'get', path).set(table.rowsHash());
   },
 );
 

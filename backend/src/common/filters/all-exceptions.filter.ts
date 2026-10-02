@@ -75,6 +75,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       errorCode: body.code,
       method: req.method,
       url: req.originalUrl,
+      userId: req.user?.id ?? null,
     };
     const reason = exception instanceof Error ? exception.message : String(exception);
     if (isServerError) {

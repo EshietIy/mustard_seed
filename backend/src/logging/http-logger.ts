@@ -5,6 +5,10 @@ import { REQUEST_ID_HEADER, resolveRequestId } from './request-id';
 
 type Outcome = 'SUCCESS' | 'FAILED';
 
+/** Set by AuthGuard; logged as an ID only, never the token. */
+const userIdOf = (req: IncomingMessage): string | null =>
+  (req as IncomingMessage & { user?: { id: string } }).user?.id ?? null;
+
 const outcomeOf = (res: ServerResponse): Outcome => (res.statusCode < 400 ? 'SUCCESS' : 'FAILED');
 
 /**
@@ -24,15 +28,17 @@ export function createHttpLogger(logger: Logger): HttpLogger {
       if (res.statusCode >= 400) return 'warn';
       return 'info';
     },
-    customSuccessObject: (_req, res, val: Record<string, unknown>) => ({
+    customSuccessObject: (req, res, val: Record<string, unknown>) => ({
       ...val,
       statusCode: res.statusCode,
       outcome: outcomeOf(res),
+      userId: userIdOf(req),
     }),
-    customErrorObject: (_req, res, _err, val: Record<string, unknown>) => ({
+    customErrorObject: (req, res, _err, val: Record<string, unknown>) => ({
       ...val,
       statusCode: res.statusCode,
       outcome: 'FAILED',
+      userId: userIdOf(req),
     }),
     customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
     customErrorMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,

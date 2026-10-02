@@ -61,6 +61,8 @@ async function must(p: PromiseLike<{ error: { message: string } | null }>): Prom
 export async function resetTestDatabase(): Promise<void> {
   const db = testDb();
   await must(db.from('menu_items').delete().not('id', 'is', null));
+  await must(db.from('staff_members').delete().not('id', 'is', null));
+  await must(db.from('users').delete().not('id', 'is', null));
   await must(
     db.from('branches').upsert([
       {

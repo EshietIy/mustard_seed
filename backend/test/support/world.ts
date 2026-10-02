@@ -1,7 +1,16 @@
-import { After, Before, setDefaultTimeout, setWorldConstructor, World } from '@cucumber/cucumber';
+import {
+  After,
+  AfterAll,
+  Before,
+  BeforeAll,
+  setDefaultTimeout,
+  setWorldConstructor,
+  World,
+} from '@cucumber/cucumber';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Response } from 'supertest';
 import { createApp } from '../../src/app.factory';
+import { startFakeGoogle, stopFakeGoogle, TEST_GOOGLE_CLIENT_ID } from './fake-google';
 import { resetTestDatabase, testSupabaseEnv } from './test-database';
 import { TestSupportModule } from './test-support.module';
 
@@ -14,8 +23,15 @@ export const DEFAULT_ENV: Record<string, string> = {
   LOG_LEVEL: 'info',
   CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng,http://localhost:5173',
   PAYSTACK_SIMULATOR_ENABLED: 'false',
+  GOOGLE_CLIENT_ID: TEST_GOOGLE_CLIENT_ID,
+  // Filled in BeforeAll once the fake Google key server is listening.
+  GOOGLE_JWKS_URL: '',
+  JWT_SECRET: 'bdd-test-secret-that-is-at-least-32-characters',
   ...testSupabaseEnv(),
 };
+
+/** Allowed browser origin used for state-changing requests in scenarios. */
+export const SITE_ORIGIN = 'https://mustardseed.ng';
 
 export class ApiWorld extends World {
   app?: NestExpressApplication;
@@ -23,12 +39,18 @@ export class ApiWorld extends World {
   response?: Response;
   startupError?: Error;
   matchedLog?: LogEntry;
+  /** "name=value" of the session cookie, when signed in. */
+  sessionCookie?: string;
+  /** Session cookies of other named people, for multi-user scenarios. */
+  sessions = new Map<string, string>();
 
   /** Starts a fresh app (fresh rate-limit state and logs) with the given env. */
   async start(env: Record<string, string>): Promise<void> {
     await this.stop();
     this.logs = [];
     this.startupError = undefined;
+    this.sessionCookie = undefined;
+    this.sessions.clear();
     const logStream = {
       write: (chunk: string): void => {
         for (const line of chunk.split('\n')) {
@@ -66,6 +88,14 @@ export function getPath(obj: unknown, path: string): unknown {
 }
 
 setWorldConstructor(ApiWorld);
+
+BeforeAll(async function () {
+  DEFAULT_ENV.GOOGLE_JWKS_URL = await startFakeGoogle();
+});
+
+AfterAll(async function () {
+  await stopFakeGoogle();
+});
 
 Before(async function () {
   await resetTestDatabase();

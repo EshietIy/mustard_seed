@@ -21,7 +21,9 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:status": "supabase status"
+    "db:status": "supabase status",
+    "seed:super-admin": "node dist/cli/seed-super-admin.js",
+    "seed:super-admin:dev": "node -r ts-node/register src/cli/seed-super-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",
@@ -34,6 +36,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "helmet": "^8.3.0",
+    "jose": "^5.10.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",

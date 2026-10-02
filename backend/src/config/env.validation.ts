@@ -3,6 +3,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
+  IsEmail,
   IsEnum,
   IsIn,
   IsInt,
@@ -37,6 +38,12 @@ const toStrictBoolean = ({ value }: { value: unknown }): unknown => {
   if (value === 'false') return false;
   return value;
 };
+
+/** Google's public signing keys for ID tokens. */
+export const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+const toLowerTrimmed = ({ value }: { value: unknown }): unknown =>
+  typeof value === 'string' ? value.trim().toLowerCase() : value;
 
 const toList = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string'
@@ -117,6 +124,38 @@ export class AppConfig {
   @IsInt()
   @Min(100)
   SUPABASE_TIMEOUT_MS = 5000;
+
+  /** OAuth client ID (public). ID tokens must be issued for exactly this audience. */
+  @Matches(/^[\w-]+\.apps\.googleusercontent\.com$/, {
+    message: 'GOOGLE_CLIENT_ID must look like <id>.apps.googleusercontent.com',
+  })
+  GOOGLE_CLIENT_ID!: string;
+
+  /** Where Google's signing keys are fetched from. Only tests point this elsewhere. */
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  GOOGLE_JWKS_URL = GOOGLE_JWKS_URL;
+
+  /** Signs our own session tokens. Never logged; rotate to sign everyone out. */
+  @IsString()
+  @MinLength(32)
+  JWT_SECRET!: string;
+
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  SESSION_TTL_HOURS_CUSTOMER = 168;
+
+  /** Staff sessions are shorter-lived. */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  SESSION_TTL_HOURS_STAFF = 12;
+
+  /** Used only by the seed script that creates the first super admin. */
+  @IsOptional()
+  @Transform(toLowerTrimmed)
+  @IsEmail()
+  SEED_SUPER_ADMIN_EMAIL?: string;
 }
 
 function businessRuleErrors(config: AppConfig): string[] {
@@ -128,6 +167,9 @@ function businessRuleErrors(config: AppConfig): string[] {
     }
     if (config.PAYSTACK_BASE_URL?.includes('/simulator')) {
       errors.push('PAYSTACK_BASE_URL must not point at the simulator when APP_ENV=production');
+    }
+    if (config.GOOGLE_JWKS_URL !== GOOGLE_JWKS_URL) {
+      errors.push(`GOOGLE_JWKS_URL must be ${GOOGLE_JWKS_URL} in production`);
     }
     if (typeof config.SUPABASE_URL === 'string' && !config.SUPABASE_URL.startsWith('https://')) {
       errors.push('SUPABASE_URL must use https in production');

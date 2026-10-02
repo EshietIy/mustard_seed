@@ -46,6 +46,21 @@ Feature: Startup configuration guard
       | SUPABASE_URL         | http://db.example.com  |
     Then startup fails with a message containing "SUPABASE_URL must use https"
 
+  Scenario: Missing auth settings refuse to start
+    When the API starts with:
+      | APP_ENV              | local                 |
+      | CORS_ALLOWED_ORIGINS | http://localhost:5173 |
+      | JWT_SECRET           | too-short             |
+    Then startup fails with a message containing "JWT_SECRET"
+
+  Scenario: Production refuses a non-Google key server for sign-in tokens
+    When the API starts with:
+      | APP_ENV              | production                       |
+      | CORS_ALLOWED_ORIGINS | https://mustardseed.ng           |
+      | SUPABASE_URL         | https://abc.supabase.co          |
+      | GOOGLE_JWKS_URL      | https://keys.example.com/certs   |
+    Then startup fails with a message containing "GOOGLE_JWKS_URL"
+
   Scenario: Staging with NODE_ENV=production may run the simulator
     When the API starts with:
       | APP_ENV                    | staging                                           |
@@ -55,7 +70,4 @@ Feature: Startup configuration guard
       | PAYSTACK_BASE_URL          | https://staging-api.mustardseed.ng/simulator/paystack |
     Then startup succeeds
     When I GET "/api/v1/config/public"
-    Then the response JSON is:
-      """
-      { "paymentMode": "simulated" }
-      """
+    Then the response JSON at "paymentMode" is "simulated"

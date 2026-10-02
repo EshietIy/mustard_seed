@@ -2,6 +2,9 @@ import { DynamicModule, Module, Type } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { Logger } from 'pino';
+import { AuthModule } from './auth/auth.module';
+import { AuthGuard } from './auth/guards/auth.guard';
+import { OriginGuard } from './auth/guards/origin.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import type { AppConfig } from './config/env.validation';
 import { ConfigPublicModule } from './config-public/config-public.module';
@@ -34,10 +37,15 @@ export class AppModule {
         ConfigPublicModule,
         MenuModule,
         SiteModule,
+        AuthModule,
         ...extraModules,
       ],
       providers: [
+        // Global guards run in this order: rate limit, CSRF origin check, then
+        // authentication/roles (deny by default; see @Public / @Roles).
         { provide: APP_GUARD, useClass: ThrottlerGuard },
+        { provide: APP_GUARD, useExisting: OriginGuard },
+        { provide: APP_GUARD, useExisting: AuthGuard },
         {
           provide: APP_FILTER,
           useFactory: (rootLogger: Logger) => new AllExceptionsFilter(rootLogger),

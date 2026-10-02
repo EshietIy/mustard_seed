@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Module, Post } from '@nestjs/common';
 import { IsNotEmpty, IsString } from 'class-validator';
+import { Public } from '../../src/auth/guards/public.decorator';
 import { StrictThrottle } from '../../src/throttling/throttling';
 
 class EchoDto {
@@ -9,6 +10,7 @@ class EchoDto {
 }
 
 /** Routes that exist only in the BDD suite, to exercise cross-cutting behaviour. */
+@Public()
 @Controller({ path: '__test', version: '1' })
 class TestSupportController {
   @Get('boom')
