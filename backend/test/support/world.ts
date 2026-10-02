@@ -3,6 +3,7 @@ import {
   AfterAll,
   Before,
   BeforeAll,
+  Status,
   setDefaultTimeout,
   setWorldConstructor,
   World,
@@ -146,7 +147,7 @@ Before(async function () {
 
 After(async function (this: ApiWorld, { result }) {
   // On failure, show the app's error logs: usually the fastest route to the cause.
-  if (result?.status === 'FAILED') {
+  if (result?.status === Status.FAILED) {
     for (const entry of this.logs.filter((l) => Number(l.level) >= 50)) {
       process.stderr.write(`  app error log: ${JSON.stringify(entry).slice(0, 600)}\n`);
     }
