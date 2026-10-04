@@ -209,7 +209,12 @@ onBeforeUnmount(() => clearTimeout(pollTimer));
           <strong>{{ formatWatClock(order.estimatedReadyAt) }}</strong>
         </p>
         <!-- This page, not the email, is the source of truth if the email is delayed. -->
-        <p class="muted small">We’ll email your confirmation shortly.</p>
+        <p class="muted small">
+          We’ll email your confirmation<template v-if="auth.user?.email">
+            to <strong>{{ auth.user.email }}</strong></template
+          >
+          shortly.
+        </p>
       </div>
 
       <div v-else-if="order.status === 'payment_failed'" class="notice" role="alert">
@@ -238,6 +243,11 @@ onBeforeUnmount(() => clearTimeout(pollTimer));
           {{ paying ? 'Opening the payment page…' : `Pay ${formatNaira(order.totalKobo)} now` }}
         </button>
         <p class="muted small">We start cooking as soon as your payment is confirmed.</p>
+        <p v-if="auth.user?.email" class="muted small" data-test="email-note">
+          Once your payment is confirmed, we’ll email your order confirmation to
+          <strong>{{ auth.user.email }}</strong
+          >.
+        </p>
         <InlineError
           v-if="payError"
           title="We couldn’t open the payment page."

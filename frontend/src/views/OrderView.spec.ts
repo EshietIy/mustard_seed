@@ -71,6 +71,9 @@ describe('OrderView', () => {
     expect(wrapper.text()).toContain('Awaiting payment');
     expect(wrapper.text()).toContain('Pay by 12:15pm, or this order will expire.');
     expect(wrapper.get('[data-test="pay-now"]').text()).toBe('Pay ₦10,500 now');
+    expect(wrapper.get('[data-test="email-note"]').text()).toBe(
+      'Once your payment is confirmed, we’ll email your order confirmation to e@example.com.',
+    );
     expect(wrapper.text()).toContain('2 × Edikang Ikong');
     expect(wrapper.text()).toContain('12 Marian Road');
   });
@@ -138,7 +141,7 @@ describe('OrderView', () => {
     });
     const { wrapper } = await mountOrder();
     expect(wrapper.text()).toContain('Estimated arrival: 7:45pm');
-    expect(wrapper.text()).toContain('We’ll email your confirmation shortly.');
+    expect(wrapper.text()).toContain('We’ll email your confirmation to e@example.com shortly.');
   });
 
   it('a paid pickup order shows when it will be ready', async () => {

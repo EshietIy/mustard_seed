@@ -18,6 +18,9 @@ test.describe('Feature: paying for an order', () => {
   }) => {
     await placeOrder(page);
     await expect(page.getByText(/Pay by .+, or this order will expire\./)).toBeVisible();
+    await expect(page.locator('[data-test="email-note"]')).toHaveText(
+      `Once your payment is confirmed, we’ll email your order confirmation to ${SIGNED_IN_USER.email}.`,
+    );
     await page.getByRole('button', { name: 'Pay ₦6,000 now' }).click();
     await expect(page).toHaveURL('https://pay.test/checkout/abc');
     await page.getByRole('link', { name: 'Pay successfully' }).click();
