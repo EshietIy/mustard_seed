@@ -171,6 +171,8 @@ export interface MockOptions {
   menu?: { status: number; body: unknown } | 'abort';
   site?: { status: number; body: unknown };
   config?: { status: number; body: unknown } | 'abort';
+  /** Successive answers for GET /orders/track/*; the last one repeats (default: 404). */
+  track?: Array<{ status: number; body: unknown }>;
 }
 
 /** Mocks every API endpoint the landing page calls. Override per test for sad paths. */
@@ -231,6 +233,14 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<vo
     return json(route, 201, placedOrder);
   });
   await page.route(`${API}/orders/order-1`, (route) => json(route, 200, placedOrder));
+  const track = options.track ?? [
+    { status: 404, body: { error: { code: 'ORDER_NOT_FOUND', message: 'Not found' } } },
+  ];
+  let trackCalls = 0;
+  await page.route(`${API}/orders/track/*`, (route) => {
+    const answer = track[Math.min(trackCalls++, track.length - 1)];
+    return json(route, answer.status, answer.body);
+  });
   await page.route(`${API}/orders/order-1/payments`, (route) =>
     options.startPayment
       ? json(route, options.startPayment.status, options.startPayment.body)

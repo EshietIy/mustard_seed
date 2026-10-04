@@ -5,6 +5,7 @@ export const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/checkout', name: 'checkout', component: () => import('@/views/CheckoutView.vue') },
   { path: '/orders/:id', name: 'order', component: () => import('@/views/OrderView.vue') },
+  { path: '/track/:token', name: 'track', component: () => import('@/views/TrackView.vue') },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',

@@ -6,6 +6,7 @@ import { asApiError } from '@/api/errors';
 import type { Order } from '@/api/types';
 import OrderSummary from '@/components/checkout/OrderSummary.vue';
 import SimpleHeader from '@/components/layout/SimpleHeader.vue';
+import { STATUS_LABELS } from '@/content/order-status';
 import InlineError from '@/components/ui/InlineError.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
@@ -14,18 +15,6 @@ import { useToastStore } from '@/stores/toast';
 import { formatNaira, formatWatClock } from '@/utils/format';
 import { navigation } from '@/utils/navigation';
 
-const STATUS_LABELS: Record<string, string> = {
-  awaiting_payment: 'Awaiting payment',
-  paid: 'Paid — in the kitchen',
-  preparing: 'Preparing',
-  ready: 'Ready',
-  out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
-  collected: 'Collected',
-  payment_failed: 'Payment didn’t go through',
-  expired: 'Expired — not paid in time',
-  cancelled: 'Cancelled',
-};
 const POLL_MS = 3000;
 const MAX_POLLS = 20;
 
