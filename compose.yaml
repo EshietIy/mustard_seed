@@ -1,6 +1,7 @@
 # Local development stack: backend API + frontend site, each in its own container.
 #
-#   docker compose up --build      # site: http://localhost:8080   API: http://localhost:3000
+#   docker compose up -d           # site: http://localhost:8080   API: http://localhost:3000
+#                                  # (always rebuilds from the current code: pull_policy: build)
 #   docker compose down
 #
 # LOCAL USE ONLY. Payments run through the built-in Paystack Simulator and nothing here
@@ -19,6 +20,7 @@ services:
   api:
     build:
       context: ./backend
+    pull_policy: build
     ports:
       - "3000:3000"
     env_file:
@@ -45,6 +47,7 @@ services:
     restart: unless-stopped
 
   web:
+    pull_policy: build
     build:
       context: ./frontend
       args:
