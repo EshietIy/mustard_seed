@@ -22,8 +22,8 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { Public } from '../auth/guards/public.decorator';
 import { StrictThrottle } from '../throttling/throttling';
-import { OrderDto, PlaceOrderDto, QuoteDto, QuoteRequestDto } from './orders.dto';
-import { OrdersService, type OrderView } from './orders.service';
+import { OrderDto, PlaceOrderDto, QuoteDto, QuoteRequestDto, TrackedOrderDto } from './orders.dto';
+import { OrdersService, type OrderView, type TrackedOrderView } from './orders.service';
 import type { Quote } from './pricing';
 
 @ApiTags('orders')
@@ -71,6 +71,15 @@ export class OrdersController {
       created ? 'Order created' : 'Duplicate checkout submit returned the existing order',
     );
     return order;
+  }
+
+  /** Public live-status page; the unguessable token from the email is the only credential. */
+  @Get('track/:token')
+  @Public()
+  @ApiOkResponse({ type: TrackedOrderDto })
+  @ApiNotFoundResponse({ description: 'Unknown or malformed tracking token' })
+  track(@Param('token') token: string): Promise<TrackedOrderView> {
+    return this.orders.track(token);
   }
 
   @Get(':id')

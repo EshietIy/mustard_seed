@@ -50,6 +50,10 @@ export class InMemoryOrdersRepository implements OrdersRepository {
     return Promise.resolve(this.orders.get(id) ?? null);
   }
 
+  findByTrackingToken(token: string): Promise<OrderRecord | null> {
+    return Promise.resolve(this.all().find((o) => o.trackingToken === token) ?? null);
+  }
+
   findIdByClientRequest(userId: string, clientRequestId: string): Promise<string | null> {
     const found = [...this.orders.values()].find(
       (o) => o.userId === userId && o.clientRequestId === clientRequestId,

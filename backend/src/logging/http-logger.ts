@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Logger } from 'pino';
 import { pinoHttp, HttpLogger } from 'pino-http';
+import { redactUrl } from './redact-url';
 import { REQUEST_ID_HEADER, resolveRequestId } from './request-id';
 
 type Outcome = 'SUCCESS' | 'FAILED';
@@ -40,14 +41,14 @@ export function createHttpLogger(logger: Logger): HttpLogger {
       outcome: 'FAILED',
       userId: userIdOf(req),
     }),
-    customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
-    customErrorMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
+    customSuccessMessage: (req, res) => `${req.method} ${redactUrl(req.url)} ${res.statusCode}`,
+    customErrorMessage: (req, res) => `${req.method} ${redactUrl(req.url)} ${res.statusCode}`,
     // Never log full headers or bodies: they can carry tokens and personal data.
     serializers: {
       req: (req: { id: string; method: string; url: string }) => ({
         id: req.id,
         method: req.method,
-        url: req.url,
+        url: redactUrl(req.url),
       }),
       res: (res: { statusCode: number }) => ({ statusCode: res.statusCode }),
     },

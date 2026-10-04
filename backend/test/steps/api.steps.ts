@@ -159,6 +159,10 @@ Then(
   },
 );
 
+Then('the response JSON at {string} is absent', function (this: ApiWorld, path: string) {
+  assert.equal(getPath(this.res().body, path), undefined);
+});
+
 Then('the response body does not contain {string}', function (this: ApiWorld, text: string) {
   assert.ok(!this.res().text.includes(text), `body contains "${text}": ${this.res().text}`);
 });

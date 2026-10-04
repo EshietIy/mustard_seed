@@ -145,6 +145,19 @@ describe('SupabaseOrdersRepository', () => {
     expect(await repo(fakeSupabase(ok(null)).client).findById('o-2')).toBeNull();
   });
 
+  it('loads an order by its tracking token', async () => {
+    const { client, calls } = fakeSupabase(ok(row));
+    const order = await repo(client).findByTrackingToken('tok');
+    expect(order).toMatchObject({ id: 'o-1', orderNumber: 7 });
+    expect(calls.log).toEqual(expect.arrayContaining([['eq', 'tracking_token', 'tok']]));
+    await expect(
+      repo(fakeSupabase(ok(null)).client).findByTrackingToken('nope'),
+    ).resolves.toBeNull();
+    await expect(repo(fakeSupabase(down).client).findByTrackingToken('tok')).rejects.toBeInstanceOf(
+      UpstreamUnavailableException,
+    );
+  });
+
   it('finds an order id by client request', async () => {
     const { client, calls } = fakeSupabase(ok({ id: 'o-1' }));
     await expect(repo(client).findIdByClientRequest('u-1', 'r-1')).resolves.toBe('o-1');

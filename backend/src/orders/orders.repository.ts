@@ -28,6 +28,7 @@ export interface OrdersRepository {
    */
   create(order: NewOrder, correlationId: string): Promise<{ orderId: string; created: boolean }>;
   findById(id: string): Promise<OrderRecord | null>;
+  findByTrackingToken(token: string): Promise<OrderRecord | null>;
   findIdByClientRequest(userId: string, clientRequestId: string): Promise<string | null>;
   recordAudit(event: AuditEvent): Promise<void>;
 }

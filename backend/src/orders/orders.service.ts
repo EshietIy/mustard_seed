@@ -61,6 +61,15 @@ export interface OrderView {
   payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }
 
+/** What a tracking-link holder sees: the customer view without internal ids. */
+export type TrackedOrderView = Omit<OrderView, 'id'>;
+
+/** randomBytes(32) as base64url (see place()). */
+const TRACKING_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
+const orderNotFound = () =>
+  new NotFoundException({ code: 'ORDER_NOT_FOUND', message: 'We could not find that order.' });
+
 /** Most important first: the code reported when several problems apply. */
 const PROBLEM_PRIORITY: QuoteProblemCode[] = [
   'ORDERING_CLOSED',
@@ -186,13 +195,15 @@ export class OrdersService {
   async getForUser(user: AuthenticatedUser, id: string): Promise<OrderView> {
     const order = await this.orders.findById(id);
     // 404 (not 403) for someone else's order, so ids can't be probed.
-    if (!order || order.userId !== user.id) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        message: 'We could not find that order.',
-      });
-    }
+    if (!order || order.userId !== user.id) throw orderNotFound();
     return this.toView(order);
+  }
+
+  /** Public status page: the unguessable token is the credential. */
+  async track(token: string): Promise<TrackedOrderView> {
+    const order = TRACKING_TOKEN.test(token) ? await this.orders.findByTrackingToken(token) : null;
+    if (!order) throw orderNotFound();
+    return this.toTrackedView(order);
   }
 
   private validateShape(input: PlaceOrderInput): void {
@@ -254,10 +265,13 @@ export class OrdersService {
   }
 
   private async toView(order: OrderRecord): Promise<OrderView> {
+    return { id: order.id, ...(await this.toTrackedView(order)) };
+  }
+
+  private async toTrackedView(order: OrderRecord): Promise<TrackedOrderView> {
     const branches = await this.site.listBranches();
     const branch = branches.find((b) => b.id === order.branchId);
     return {
-      id: order.id,
       orderNumber: formatOrderNumber(order.orderNumber),
       status: order.status,
       fulfilment: order.fulfilment,

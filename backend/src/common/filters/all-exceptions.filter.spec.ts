@@ -10,13 +10,13 @@ import { AllExceptionsFilter } from './all-exceptions.filter';
 import { validationExceptionFactory } from '../validation';
 import { UpstreamUnavailableException } from '../errors/upstream-unavailable.exception';
 
-function makeHost() {
+function makeHost(originalUrl = '/api/v1/thing') {
   const res = {
     headersSent: false,
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
   };
-  const req = { id: 'req-123', method: 'GET', originalUrl: '/api/v1/thing' };
+  const req = { id: 'req-123', method: 'GET', originalUrl };
   const host = {
     switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
   } as unknown as ArgumentsHost;
@@ -41,6 +41,12 @@ describe('AllExceptionsFilter', () => {
       expect.any(String),
     );
     expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('never logs a tracking token from the URL or the reason', () => {
+    const { host } = makeHost('/api/v1/orders/track/secretTok123');
+    filter.catch(new NotFoundException('Cannot GET /api/v1/orders/track/secretTok123'), host);
+    expect(JSON.stringify(logger.warn.mock.calls)).not.toContain('secretTok123');
   });
 
   it('passes through validation details', () => {

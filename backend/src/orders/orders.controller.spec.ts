@@ -17,6 +17,7 @@ function deps(created = true) {
     quote: jest.fn().mockResolvedValue({ totalKobo: 1 }),
     place: jest.fn().mockResolvedValue({ order, created }),
     getForUser: jest.fn().mockResolvedValue(order),
+    track: jest.fn().mockResolvedValue(order),
   } as unknown as OrdersService;
   const log = { info: jest.fn() };
   const req = { id: 'corr-1', log, user } as unknown as Request;
@@ -66,5 +67,10 @@ describe('OrdersController', () => {
     const { controller, service, req } = deps();
     await controller.get('o-1', req);
     expect(service.getForUser).toHaveBeenCalledWith(user, 'o-1');
+  });
+  it('tracks an order by its token', async () => {
+    const { controller, service } = deps();
+    await expect(controller.track('tok')).resolves.toBe(order);
+    expect(service.track).toHaveBeenCalledWith('tok');
   });
 });

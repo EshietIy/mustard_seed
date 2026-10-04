@@ -50,6 +50,14 @@ describe('createHttpLogger', () => {
     expect(JSON.stringify(lines)).not.toMatch(/abc|xyz/);
   });
 
+  it('never logs a tracking token', async () => {
+    const { lines, server } = setup();
+    await request(server).get('/api/v1/orders/track/secretTrackingToken123');
+    await wait();
+    expect(JSON.stringify(lines)).not.toContain('secretTrackingToken123');
+    expect((lines[0].req as { url: string }).url).toBe('/api/v1/orders/track/[REDACTED]');
+  });
+
   it('reuses a valid incoming request id', async () => {
     const { lines, server } = setup();
     const id = '3f2b8c1e-9a4d-4e6f-8b7a-1c2d3e4f5a6b';

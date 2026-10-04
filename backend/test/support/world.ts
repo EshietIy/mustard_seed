@@ -61,6 +61,7 @@ export class ApiWorld extends World {
   /** The app's "now"; undefined means the real time. */
   now?: Date;
   lastOrderId?: string;
+  trackingToken?: string;
   port = 0;
   payment?: { reference: string; authorizationUrl: string };
   lastControl?: { status: number; body: unknown };

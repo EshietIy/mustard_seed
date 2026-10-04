@@ -145,8 +145,8 @@ class OrderLineDto {
   @ApiProperty() lineTotalKobo!: number;
 }
 
-export class OrderDto {
-  @ApiProperty({ format: 'uuid' }) id!: string;
+/** The public tracking view: everything the customer sees except internal ids. */
+export class TrackedOrderDto {
   @ApiProperty({ example: '#MS-0001' }) orderNumber!: string;
   @ApiProperty({ example: 'awaiting_payment' }) status!: string;
   @ApiProperty({ enum: ['delivery', 'pickup'] }) fulfilment!: Fulfilment;
@@ -159,4 +159,8 @@ export class OrderDto {
   @ApiProperty() contact!: { fullName: string; phone: string };
   @ApiProperty({ nullable: true }) delivery!: { streetAddress: string; city: string } | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
+}
+
+export class OrderDto extends TrackedOrderDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
 }

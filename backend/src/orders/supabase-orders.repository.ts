@@ -110,10 +110,21 @@ export class SupabaseOrdersRepository implements OrdersRepository {
     return { orderId: result.order_id, created: result.created };
   }
 
-  async findById(id: string): Promise<OrderRecord | null> {
-    const op = 'orders.find_by_id';
+  findById(id: string): Promise<OrderRecord | null> {
+    return this.findOne('orders.find_by_id', 'id', id);
+  }
+
+  findByTrackingToken(token: string): Promise<OrderRecord | null> {
+    return this.findOne('orders.find_by_tracking_token', 'tracking_token', token);
+  }
+
+  private async findOne(
+    op: string,
+    column: 'id' | 'tracking_token',
+    value: string,
+  ): Promise<OrderRecord | null> {
     const { data, error } = await callUpstream('supabase', op, () =>
-      this.db.from('orders').select(COLUMNS).eq('id', id).maybeSingle<OrderRow>(),
+      this.db.from('orders').select(COLUMNS).eq(column, value).maybeSingle<OrderRow>(),
     );
     if (error) throw fail(op, error.message);
     if (!data) return null;

@@ -319,3 +319,40 @@ describe('OrdersService.getForUser', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('OrdersService.track', () => {
+  it('shows the order to anyone holding its tracking token, without internal ids', async () => {
+    const { service, orders } = setup();
+    const { order } = await service.place(user, delivery(), 'c');
+    const token = orders.all()[0].trackingToken;
+    const tracked = await service.track(token);
+    expect(tracked).toMatchObject({
+      orderNumber: order.orderNumber,
+      status: 'awaiting_payment',
+      fulfilment: 'delivery',
+      branch: { id: 'calabar', city: 'Calabar' },
+      contact: order.contact,
+      delivery: order.delivery,
+      totalKobo: order.totalKobo,
+    });
+    expect(tracked).not.toHaveProperty('id');
+    expect(JSON.stringify(tracked)).not.toContain(token);
+  });
+
+  it('404s for an unknown token', async () => {
+    const { service } = setup();
+    await expect(service.track('A'.repeat(43))).rejects.toMatchObject({
+      response: { code: 'ORDER_NOT_FOUND' },
+    });
+  });
+
+  it.each(['', 'short', 'A'.repeat(44), `${'A'.repeat(42)}!`])(
+    '404s for a malformed token %p without looking it up',
+    async (token) => {
+      const { service, orders } = setup();
+      const lookup = jest.spyOn(orders, 'findByTrackingToken');
+      await expect(service.track(token)).rejects.toBeInstanceOf(NotFoundException);
+      expect(lookup).not.toHaveBeenCalled();
+    },
+  );
+});
