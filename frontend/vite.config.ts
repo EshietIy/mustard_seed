@@ -17,6 +17,9 @@ export default defineConfig(({ command, mode }) => {
       environment: 'jsdom',
       include: ['src/**/*.spec.ts'],
       env: { VITE_API_BASE_URL: 'http://api.test/api/v1' },
+      // Tests take well under a second, but a loaded machine (WSL, CI, Docker e2e running
+      // alongside) can starve the first mount past the 5s default.
+      testTimeout: 15_000,
       restoreMocks: true,
       unstubGlobals: true,
       coverage: {
