@@ -65,6 +65,23 @@ sealed interface AppError {
 
     data object UpdateRequired : AppError
 
+    /** 401: the session has ended; sign in again (the cart is kept). */
+    data object SignInRequired : AppError
+
+    /** 403: not allowed for this account. */
+    data object Forbidden : AppError
+
+    /**
+     * 400, 409 or 422: the server refused the request and said why. Its message is shown when
+     * present (e.g. "Zobo has just sold out."); field errors go next to their inputs.
+     */
+    data class Rejected(
+        val status: Int,
+        val code: String?,
+        val message: String?,
+        val fieldErrors: Map<String, List<String>>,
+    ) : AppError
+
     data class RateLimited(
         val retryAfterSeconds: Int?,
     ) : AppError

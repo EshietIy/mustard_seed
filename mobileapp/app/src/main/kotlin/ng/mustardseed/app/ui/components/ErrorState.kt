@@ -33,14 +33,52 @@ import ng.mustardseed.app.ui.theme.Brand
 @StringRes
 fun AppError.messageRes(): Int =
     when (this) {
-        AppError.Offline -> R.string.error_offline
-        AppError.Unreachable -> R.string.error_network
-        AppError.Timeout -> R.string.error_timeout
-        AppError.NotFound -> R.string.error_not_found
-        AppError.UpdateRequired -> R.string.error_update_required
-        is AppError.RateLimited -> R.string.error_rate_limited
-        is AppError.Server -> R.string.error_server
-        is AppError.Unknown -> R.string.error_unknown
+        AppError.Offline -> {
+            R.string.error_offline
+        }
+
+        AppError.Unreachable -> {
+            R.string.error_network
+        }
+
+        AppError.Timeout -> {
+            R.string.error_timeout
+        }
+
+        AppError.NotFound -> {
+            R.string.error_not_found
+        }
+
+        AppError.UpdateRequired -> {
+            R.string.error_update_required
+        }
+
+        AppError.SignInRequired -> {
+            R.string.error_sign_in
+        }
+
+        AppError.Forbidden -> {
+            R.string.error_forbidden
+        }
+
+        is AppError.Rejected -> {
+            when (status) {
+                409 -> R.string.error_conflict
+                else -> R.string.error_validation
+            }
+        }
+
+        is AppError.RateLimited -> {
+            R.string.error_rate_limited
+        }
+
+        is AppError.Server -> {
+            R.string.error_server
+        }
+
+        is AppError.Unknown -> {
+            R.string.error_unknown
+        }
     }
 
 private val AppError.reference: String?
@@ -50,6 +88,10 @@ private val AppError.reference: String?
             is AppError.Unknown -> requestId
             else -> null
         }
+
+/** The words to show: the server's own message when it gave one, else the friendly default. */
+@Composable
+fun errorMessage(error: AppError): String = (error as? AppError.Rejected)?.message ?: stringResource(error.messageRes())
 
 /** Error card in the design tokens: crimson edge, clear text, never colour alone. */
 @Composable
@@ -73,7 +115,7 @@ fun ErrorState(
             Text(title, style = MaterialTheme.typography.titleLarge, color = Brand.Charcoal)
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(error.messageRes()),
+                errorMessage(error),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Brand.TextMuted,
             )

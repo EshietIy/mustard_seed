@@ -537,6 +537,267 @@
         ]
       }
     },
+    "/api/v1/auth/app/google": {
+      "post": {
+        "operationId": "AppAuthController_google_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppGoogleSignInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Google token or unverified email"
+          },
+          "429": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/app/refresh": {
+      "post": {
+        "operationId": "AppAuthController_refresh_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppRefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New tokens; the old refresh token is spent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppSessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SESSION_EXPIRED, or SESSION_REVOKED if reused"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/app/logout": {
+      "post": {
+        "operationId": "AppAuthController_logout_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppRefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Signed out of the app (idempotent)"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/cart": {
+      "get": {
+        "operationId": "CartController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      },
+      "delete": {
+        "operationId": "CartController_clear_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/lines": {
+      "put": {
+        "operationId": "CartController_setLine_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartLineInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Line created or its quantity set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "MENU_ITEM_NOT_FOUND"
+          },
+          "422": {
+            "description": "Sold out, unpriced, or the choices are invalid"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/lines/{lineId}": {
+      "delete": {
+        "operationId": "CartController_deleteLine_v1",
+        "parameters": [
+          {
+            "name": "lineId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CartDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CART_LINE_NOT_FOUND"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
+    "/api/v1/cart/merge": {
+      "post": {
+        "operationId": "CartController_merge_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCartDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergedCartDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "cart"
+        ]
+      }
+    },
     "/api/v1/orders/quote": {
       "post": {
         "operationId": "OrdersController_quote_v1",
@@ -954,7 +1215,7 @@
             "example": "Chicken"
           },
           "priceDeltaKobo": {
-            "type": "number",
+            "type": "integer",
             "description": "Added to the item's price, in kobo (0 = no extra cost)"
           },
           "isAvailable": {
@@ -981,11 +1242,11 @@
             "example": "Soup protein"
           },
           "minChoices": {
-            "type": "number",
+            "type": "integer",
             "description": "Fewest choices allowed; 1 or more means a choice is required"
           },
           "maxChoices": {
-            "type": "number",
+            "type": "integer",
             "description": "Most choices allowed; 1 means a single choice (radio buttons)"
           },
           "options": {
@@ -1020,7 +1281,7 @@
             "type": "string"
           },
           "priceKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true,
             "description": "Price in kobo; null until the real price is supplied ([PRICE] placeholder)"
           },
@@ -1115,7 +1376,7 @@
             "format": "uuid"
           },
           "priceDeltaKobo": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1134,13 +1395,13 @@
             "type": "string"
           },
           "priceDeltaKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "isAvailable": {
             "type": "boolean"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "archived": {
             "type": "boolean"
@@ -1181,13 +1442,13 @@
             "type": "string"
           },
           "minChoices": {
-            "type": "number"
+            "type": "integer"
           },
           "maxChoices": {
-            "type": "number"
+            "type": "integer"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "archived": {
             "type": "boolean"
@@ -1225,17 +1486,17 @@
             "example": "Soup protein"
           },
           "minChoices": {
-            "type": "number",
+            "type": "integer",
             "description": "Fewest choices; 1 or more makes the choice required",
             "example": 1
           },
           "maxChoices": {
-            "type": "number",
+            "type": "integer",
             "description": "Most choices; 1 means a single choice",
             "example": 1
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1251,13 +1512,13 @@
             "type": "string"
           },
           "minChoices": {
-            "type": "number"
+            "type": "integer"
           },
           "maxChoices": {
-            "type": "number"
+            "type": "integer"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "archived": {
             "type": "boolean",
@@ -1273,12 +1534,12 @@
             "example": "Goat"
           },
           "priceDeltaKobo": {
-            "type": "number",
+            "type": "integer",
             "description": "Extra cost in kobo; default 0",
             "example": 0
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "itemIds": {
             "description": "Items (among those using the group) that offer the new option; the rest exclude it. Default: all.",
@@ -1301,11 +1562,11 @@
             "description": "super_admin only"
           },
           "priceDeltaKobo": {
-            "type": "number",
+            "type": "integer",
             "description": "super_admin only"
           },
           "sortOrder": {
-            "type": "number",
+            "type": "integer",
             "description": "super_admin only"
           },
           "isAvailable": {
@@ -1342,7 +1603,7 @@
             "description": "true: this item does not offer the option"
           },
           "priceDeltaKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true,
             "description": "This item's price difference in kobo; null uses the option's own"
           }
@@ -1380,7 +1641,7 @@
         "type": "object",
         "properties": {
           "feeKobo": {
-            "type": "number",
+            "type": "integer",
             "example": 150000,
             "description": "Flat delivery fee in kobo"
           },
@@ -1525,6 +1786,283 @@
           "user"
         ]
       },
+      "AppGoogleSignInDto": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "description": "Google ID token from Android's Credential Manager"
+          }
+        },
+        "required": [
+          "idToken"
+        ]
+      },
+      "AppSessionDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUserDto"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Send as \"Authorization: Bearer <token>\""
+          },
+          "accessTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Single use: each refresh returns a new one. Keep it secret."
+          },
+          "refreshTokenExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "user",
+          "accessToken",
+          "accessTokenExpiresAt",
+          "refreshToken",
+          "refreshTokenExpiresAt"
+        ]
+      },
+      "AppRefreshDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "The refresh token from sign-in or the last refresh"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
+      },
+      "CartLineOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "Soup protein"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chicken"
+          },
+          "priceDeltaKobo": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "groupName",
+          "name",
+          "priceDeltaKobo"
+        ]
+      },
+      "CartLineProblemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "ITEM_UNAVAILABLE"
+          },
+          "message": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "string",
+            "description": "Option problems: the group to show it next to"
+          },
+          "optionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "PriceChangeDto": {
+        "type": "object",
+        "properties": {
+          "fromKobo": {
+            "type": "integer"
+          },
+          "toKobo": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "fromKobo",
+          "toKobo"
+        ]
+      },
+      "CartLineDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "menuItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "optionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartLineOptionDto"
+            }
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "unitPriceKobo": {
+            "type": "integer",
+            "nullable": true
+          },
+          "lineTotalKobo": {
+            "type": "integer",
+            "nullable": true
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "problems": {
+            "description": "Must be fixed before checkout",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartLineProblemDto"
+            }
+          },
+          "priceChange": {
+            "nullable": true,
+            "description": "Set the line again to accept the new price",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceChangeDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "menuItemId",
+          "name",
+          "optionIds",
+          "options",
+          "quantity",
+          "unitPriceKobo",
+          "lineTotalKobo",
+          "isAvailable",
+          "problems",
+          "priceChange"
+        ]
+      },
+      "CartDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartLineDto"
+            }
+          },
+          "itemCount": {
+            "type": "integer"
+          },
+          "subtotalKobo": {
+            "type": "integer",
+            "nullable": true
+          },
+          "canCheckout": {
+            "type": "boolean",
+            "description": "Something to order and nothing to fix"
+          }
+        },
+        "required": [
+          "lines",
+          "itemCount",
+          "subtotalKobo",
+          "canCheckout"
+        ]
+      },
+      "CartLineInputDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "optionIds": {
+            "description": "Chosen options; omit for none",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "description": "Sets (never adds to) the quantity"
+          }
+        },
+        "required": [
+          "menuItemId",
+          "quantity"
+        ]
+      },
+      "MergeCartDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "description": "The guest's device cart",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartLineInputDto"
+            }
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "MergedCartDto": {
+        "type": "object",
+        "properties": {
+          "cart": {
+            "$ref": "#/components/schemas/CartDto"
+          },
+          "skipped": {
+            "type": "integer",
+            "description": "Lines left out because they can no longer be ordered"
+          }
+        },
+        "required": [
+          "cart",
+          "skipped"
+        ]
+      },
       "OrderItemInputDto": {
         "type": "object",
         "properties": {
@@ -1533,7 +2071,7 @@
             "format": "uuid"
           },
           "quantity": {
-            "type": "number",
+            "type": "integer",
             "minimum": 1,
             "maximum": 20
           },
@@ -1596,7 +2134,7 @@
             "example": "Chicken"
           },
           "priceDeltaKobo": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1617,14 +2155,14 @@
             "type": "string"
           },
           "unitPriceKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "quantity": {
-            "type": "number"
+            "type": "integer"
           },
           "lineTotalKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "isAvailable": {
@@ -1687,7 +2225,7 @@
             "type": "string"
           },
           "lineIndex": {
-            "type": "number",
+            "type": "integer",
             "description": "Option problems: index of the line in the request"
           },
           "groupId": {
@@ -1713,14 +2251,14 @@
             }
           },
           "subtotalKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "deliveryFeeKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "totalKobo": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "ordering": {
@@ -1813,7 +2351,7 @@
             ]
           },
           "expectedTotalKobo": {
-            "type": "number",
+            "type": "integer",
             "description": "The total (kobo) the customer was shown"
           },
           "clientRequestId": {
@@ -1831,6 +2369,23 @@
           "clientRequestId"
         ]
       },
+      "OrderBranchDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "calabar"
+          },
+          "city": {
+            "type": "string",
+            "example": "Calabar"
+          }
+        },
+        "required": [
+          "id",
+          "city"
+        ]
+      },
       "OrderLineOptionDto": {
         "type": "object",
         "properties": {
@@ -1846,7 +2401,7 @@
             "example": "Chicken"
           },
           "priceDeltaKobo": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1866,14 +2421,14 @@
             "type": "string"
           },
           "unitPriceKobo": {
-            "type": "number",
+            "type": "integer",
             "description": "Includes the chosen options"
           },
           "quantity": {
-            "type": "number"
+            "type": "integer"
           },
           "lineTotalKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "options": {
             "description": "Snapshot taken when ordering",
@@ -1890,6 +2445,65 @@
           "quantity",
           "lineTotalKobo",
           "options"
+        ]
+      },
+      "OrderContactDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Ekaette Bassey"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348031234567"
+          }
+        },
+        "required": [
+          "fullName",
+          "phone"
+        ]
+      },
+      "OrderDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "streetAddress": {
+            "type": "string",
+            "example": "12 Marian Road"
+          },
+          "city": {
+            "type": "string",
+            "example": "Calabar"
+          }
+        },
+        "required": [
+          "streetAddress",
+          "city"
+        ]
+      },
+      "OrderPaymentDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "success",
+            "description": "initialized, ongoing, success, failed or abandoned"
+          },
+          "channel": {
+            "type": "string",
+            "nullable": true,
+            "example": "card"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "channel",
+          "paidAt"
         ]
       },
       "OrderDto": {
@@ -1911,7 +2525,7 @@
             ]
           },
           "branch": {
-            "type": "object"
+            "$ref": "#/components/schemas/OrderBranchDto"
           },
           "items": {
             "type": "array",
@@ -1920,28 +2534,54 @@
             }
           },
           "subtotalKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "deliveryFeeKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "totalKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "currency": {
             "type": "string",
             "example": "NGN"
           },
           "contact": {
-            "type": "object"
+            "$ref": "#/components/schemas/OrderContactDto"
           },
           "delivery": {
+            "nullable": true,
+            "description": "null for pickup",
             "type": "object",
-            "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderDeliveryDto"
+              }
+            ]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "paymentExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "An unpaid order expires after this"
+          },
+          "estimatedReadyAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Set when payment clears: estimated arrival (delivery) or ready time (pickup)"
+          },
+          "payment": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderPaymentDto"
+              }
+            ]
           },
           "id": {
             "type": "string",
@@ -1961,6 +2601,9 @@
           "contact",
           "delivery",
           "createdAt",
+          "paymentExpiresAt",
+          "estimatedReadyAt",
+          "payment",
           "id"
         ]
       },
@@ -1983,7 +2626,7 @@
             ]
           },
           "branch": {
-            "type": "object"
+            "$ref": "#/components/schemas/OrderBranchDto"
           },
           "items": {
             "type": "array",
@@ -1992,28 +2635,54 @@
             }
           },
           "subtotalKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "deliveryFeeKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "totalKobo": {
-            "type": "number"
+            "type": "integer"
           },
           "currency": {
             "type": "string",
             "example": "NGN"
           },
           "contact": {
-            "type": "object"
+            "$ref": "#/components/schemas/OrderContactDto"
           },
           "delivery": {
+            "nullable": true,
+            "description": "null for pickup",
             "type": "object",
-            "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderDeliveryDto"
+              }
+            ]
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "paymentExpiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "An unpaid order expires after this"
+          },
+          "estimatedReadyAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Set when payment clears: estimated arrival (delivery) or ready time (pickup)"
+          },
+          "payment": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OrderPaymentDto"
+              }
+            ]
           }
         },
         "required": [
@@ -2028,7 +2697,10 @@
           "currency",
           "contact",
           "delivery",
-          "createdAt"
+          "createdAt",
+          "paymentExpiresAt",
+          "estimatedReadyAt",
+          "payment"
         ]
       },
       "PaymentStartedDto": {

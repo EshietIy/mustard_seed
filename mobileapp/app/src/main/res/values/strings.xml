@@ -23,4 +23,8 @@
     <string name="error_server">Something went wrong on our side. Please try again.</string>
     <string name="error_unknown">Something unexpected happened. Please try again.</string>
     <string name="error_update_required">Please update the app to keep ordering.</string>
+    <string name="error_sign_in">Your session has expired. Please sign in again.</string>
+    <string name="error_forbidden">You do not have access to this.</string>
+    <string name="error_conflict">That has changed since you last looked. Please refresh and try again.</string>
+    <string name="error_validation">Please check the highlighted fields.</string>
 </resources>

@@ -19,6 +19,14 @@ val releaseApiOrigin = providers.gradleProperty("msd.releaseApiOrigin")
 
 val generatedApiDir = layout.buildDirectory.dir("generated/openapi")
 
+@Suppress("UNCHECKED_CAST")
+val specSchemaNames: List<String> =
+    (
+        (groovy.json.JsonSlurper().parse(rootProject.file("api/openapi.json")) as Map<String, Any>)[
+            "components",
+        ] as Map<String, Map<String, Any>>
+    )["schemas"]!!.keys.toList()
+
 android {
     namespace = "ng.mustardseed.app"
     compileSdk = 37
@@ -82,7 +90,11 @@ openApiGenerate {
     inputSpec.set(rootProject.file("api/openapi.json").path)
     outputDir.set(generatedApiDir.get().asFile.path)
     packageName.set("ng.mustardseed.app.api")
-    apiFilesConstrainedTo.set(listOf("Menu", "Config"))
+    // The endpoints the app uses; every model they reference is generated.
+    apiFilesConstrainedTo.set(listOf("Menu", "Config", "Site", "Auth", "Cart", "Orders", "Payments"))
+    // Every model in the spec (it is fully typed; see the backend's openapi.feature). Listed
+    // explicitly because constraining the APIs would otherwise skip models altogether.
+    modelFilesConstrainedTo.set(specSchemaNames)
     // The serializer and its type adapters; the app builds its own Retrofit client (ApiFactory).
     supportingFilesConstrainedTo.set(
         listOf(
@@ -103,23 +115,8 @@ openApiGenerate {
             "AtomicLongAdapter.kt",
         ),
     )
-    modelFilesConstrainedTo.set(
-        listOf(
-            "MenuDto",
-            "MenuCategoryDto",
-            "MenuItemDto",
-            "MenuImageDto",
-            "MenuOptionGroupDto",
-            "MenuOptionDto",
-            "PublicConfigDto",
-        ),
-    )
-    generateModelTests.set(false)
-    generateApiTests.set(false)
-    generateModelDocumentation.set(false)
-    generateApiDocumentation.set(false)
-    // Amounts are whole kobo and counts are whole numbers; the spec types them as "number".
-    typeMappings.set(mapOf("number" to "kotlin.Long"))
+    // Money is whole kobo: use Long so large totals can never overflow.
+    typeMappings.set(mapOf("integer" to "kotlin.Long"))
     configOptions.set(
         mapOf(
             "serializationLibrary" to "kotlinx_serialization",
@@ -151,6 +148,12 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    implementation(libs.googleid)
+    implementation(libs.androidx.browser)
+    implementation(libs.androidx.datastore.preferences)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
 

@@ -79,7 +79,7 @@ class MenuRepositoryTest {
         runTest {
             server.enqueue(MockResponse(body = MENU_JSON))
             repository().menu()
-            val request = server.takeRequest()
+            val request = server.takeRequest(5, TimeUnit.SECONDS)!!
             assertEquals("/api/v1/menu", request.url.encodedPath)
             assertEquals("0.1.0", request.headers["X-App-Version"])
         }
