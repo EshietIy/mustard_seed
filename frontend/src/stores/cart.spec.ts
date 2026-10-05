@@ -132,6 +132,18 @@ describe('cart store', () => {
     expect(cart.hasUnavailable).toBe(true);
   });
 
+  it('ensure() makes a line hold at least a quantity, never adding on top', async () => {
+    const cart = useCartStore();
+    await cart.ensure(item(), [], 2);
+    expect(cart.lines.map((l) => l.quantity)).toEqual([2]);
+    await cart.ensure(item(), [], 2);
+    await cart.ensure(item(), [], 1);
+    expect(cart.lines.map((l) => l.quantity)).toEqual([2]);
+    await cart.ensure(item(), [], 3);
+    expect(cart.lines.map((l) => l.quantity)).toEqual([3]);
+    await expect(cart.ensure(item({ isAvailable: false }), [], 1)).resolves.toBe(false);
+  });
+
   describe('with options', () => {
     const protein = {
       id: 'g-protein',
@@ -323,6 +335,23 @@ describe('cart store', () => {
         quantity: 3,
       });
       expect(cart.lines[0]!.quantity).toBe(3);
+    });
+
+    it('ensure() sets the quantity on the server only when the cart has fewer', async () => {
+      const fetchMock = routeFetch({
+        'GET /cart': () => Response.json(serverCart()),
+        'PUT /cart/lines': () => Response.json(serverCart([serverLine({ quantity: 5 })])),
+      });
+      const cart = useCartStore();
+      await signIn();
+      await cart.ensure(zobo(), [], 2);
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
+      await cart.ensure(zobo(), [], 5);
+      expect(bodyOf(fetchMock, 'PUT /cart/lines')).toEqual({
+        menuItemId: 'zobo',
+        optionIds: [],
+        quantity: 5,
+      });
     });
 
     it('removes a line on the server when its quantity reaches zero', async () => {

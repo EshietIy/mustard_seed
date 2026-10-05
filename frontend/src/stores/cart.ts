@@ -293,6 +293,27 @@ export const useCartStore = defineStore('cart', () => {
     return true;
   }
 
+  /**
+   * Makes sure the cart holds at least this many of the item with these choices, without
+   * adding on top of what is already there (used by "Order again", so a failed payment
+   * followed by Order again never doubles the order).
+   */
+  async function ensure(
+    item: MenuItem,
+    optionIds: readonly string[],
+    quantity: number,
+  ): Promise<boolean> {
+    if (!item.isAvailable) return false;
+    const wanted = Math.min(quantity, MAX_QUANTITY);
+    const line = find(lineKey(item.id, optionIds));
+    if (line && line.quantity >= wanted) return true;
+    if (mode.value === 'server') return setOnServer(item.id, [...optionIds].sort(), wanted);
+    if (!(await add(item, optionIds))) return false;
+    const added = find(lineKey(item.id, optionIds));
+    if (added) added.quantity = wanted;
+    return true;
+  }
+
   async function setQuantity(key: string, quantity: number): Promise<void> {
     const line = find(key);
     if (!line) return;
@@ -443,6 +464,7 @@ export const useCartStore = defineStore('cart', () => {
     hasProblems,
     subtotalKobo,
     add,
+    ensure,
     increment,
     decrement,
     remove,

@@ -115,7 +115,7 @@ async function orderAgain(): Promise<void> {
       skipped += 1;
       continue;
     }
-    for (let i = 0; i < line.quantity; i++) await cart.add(item, optionIds);
+    await cart.ensure(item, optionIds, line.quantity);
   }
   if (skipped > 0) toast.show('Some items are no longer available and were left out.');
   await router.push('/checkout');

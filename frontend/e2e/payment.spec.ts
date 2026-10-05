@@ -38,9 +38,8 @@ test.describe('Feature: paying for an order', () => {
     );
     await page.getByRole('button', { name: 'Order again' }).click();
     await expect(page).toHaveURL('/checkout');
-    // TODO(owner decision): the unpaid items are still in the cart, so Order again adds them a
-    // second time (2 × ₦4,500 + ₦1,500 delivery).
-    await expect(page.locator('[data-test="total"]')).toHaveText('₦10,500');
+    // The unpaid items are still in the cart; Order again doesn't add them a second time.
+    await expect(page.locator('[data-test="total"]')).toHaveText('₦6,000');
   });
 
   test('Scenario: a pending payment is confirmed after a short wait', async ({ page }) => {
