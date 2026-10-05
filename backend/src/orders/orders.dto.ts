@@ -180,20 +180,56 @@ class OrderLineDto {
   options!: OrderLineOptionDto[];
 }
 
+export class OrderBranchDto {
+  @ApiProperty({ example: 'calabar' }) id!: string;
+  @ApiProperty({ example: 'Calabar' }) city!: string;
+}
+
+export class OrderContactDto {
+  @ApiProperty({ example: 'Ekaette Bassey' }) fullName!: string;
+  @ApiProperty({ example: '+2348031234567' }) phone!: string;
+}
+
+export class OrderDeliveryDto {
+  @ApiProperty({ example: '12 Marian Road' }) streetAddress!: string;
+  @ApiProperty({ example: 'Calabar' }) city!: string;
+}
+
+export class OrderPaymentDto {
+  @ApiProperty({
+    example: 'success',
+    description: 'initialized, ongoing, success, failed or abandoned',
+  })
+  status!: string;
+  @ApiProperty({ type: String, nullable: true, example: 'card' }) channel!: string | null;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true }) paidAt!: string | null;
+}
+
 /** The public tracking view: everything the customer sees except internal ids. */
 export class TrackedOrderDto {
   @ApiProperty({ example: '#MS-0001' }) orderNumber!: string;
   @ApiProperty({ example: 'awaiting_payment' }) status!: string;
   @ApiProperty({ enum: ['delivery', 'pickup'] }) fulfilment!: Fulfilment;
-  @ApiProperty() branch!: { id: string; city: string };
+  @ApiProperty({ type: OrderBranchDto }) branch!: OrderBranchDto;
   @ApiProperty({ type: [OrderLineDto] }) items!: OrderLineDto[];
   @ApiProperty() subtotalKobo!: number;
   @ApiProperty() deliveryFeeKobo!: number;
   @ApiProperty() totalKobo!: number;
   @ApiProperty({ example: 'NGN' }) currency!: 'NGN';
-  @ApiProperty() contact!: { fullName: string; phone: string };
-  @ApiProperty({ nullable: true }) delivery!: { streetAddress: string; city: string } | null;
+  @ApiProperty({ type: OrderContactDto }) contact!: OrderContactDto;
+  @ApiProperty({ type: OrderDeliveryDto, nullable: true, description: 'null for pickup' })
+  delivery!: OrderDeliveryDto | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: string;
+  @ApiProperty({ format: 'date-time', description: 'An unpaid order expires after this' })
+  paymentExpiresAt!: string;
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description: 'Set when payment clears: estimated arrival (delivery) or ready time (pickup)',
+  })
+  estimatedReadyAt!: string | null;
+  @ApiProperty({ type: OrderPaymentDto, nullable: true }) payment!: OrderPaymentDto | null;
 }
 
 export class OrderDto extends TrackedOrderDto {

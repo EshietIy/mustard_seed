@@ -2,6 +2,7 @@ import { DynamicModule, RequestMethod, Type, ValidationPipe, VersioningType } fr
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { wholeNumbersAsIntegers } from './common/openapi';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import type { DestinationStream, Logger } from 'pino';
@@ -90,9 +91,11 @@ export async function createApp(
   );
 
   if (config.APP_ENV !== AppEnv.Production) {
-    const document = SwaggerModule.createDocument(
-      app,
-      new DocumentBuilder().setTitle('Mustard Seed API').setVersion('1').build(),
+    const document = wholeNumbersAsIntegers(
+      SwaggerModule.createDocument(
+        app,
+        new DocumentBuilder().setTitle('Mustard Seed API').setVersion('1').build(),
+      ),
     );
     // JSON spec only: the Swagger UI would need a relaxed CSP.
     SwaggerModule.setup('api/docs', app, document, { ui: false, raw: ['json'] });

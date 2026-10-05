@@ -243,3 +243,34 @@ Then('no log entry contains {string}', async function (this: ApiWorld, text: str
   const leaked = this.logs.find((l) => JSON.stringify(l).includes(text));
   assert.equal(leaked, undefined, `log leaked "${text}": ${JSON.stringify(leaked)}`);
 });
+
+type SpecSchema = { type?: string; properties?: Record<string, SpecSchema>; items?: SpecSchema };
+
+function specProperties(world: ApiWorld): Array<[string, SpecSchema]> {
+  const schemas = (world.res().body as { components: { schemas: Record<string, SpecSchema> } })
+    .components.schemas;
+  return Object.entries(schemas).flatMap(([name, schema]) =>
+    Object.entries(schema.properties ?? {}).map(([prop, p]): [string, SpecSchema] => [
+      `${name}.${prop}`,
+      p,
+    ]),
+  );
+}
+
+Then('the spec has no untyped objects', function (this: ApiWorld) {
+  const loose = specProperties(this)
+    .filter(([, p]) => {
+      const s = p.type === 'array' ? (p.items ?? {}) : p;
+      const keys = Object.keys(s);
+      return (
+        s.type === 'object' &&
+        !['properties', '$ref', 'allOf', 'additionalProperties'].some((k) => keys.includes(k))
+      );
+    })
+    .map(([name]) => name);
+  assert.deepEqual(loose, []);
+});
+
+Then('the spec has no fractional numbers', function (this: ApiWorld) {
+  assert.ok(!this.res().text.includes('"type":"number"'), 'a property is typed "number"');
+});

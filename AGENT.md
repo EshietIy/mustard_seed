@@ -584,7 +584,6 @@ These are not settled. Do not build anything that assumes an answer; use the sta
 ### Follow-up tasks
 
 - **Rename `SUPABASE_SERVICE_ROLE_KEY` to `SUPABASE_SECRET_KEY`** (small, separate code task). Files that still use the old name: `backend/src/config/env.validation.ts`, `backend/src/config/env.validation.spec.ts`, `backend/src/database/supabase.client.ts`, `backend/src/database/supabase.client.spec.ts`, `backend/test/support/test-database.ts`, `backend/test/features/startup.feature`, `backend/.env.example` and `compose.yaml` (comment). Also rename it in every environment's settings (local `.env`, any CI secrets, hosting).
-- **Mark whole-number fields as integers in the backend's OpenAPI spec** (kobo amounts, quantities, min/max choices are typed `number`). The mobile client maps `number` to `Long` until then.
 - **Set the frontend security headers on staging** in `frontend/vercel.json` (section 3.3: CSP, HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`). Vercel does not use the nginx config in the frontend Docker image, so staging currently sends none of them.
 
 ---
