@@ -17,6 +17,12 @@ val appVersionName = "0.1.0"
 val debugApiOrigin = providers.gradleProperty("msd.apiOrigin").orElse("https://msd-api.eshiet.i.ng/")
 val releaseApiOrigin = providers.gradleProperty("msd.releaseApiOrigin")
 
+/**
+ * The website: payment returns (/orders/...) and email links (/track/...) on it open the app
+ * (Android App Links, verified by the site's /.well-known/assetlinks.json).
+ */
+val siteOrigin = providers.gradleProperty("msd.siteOrigin").orElse("https://msd.eshiet.i.ng")
+
 val generatedApiDir = layout.buildDirectory.dir("generated/openapi")
 
 @Suppress("UNCHECKED_CAST")
@@ -38,6 +44,8 @@ android {
         versionCode = 1
         versionName = appVersionName
         buildConfigField("String", "APP_VERSION", "\"$appVersionName\"")
+        buildConfigField("String", "SITE_ORIGIN", "\"${siteOrigin.get()}\"")
+        manifestPlaceholders["siteHost"] = siteOrigin.get().substringAfter("://").substringBefore("/")
     }
 
     buildTypes {

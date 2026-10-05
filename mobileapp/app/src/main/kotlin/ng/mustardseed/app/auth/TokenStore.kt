@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.security.KeyStore
@@ -81,11 +82,11 @@ class KeystoreTokenStore(
         cipher.init(Cipher.ENCRYPT_MODE, key())
         val encrypted =
             cipher.iv + cipher.doFinal(json.encodeToString(StoredSession.serializer(), session).encodeToByteArray())
-        prefs.edit().putString(KEY, Base64.encodeToString(encrypted, Base64.NO_WRAP)).apply()
+        prefs.edit { putString(KEY, Base64.encodeToString(encrypted, Base64.NO_WRAP)) }
     }
 
     override fun clear() {
-        prefs.edit().remove(KEY).apply()
+        prefs.edit { remove(KEY) }
     }
 
     private fun key(): SecretKey {
