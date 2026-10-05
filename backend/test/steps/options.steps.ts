@@ -184,3 +184,58 @@ Then(
     if (group) assert.equal(problem.groupId, await idOf('option_groups', group));
   },
 );
+
+// ---------- staff management (admin API) ----------
+
+const TABLES: Record<string, string> = {
+  item: 'menu_items',
+  option: 'options',
+  group: 'option_groups',
+};
+
+/** Replaces {{item:Name}}, {{option:Name}} and {{group:Name}} with the row's id. */
+async function resolveRefs(text: string): Promise<string> {
+  let out = text;
+  for (const [ref, kind, name] of text.matchAll(/\{\{(item|option|group):([^}]+)\}\}/g)) {
+    out = out.replace(ref, await idOf(TABLES[kind], name));
+  }
+  return out;
+}
+
+When(
+  /^I (GET|DELETE) the admin path "([^"]+)"$/,
+  async function (this: ApiWorld, method: string, path: string) {
+    const url = `/api/v1/admin${await resolveRefs(path)}`;
+    this.response = await req(this, method === 'GET' ? 'get' : 'delete', url);
+  },
+);
+
+When(
+  /^I (POST|PATCH|PUT) the admin path "([^"]+)" with JSON:$/,
+  async function (this: ApiWorld, method: string, path: string, body: string) {
+    const url = `/api/v1/admin${await resolveRefs(path)}`;
+    const verb = method.toLowerCase() as 'post' | 'patch' | 'put';
+    this.response = await req(this, verb, url)
+      .set('Content-Type', 'application/json')
+      .send(await resolveRefs(body));
+  },
+);
+
+Then(/^the option "([^"]+)" (?:has|still has):$/, async function (name: string, table: DataTable) {
+  const rows = await must<Array<Record<string, unknown>> | null>(
+    testDb().from('options').select('*').eq('name', name),
+  );
+  const row = rows?.[0];
+  assert.ok(row, `no option named ${name}`);
+  for (const [column, expected] of Object.entries(table.rowsHash())) {
+    assert.equal(String(row[column]), expected, column);
+  }
+});
+
+Then(/^the response lists the option groups "([^"]+)"$/, function (this: ApiWorld, names: string) {
+  const groups = this.res().body as Array<{ name: string }>;
+  assert.deepEqual(
+    groups.map((g) => g.name),
+    names.split(',').map((n) => n.trim()),
+  );
+});

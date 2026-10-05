@@ -14,6 +14,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { MenuModule } from './menu/menu.module';
+import { MenuOptionsModule } from './menu-options/menu-options.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PaystackSimulatorModule } from './simulator/paystack/simulator.module';
@@ -42,6 +43,7 @@ export class AppModule {
         HealthModule,
         ConfigPublicModule,
         MenuModule,
+        MenuOptionsModule,
         SiteModule,
         AuthModule,
         OrdersModule,
