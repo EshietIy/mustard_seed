@@ -568,7 +568,7 @@ Follow-up slices, added after slices 1–7 were built. Do them in this order, be
 
 - **A. Menu option groups** (section 14): the data model, menu API, choice sheet, option validation, and option snapshots on order lines, the email and the kitchen view.
 - **B. Server-side cart** (section 13), including closing the known gaps listed there.
-- **C. Bearer-token sign-in for the mobile app** (section 15). **Deferred until mobile work starts**; it keeps its place in the order but is skipped until then.
+- **C. Bearer-token sign-in for the mobile app** (section 15): `POST /api/v1/auth/app/google`, `/refresh` (rotating; a reused refresh token revokes the session) and `/logout`. With `APP_MIN_VERSION` set, apps sending an older `X-App-Version` get 426 `APP_UPDATE_REQUIRED`; requests without the header (the website) are never affected.
 
 8. Admin: menu availability, prices and image upload
 9. Kitchen board for the supervisor
