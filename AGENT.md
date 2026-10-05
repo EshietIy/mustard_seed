@@ -29,13 +29,14 @@ The first deliverable is the **customer landing page and ordering flow**, matchi
 - Alcohol is **not** sold online. Menu covers food, soups, swallow and sides, continental dishes, and non-alcoholic drinks (including fresh juices).
 - Menu categories: Calabar classics, Swallow & sides, Continental, Drinks.
 - Items can be marked "House signature" and can be switched available/unavailable by staff.
+- Items can carry option groups (for example a soup protein or a swallow choice). Options are data managed by staff, never hard-coded (section 14).
 - Prices, photos, the Calabar address and the phone/WhatsApp number are **placeholders** (`[PRICE]`, `[CALABAR ADDRESS]`, `[PHONE / WHATSAPP]`) until real data is supplied. Never invent real values. Render placeholders from data/config so they can be replaced without code changes.
 
 ---
 
 ## 2. Repository structure
 
-Two separate folders, two separate apps. They communicate only through the backend REST API.
+Three separate app folders, three separate apps. They communicate only through the backend REST API.
 
 ```
 /
@@ -43,13 +44,17 @@ Two separate folders, two separate apps. They communicate only through the backe
 ├── CLAUDE.md    # one line: @AGENT.md
 ├── docs/        # design sources of truth (landing-page.pdf, email-order-confirmation.pdf)
 ├── backend/     # NestJS (TypeScript)
-└── frontend/    # Vue 3 (TypeScript)
+├── frontend/    # Vue 3 (TypeScript)
+└── mobileapp/   # Android app (reserved; may exist empty; no code until mobile work starts, section 15)
 ```
 
 - `docs/landing-page.pdf` and `docs/email-order-confirmation.pdf` are the approved designs. Read the relevant one before building any page or email, and match it.
 
-- Do not import code across `frontend/` and `backend/`. If types must be shared, duplicate them or publish a small contract (e.g. OpenAPI spec) — do not couple the folders.
-- Each folder has its own `package.json`, lint config, test config and `.env.example`.
+- Do not import code between `backend/`, `frontend/` and `mobileapp/`. The apps talk only through the backend REST API. If the web frontend needs shared types, duplicate them or publish a small contract (e.g. OpenAPI spec) — do not couple the folders.
+- The backend's OpenAPI spec is the shared contract. The mobile client is generated from it; never copy backend code or types into `mobileapp/`.
+- `backend/` and `frontend/` each have their own `package.json`, lint config, test config and `.env.example`.
+- `mobileapp/` will have its own tooling, README, `.env` or config files, tests and CI workflow when it is created. Its toolchain follows the chosen approach (native Kotlin or a wrapper), recorded when that decision is made (section 11, open decisions).
+- **`mobileapp/` is reserved; it may exist empty, but no code goes in it until mobile work starts.** All mobile app work happens inside `mobileapp/` and must not touch `backend/` or `frontend/` except through the API. Once it starts, every rule in this file (TDD and BDD with happy and sad paths, colours from the design tokens, error handling for every failure, no secrets in git) applies to it too.
 - Never commit `.env` files or secrets. Keep `.env.example` up to date.
 
 ---
@@ -58,10 +63,10 @@ Two separate folders, two separate apps. They communicate only through the backe
 
 | Layer | Choice |
 |---|---|
-| Runtime | **Node.js 24 (Active LTS)** for both apps, pinned in `.nvmrc` and `engines`. Package manager: **pnpm**. |
+| Runtime | **Node.js 24 (Active LTS)** for `backend/` and `frontend/`, pinned in `.nvmrc` and `engines`. Package manager: **pnpm**. (`mobileapp/` follows its own toolchain, section 15.) |
 | Backend | NestJS, TypeScript (strict mode) |
 | Frontend | Vue 3 (Composition API, `<script setup lang="ts">`), Vite, Vue Router, Pinia |
-| Auth | Google Sign-In (OAuth) on the frontend, token verified on the backend, backend issues its own session/JWT |
+| Auth | Google Sign-In (OAuth) on the client, token verified on the backend, backend issues its own session: an HttpOnly cookie for the website, bearer tokens for the future Android app (section 15) |
 | Database | Supabase (hosted PostgreSQL). All application data is stored here. |
 | File/image storage | Supabase Storage (same Supabase project). All images are stored here; no other storage platform is used. |
 | Payments | Paystack, behind a `PaymentGateway` interface. **Until the real account is ready, the app talks to our own built-in Paystack Simulator** that imitates Paystack's API (see section 3.1). Verify via signed webhook plus server-side verification; never trust the client. |
@@ -76,8 +81,9 @@ If you need to add a major dependency not listed here, ask first.
 #### Supabase (database)
 
 - Supabase Postgres is the only datastore. Use migrations (SQL files committed to the repo) for every schema change; never edit the schema by hand in the dashboard.
-- The backend is the only thing that talks to the database. The frontend must **never** receive the Supabase service-role key. Keep it in backend env only.
-- Enable Row Level Security on every table. Even though the backend uses the service role, RLS is the safety net if a key or client is ever misused.
+- The backend is the only thing that talks to the database. The frontend (and the future mobile app) must **never** receive the Supabase secret key (`SUPABASE_SECRET_KEY`, starts with `sb_secret_`). Keep it in backend env only; never in the frontend, git, logs or chat.
+- Supabase is deprecating the legacy `service_role` key by the end of 2026. Use the new secret key (`sb_secret_…`) under the name `SUPABASE_SECRET_KEY`. The code still uses the old name `SUPABASE_SERVICE_ROLE_KEY`; renaming it in the code, `.env.example` and startup validation is a small separate code task (section 11, follow-up tasks).
+- Enable Row Level Security on every table. Even though the backend's secret key bypasses RLS, RLS is the safety net if a key or client is ever misused.
 - Use separate Supabase projects (or schemas) for development, test and production. Tests never touch production data.
 - Money columns are integers in kobo. Timestamps are `timestamptz` stored in UTC.
 - Include a `table_id` nullable column on orders now, so dine-in/QR ordering can be added later without a migration.
@@ -86,7 +92,7 @@ If you need to add a major dependency not listed here, ask first.
 
 All images (menu items, juices, hero, story and team photos) live in Supabase Storage in the same project as the database. Do not add another storage or image-hosting service.
 
-- Use a public read bucket for site images (e.g. `site-images`). Uploads, replacements and deletes happen **only through the backend**, using admin/supervisor-authorised endpoints. The frontend never uploads straight to Supabase and never holds the service-role key.
+- Use a public read bucket for site images (e.g. `site-images`). Uploads, replacements and deletes happen **only through the backend**, using `super_admin`-only endpoints (section 3.4). The frontend never uploads straight to Supabase and never holds the Supabase secret key.
 - Store only the object **path/key** in the database (e.g. `menu_items.image_path`), never a hard-coded full URL. Build the public URL from config so the bucket or domain can change later.
 - Validate every upload on the backend: allowed types (JPEG, PNG, WebP), a maximum file size (default 5 MB, configurable), and a file-signature check, not just the extension. Reject anything else with a clear 4xx error.
 - Process every upload with `sharp` before storing: auto-rotate, strip metadata, convert to **WebP**, and produce a thumbnail and a full-size version (e.g. 400px and 1200px wide). Store only the processed files.
@@ -192,14 +198,14 @@ The approved design is `docs/email-order-confirmation.pdf`. Build the email to m
 4. Two-cell box: **Order number** (white cell) and **Estimated arrival** (charcoal cell with gold label).
 5. Full-width crimson button **Track your order live**.
 6. Four-step progress bar: Confirmed (filled crimson), Preparing, Ready, Delivered.
-7. **Your order**: one row per line item with quantity, name, a small note line (chosen variant such as "with Pounded Yam", or "House signature", or a short description) and the line price. Then Subtotal, Delivery (anywhere in Calabar) ₦1,500, a rule, and **Total paid**. Below it: `Paid with Paystack · {channel} · {date, time}`.
+7. **Your order**: one row per line item with quantity, name, a small note line (the chosen options from section 14, for example "Beef · Pounded Yam", or "House signature", or a short description) and the line price. The design's static "with Pounded Yam" text is produced by this same options mechanism. Then Subtotal, Delivery (anywhere in Calabar) ₦1,500, a rule, and **Total paid**. Below it: `Paid with Paystack · {channel} · {date, time}`.
 8. Two columns: **DELIVERING TO** (name, street address, "Calabar, Cross River State", phone) and **NEED HELP?** (call or WhatsApp number, and "quote your order number").
 9. Charcoal footer: italic gold **"Sosongo — thank you for eating with us."**, the restaurant line (Calabar · Uyo · Since 2012, opening hours, mustardseed.ng), the reason-for-email line, and the zigzag trim again.
 
 **Variants the design does not show (build these too)**
 
 - **Pickup orders:** no delivery row. The address block becomes **PICK UP AT** with the branch address. "Estimated arrival" becomes "Ready for pickup by". The last progress step reads "Collected" and the intro line no longer mentions a rider.
-- **Variants and notes:** an item with no variant or note simply omits that line.
+- **Options and notes:** an item with no chosen options or note simply omits that line. Option names are snapshot values from the order line (section 14) and are HTML-escaped like every other user- or staff-supplied value.
 - Long orders: any number of items must render cleanly without breaking the layout.
 
 **Data the email needs (so checkout and orders must capture it)**
@@ -229,11 +235,11 @@ The approved design is `docs/email-order-confirmation.pdf`. Build the email to m
 
 ### 3.2 Runtime, tooling and CI
 
-- **Node.js 24 (Active LTS)** is the required runtime for `backend/` and `frontend/`, in development, CI and hosting. Do not use odd-numbered or "Current" releases.
+- **Node.js 24 (Active LTS)** is the required runtime for `backend/` and `frontend/`, in development, CI and hosting. Do not use odd-numbered or "Current" releases. These Node and pnpm rules do not apply to `mobileapp/`.
 - Pin it in three places: `.nvmrc` (`24`), the `engines` field in each `package.json` (`">=24 <25"`), and the CI/Docker base image (`node:24`-based).
 - Node.js 26 becomes LTS in late October 2026. Do not move to it until it is LTS **and** NestJS, Vite and every dependency support it. The upgrade is a separate, deliberate task with the full test suite green, not part of feature work.
 - **pnpm** is the only package manager. Commit `pnpm-lock.yaml`, install with `--frozen-lockfile` in CI, and never mix in npm or yarn lockfiles.
-- **CI (GitHub Actions)** runs on every push and pull request, separately for backend and frontend: install, lint, type-check, unit tests, BDD tests, and build. A failing step blocks merging. The Paystack Simulator and fake mail/image providers are used in CI; CI never calls real external services.
+- **CI (GitHub Actions)** runs on every push and pull request, separately for backend and frontend (and for `mobileapp/` in its own workflow once it exists): install, lint, type-check, unit tests, BDD tests, and build. A failing step blocks merging. The Paystack Simulator and fake mail/image providers are used in CI; CI never calls real external services.
 - Run `pnpm audit` in CI and keep dependencies patched. Never ignore a high or critical advisory without a written reason.
 
 ### 3.3 API versioning, CORS and security headers
@@ -259,13 +265,15 @@ The approved design is `docs/email-order-confirmation.pdf`. Build the email to m
 - **Frontend (set at the hosting layer):** `Content-Security-Policy` allowing only what the site needs (own origin; Google Sign-In; Google Fonts; the Supabase Storage domain for images; the API origin), `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `frame-ancestors 'none'` (and `X-Frame-Options: DENY`), `Referrer-Policy`, and a restrictive `Permissions-Policy`. Because Google Sign-In uses a popup, use `Cross-Origin-Opener-Policy: same-origin-allow-popups`. No inline scripts; do not use `unsafe-eval`.
 - **HTTPS only** everywhere except local development. Redirect HTTP to HTTPS.
 - **Rate limiting** with `@nestjs/throttler`: a sensible global default, with stricter limits on sign-in, order creation, checkout/payment initialisation and the image-upload endpoints. Return `429` with a `Retry-After` header. The frontend must handle `429` (section 7).
-- **Session handling:** deliver the session token as an `HttpOnly`, `Secure`, `SameSite=Lax` cookie, never in `localStorage` or `sessionStorage`. For cookie-authenticated state-changing requests, also verify the `Origin` header against the allow-list as CSRF defence.
+- **Session handling (website):** deliver the session token as an `HttpOnly`, `Secure`, `SameSite=Lax` cookie, never in `localStorage` or `sessionStorage`. For cookie-authenticated state-changing requests, also verify the `Origin` header against the allow-list as CSRF defence. The future Android app uses bearer tokens instead (section 15); CORS and the cookie `Origin` check apply to the web path only.
 - Validate and sanitise all input (DTOs with `whitelist` and `forbidNonWhitelisted`), use parameterised queries only, and never return stack traces or internal errors.
 - Verify security headers and CORS in tests (section 5).
 
 ### 3.4 Roles and staff provisioning
 
-- Roles: `customer`, `supervisor` (kitchen supervisor: kitchen board, availability, menu and prices) and `super_admin` (everything, plus reports and staff management).
+- Roles: `customer`, `supervisor` and `super_admin`.
+  - `supervisor` (kitchen supervisor): the kitchen board, and switching menu items and options available/unavailable. Nothing else.
+  - `super_admin`: everything, including prices (item prices and option price differences), photos, managing options (add, rename, reorder, re-price, archive), reports and staff management.
 - **Customers** are created automatically on first Google sign-in with the `customer` role.
 - **Staff are provisioned on the backend only.** There is no staff self-signup, no "become staff" option in the UI, and the client can never choose or change a role.
   - Staff accounts are created by a protected backend mechanism: a seed/CLI script for the first `super_admin` (email from `SEED_SUPER_ADMIN_EMAIL`), and a `super_admin`-only endpoint (`/api/v1/admin/staff`) to add, change the role of, deactivate or reactivate other staff.
@@ -447,7 +455,7 @@ Every transaction must be logged, whether it succeeds or fails. Treat logs as an
 
 ### Requirements
 
-- Use a structured JSON logger (e.g. `nestjs-pino`) wired as the Nest application logger. No stray `console.log`.
+- Use a structured JSON logger (`pino`, used directly rather than through `nestjs-pino`; see section 12) wired as the Nest application logger. No stray `console.log`.
 - Generate a **correlation/request ID** per request, return it in a response header, and include it in every log line for that request.
 - Log levels: `info` for successful transactions, `warn` for expected failures (validation, business-rule rejections, auth failures), `error` for unexpected failures and upstream errors.
 - Add a global HTTP logging interceptor and a global exception filter so no request goes unlogged.
@@ -471,7 +479,7 @@ Also log, with the same fields and outcome:
 
 ### Must never be logged
 
-Passwords, JWTs, Google tokens, Paystack secret keys, Supabase service-role keys, Mailgun API keys, webhook secrets, full card data, full customer email addresses (log the domain only), or full request bodies containing personal data. Configure logger redaction for these fields.
+Passwords, JWTs, Google tokens, access and refresh tokens, Paystack secret keys, Supabase secret keys, Mailgun API keys, webhook secrets, full card data, full customer email addresses (log the domain only), or full request bodies containing personal data. Configure logger redaction for these fields.
 
 ### Persistence
 
@@ -524,8 +532,8 @@ Passwords, JWTs, Google tokens, Paystack secret keys, Supabase service-role keys
 
 - Config via environment variables; validate them at startup (fail fast if missing).
 - Keep separate values for development, test and production.
-- Paystack, Supabase service-role and Mailgun credentials live only in backend env files. Only the Google client ID (public) and the API base URL belong in frontend env files.
-- Key backend variables (document all in `backend/.env.example`): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `MAX_IMAGE_UPLOAD_MB`, `APP_ENV` (`local`, `test`, `staging`, `production`), `CORS_ALLOWED_ORIGINS`, `SEED_SUPER_ADMIN_EMAIL`, `PAYSTACK_BASE_URL`, `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_URL`, `PAYSTACK_SIMULATOR_ENABLED`, `SIMULATOR_CONTROL_KEY`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAIL_FROM`, `GOOGLE_CLIENT_ID`, `JWT_SECRET`.
+- Paystack, Supabase secret key and Mailgun credentials live only in backend env files. Only the Google client ID (public) and the API base URL belong in frontend env files.
+- Key backend variables (document all in `backend/.env.example`): `SUPABASE_URL`, `SUPABASE_SECRET_KEY` (still `SUPABASE_SERVICE_ROLE_KEY` in the code until the rename task in section 11 is done), `SUPABASE_STORAGE_BUCKET`, `MAX_IMAGE_UPLOAD_MB`, `APP_ENV` (`local`, `test`, `staging`, `production`), `CORS_ALLOWED_ORIGINS`, `SEED_SUPER_ADMIN_EMAIL`, `PAYSTACK_BASE_URL`, `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_URL`, `PAYSTACK_SIMULATOR_ENABLED`, `SIMULATOR_CONTROL_KEY`, `MAILGUN_API_KEY`, `MAILGUN_DOMAIN`, `MAIL_FROM`, `GOOGLE_CLIENT_ID`, `JWT_SECRET`.
 
 ---
 
@@ -538,6 +546,8 @@ Passwords, JWTs, Google tokens, Paystack secret keys, Supabase service-role keys
 - If the design PDF and this file ever disagree on colour, the design PDF wins; tell the owner so this file can be corrected.
 - Always code against the `PaymentGateway`, `MailProvider` and `ImageStorage` interfaces, never directly against a vendor SDK in business logic, so any provider can be swapped without touching order logic. Paystack is reached only through `PaymentGateway`; the simulator is switched for the real API by changing `PAYSTACK_BASE_URL` and keys alone.
 - Never send real email, call real payment APIs or write to real storage from tests.
+- Respect the decisions in section 12. Do not undo one as a side effect of other work; changing one is its own task, agreed with the owner.
+- Mobile app work stays inside `mobileapp/` (section 15).
 - When unsure, ask. Ambiguity about payments, money or order state must always be resolved before coding.
 
 ---
@@ -553,5 +563,145 @@ Build in thin, fully tested slices (tests first, happy and sad paths, logging, e
 5. Paystack Simulator, payment initialisation, signed webhook and verification
 6. Mailgun confirmation email
 7. Live order status page
+
+Follow-up slices, added after slices 1–7 were built. Do them in this order, before slice 8:
+
+- **A. Menu option groups** (section 14): the data model, menu API, choice sheet, option validation, and option snapshots on order lines, the email and the kitchen view.
+- **B. Server-side cart** (section 13), including closing the known gaps listed there.
+- **C. Bearer-token sign-in for the mobile app** (section 15). **Deferred until mobile work starts**; it keeps its place in the order but is skipped until then.
+
 8. Admin: menu availability, prices and image upload
 9. Kitchen board for the supervisor
+
+### Open decisions
+
+These are not settled. Do not build anything that assumes an answer; use the stated default and keep it configurable.
+
+- **ETA formula** for the confirmation email: a documented, configurable default until the owner confirms the formula.
+- **Production hosting provider:** not chosen. Frontend security headers, the webhook URL, CORS origins and Google sign-in settings all depend on it. Staging currently runs on Vercel (frontend, `https://msd.eshiet.i.ng`) and Render (backend, `https://msd-api.eshiet.i.ng`).
+- **Mobile app technology:** fully native Kotlin versus a wrapper (such as Capacitor) around the Vue site. The location is fixed (`mobileapp/`); the technology is open.
+- **Option prices:** whether proteins carry an extra price. The model supports it; the default price difference is 0 until staff set one.
+
+### Follow-up tasks
+
+- **Rename `SUPABASE_SERVICE_ROLE_KEY` to `SUPABASE_SECRET_KEY`** (small, separate code task). Files that still use the old name: `backend/src/config/env.validation.ts`, `backend/src/config/env.validation.spec.ts`, `backend/src/database/supabase.client.ts`, `backend/src/database/supabase.client.spec.ts`, `backend/test/support/test-database.ts`, `backend/test/features/startup.feature`, `backend/.env.example` and `compose.yaml` (comment). Also rename it in every environment's settings (local `.env`, any CI secrets, hosting).
+- **Clear the cart when payment is verified paid, not when the order is created** (small task; can be done before slice B). Today the web checkout clears the cart as soon as the order is created (`frontend/src/views/CheckoutView.vue`), so a failed or abandoned payment loses it.
+- **Set the frontend security headers on staging** in `frontend/vercel.json` (section 3.3: CSP, HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`). Vercel does not use the nginx config in the frontend Docker image, so staging currently sends none of them.
+
+---
+
+## 12. Decisions (deliberate; do not undo)
+
+These were decided on purpose. Do not reverse one as part of other work; changing one is its own task, agreed with the owner.
+
+- **NestJS is pinned to 11**, and `@nestjs/swagger` to 11 to match. Nest 12 is ESM-only, which complicates Jest and Cucumber. Upgrading is a separate future task.
+- **Logging uses `pino` directly, not `nestjs-pino`.** Per-scenario test logs need separate logger instances, and `nestjs-pino` skips routes outside the `/api` prefix. (This satisfies the structured-logger requirement in section 6.)
+- **API docs are JSON only, at `/api/docs-json`**, with no Swagger UI (it would need a relaxed CSP). This route is **disabled when `APP_ENV=production`**.
+- **CORS rejection is quiet; the cookie Origin check is not.** A request from an origin not on the allow-list gets no `Access-Control-Allow-Origin` header and a `warn` log; that is acceptable for CORS itself. State-changing requests that carry the session cookie must **also** pass an exact `Origin` check against the allow-list, which returns a hard `403` on mismatch.
+  - **The only exemption is `/simulator/*`** (the Paystack Simulator imitates a third party and its checkout page posts from the backend's own pages). It applies only while the simulator is mounted, which is never in production. Every `/api/v1` route still enforces the Origin check. The backend's own origin is **not** added to the allow-list.
+  - Tests must prove this: a cookie-carrying state change to `/api/v1/...` from a disallowed origin (including the backend's own origin) gets `403`; the `/simulator/*` exemption works while the simulator is mounted; and with the simulator off, `/simulator/*` routes do not exist.
+- **Browser tests** run locally with `pnpm test:e2e:docker` (Playwright in Docker; the host has no Chromium system libraries). CI installs the system libraries itself.
+- **A pnpm override forces the patched `js-yaml` version** (`backend/pnpm-workspace.yaml`). Do not remove it while any dependency still pulls in a vulnerable version.
+- **State at the end of slice 1:**
+  - `/health` is outside `/api/v1` and is never rate-limited.
+  - `GET /api/v1/config/public` returns `paymentMode` (`simulated` or `live`).
+  - The `@StrictThrottle()` marker applies the stricter limit. It is used on sign-in, order creation, payment initialisation and staff management; the image-upload endpoints must use it when they are built.
+  - Frontend security headers are set by the hosting layer. Production hosting is not chosen yet (section 11, open decisions). Staging runs on Vercel (frontend) and Render (backend); its headers are still to be set in `frontend/vercel.json` (section 11, follow-up tasks). The frontend Docker image's nginx config already sets them for container hosting.
+- **Menu option groups replace the earlier "no menu variants yet" decision** (section 14).
+
+---
+
+## 13. Cart (server-side)
+
+This is the target behaviour, built in follow-up slice B (section 11). It applies to the website and the future Android app alike.
+
+- **Storage and identity:** the saved cart lives in Supabase, one per signed-in user. The cart is implicit: there is no cart ID in URLs, and the server always uses the authenticated user, so one user can never read another's cart.
+- **Guests:** a guest may build a device-local cart. Sign-in is required at checkout. On sign-in, the guest cart merges into the saved cart: identical lines (same item, same selected options) have their quantities summed; other lines are added.
+- **Endpoints under `/api/v1/cart`:**
+  - `GET` the cart.
+  - `PUT` a line to **set** its quantity (set, never increment, so retries are idempotent).
+  - `DELETE` a line.
+  - `DELETE` the whole cart.
+- **Per-line changes only,** never "upload the whole cart", so a stale device cannot wipe out another device's changes. The last edit to a line wins.
+- **Merging lines:** lines with the identical item and identical selected options merge into one line with a summed quantity. Any difference in selected options makes a separate line.
+- **No prices stored:** the cart stores only item IDs, selected option IDs and quantities. Prices, availability and totals are computed from the live menu every time the cart is read. If a price changed or an item or option became unavailable, the cart response flags that line, and checkout is blocked until it is fixed.
+- **Refreshing:** clients refresh the cart on app open, on return to the app, after sign-in and before checkout. No realtime push is needed.
+- **Clearing:** the cart is cleared only when payment succeeds (verified paid), not when the order is created.
+- **Required tests (happy and sad):**
+  - the same cart is visible from two clients signed in to the same account
+  - per-line updates from two clients do not overwrite each other
+  - a repeated `PUT` is idempotent
+  - another user's cart is unreachable
+  - a price change and an unavailable item are flagged
+  - checkout is blocked on a flagged cart
+  - the cart survives sign-out and sign-in
+  - on sign-in, a guest cart merges into the saved cart, summing identical lines and keeping different ones separate
+  - the cart is cleared only after verified payment, not after a failed or abandoned one
+
+**Known gaps in the current code (closed by slice B):**
+
+- The cart lives only in the browser (`localStorage`, `frontend/src/stores/cart.ts`); there is no saved cart in Supabase and no `/api/v1/cart` endpoints.
+- Guests can add to the cart, but there is no merge into a saved cart on sign-in (there is no saved cart yet).
+- The cart is cleared when the order is created, not when payment is verified. A separate small task fixes this sooner (section 11, follow-up tasks).
+
+---
+
+## 14. Menu option groups
+
+Options are part of the menu. They are built in follow-up slice A (section 11).
+
+**Model**
+
+- An **option group** is a reusable set of choices attached to menu items, for example "Soup protein" (Beef, Chicken, Turkey) or "Swallow" (Pounded Yam and others). It has a name and a minimum and maximum number of choices: min 1 / max 1 is a required single choice, min 0 is optional, and max above 1 allows several.
+- Each **option** has a name, a price difference in kobo (default 0), an availability switch (a supervisor can mark Turkey unavailable without hiding the soup), a sort order and an archived flag.
+- Options are **data managed by staff, never hard-coded.** Beef, Chicken and Turkey exist only as seed data in a migration. The code must never refer to a specific option (such as a protein) by name. Staff will add others later.
+- A group attaches to many items. Each item can **exclude** specific options (for example no beef on Fisherman Soup) and can **override** an option's price difference for that item.
+
+**Managing options**
+
+- `super_admin` adds, renames, reorders, re-prices (including per-item price overrides) and archives options. `supervisor` can only switch an option available/unavailable; any other option change gets `403`. Customers cannot manage options at all (`403`).
+- Options are archived, never hard-deleted, so past orders and emails still display correctly.
+- Names are unique within a group, length-limited, and HTML-escaped wherever displayed, including in emails.
+- When staff add a new option to a group, the admin UI offers a checklist of the items to attach it to, all ticked by default.
+
+**Validation (on adding to the cart and on order creation)**
+
+- Reject: a missing required choice; too many or too few choices; an option that belongs to a different item or group; an excluded option; an unavailable option; an archived option.
+- Return a clear, field-level error the frontend can show next to the group.
+- Ignore any price sent by the client. Price = item base price + option price differences, computed on the server in kobo.
+- At order creation, **copy the chosen option names and price differences onto the order line** (a snapshot), so later menu edits never change past orders.
+
+**Frontend**
+
+- Tapping Add on an item with options opens a choice sheet: radio buttons for a single choice, checkboxes for several.
+- Add to order stays disabled until every required group is answered, with a clear message. Nothing is preselected for required choices.
+- Items without options still add in one tap.
+- The sheet renders whatever options the API returns, so new options appear without a frontend or app release. Options with an extra cost show "+₦amount".
+
+**Email and kitchen**
+
+- The note line in the order confirmation email shows the chosen options (for example "Beef · Pounded Yam"). This replaces the design's static "with Pounded Yam" text and uses the same mechanism (section 3.1, email template).
+- The kitchen board shows the chosen options large and unmistakable.
+
+**Required tests (happy and sad)**
+
+- every validation rule above
+- a new option appears on attached items but not on items that exclude it
+- option management is `super_admin`-only, except availability, which a `supervisor` may also switch (a customer gets 403 for everything; a supervisor gets 403 for anything but availability)
+- a duplicate option name in a group is rejected
+- an archived or excluded option is rejected at checkout, while old orders still display it
+- a price change reaches new carts and flags existing ones
+- the same item with two different option choices makes two cart lines
+- an order line's snapshot is unchanged after a menu edit
+
+---
+
+## 15. Future mobile app
+
+An Android app will live in `mobileapp/` at the repo root. It is **out of scope for now**: the folder is reserved and may exist empty, but no code goes in it until the owner starts mobile work.
+
+- **Sign-in, two paths on the same backend:** the website keeps HttpOnly cookie sessions. The native app signs in with Google, sends the Google ID token to the backend for verification, and then uses bearer tokens: a short-lived access token plus a refresh token that is rotated and revocable. CORS and the cookie `Origin` check apply to the web path only. Design follow-up slice C (section 11) so both paths share the same user, role and session logic as the existing web sign-in.
+- **Backwards compatibility:** keep `/api/v1` backwards compatible, because users update apps slowly. Add a configurable minimum supported app version (for example via an `X-App-Version` header) so the backend can tell old apps to update.
+- **Generated client:** generate the mobile client from the backend's OpenAPI spec instead of hand-writing requests. The spec must therefore stay accurate: every endpoint, request and response shape is documented.
+- **Design and errors:** the app uses the same design tokens (colours, fonts) as the website, defined once in its own theme file, and handles every error state as in section 7.
+- **Open decision:** fully native Kotlin versus a wrapper (such as Capacitor) around the Vue site. Either way it lives in `mobileapp/` (section 11, open decisions).
