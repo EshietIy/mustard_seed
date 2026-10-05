@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { Logger } from 'pino';
 import { AuthModule } from './auth/auth.module';
+import { AppVersionGuard } from './auth/guards/app-version.guard';
 import { CartModule } from './cart/cart.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { OriginGuard } from './auth/guards/origin.guard';
@@ -58,6 +59,8 @@ export class AppModule {
       providers: [
         // Global guards run in this order: rate limit, CSRF origin check, then
         // authentication/roles (deny by default; see @Public / @Roles).
+        // Outdated apps are told to update before anything else runs.
+        { provide: APP_GUARD, useExisting: AppVersionGuard },
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_GUARD, useExisting: OriginGuard },
         { provide: APP_GUARD, useExisting: AuthGuard },

@@ -1,5 +1,6 @@
 import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import type { AppAuthService } from '../app-auth.service';
 import type { AuthService } from '../auth.service';
 import type { AuthenticatedUser } from '../auth.types';
 import { SESSION_COOKIE } from '../session/cookies';
@@ -26,9 +27,9 @@ const user = (role: AuthenticatedUser['role']): AuthenticatedUser => ({
   role,
 });
 
-function ctx(handler: () => void, cookie?: string) {
+function ctx(handler: () => void, cookie?: string, authorization?: string) {
   const req: { headers: Record<string, string>; user?: AuthenticatedUser } = {
-    headers: cookie ? { cookie } : {},
+    headers: { ...(cookie ? { cookie } : {}), ...(authorization ? { authorization } : {}) },
   };
   const context = {
     getHandler: () => handler,
@@ -38,9 +39,12 @@ function ctx(handler: () => void, cookie?: string) {
   return { context, req };
 }
 
-function guardResolving(u: AuthenticatedUser | null) {
+function guardResolving(u: AuthenticatedUser | null, appUser: AuthenticatedUser | null = null) {
   const auth = { resolveSession: jest.fn().mockResolvedValue(u) } as unknown as AuthService;
-  return { guard: new AuthGuard(new Reflector(), auth), auth };
+  const app = {
+    resolveAccessToken: jest.fn().mockResolvedValue(appUser),
+  } as unknown as AppAuthService;
+  return { guard: new AuthGuard(new Reflector(), auth, app), auth, app };
 }
 
 const withSession = `${SESSION_COOKIE}=tok`;
@@ -93,5 +97,37 @@ describe('AuthGuard', () => {
         ctx(Ctrl.prototype.adminOnly, withSession).context,
       ),
     ).resolves.toBe(true);
+  });
+
+  describe('app bearer tokens', () => {
+    it('accepts a valid bearer access token from the app', async () => {
+      const { guard, app, auth } = guardResolving(null, user('customer'));
+      const { context, req } = ctx(Ctrl.prototype.anyUser, undefined, 'Bearer app-token');
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect(app.resolveAccessToken).toHaveBeenCalledWith('app-token');
+      expect(auth.resolveSession).not.toHaveBeenCalled();
+      expect(req.user?.role).toBe('customer');
+    });
+
+    it('rejects an invalid bearer token (401) and enforces roles for bearer users (403)', async () => {
+      const bad = guardResolving(null, null);
+      await expect(
+        bad.guard.canActivate(ctx(Ctrl.prototype.anyUser, undefined, 'Bearer nope').context),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      const customer = guardResolving(null, user('customer'));
+      await expect(
+        customer.guard.canActivate(
+          ctx(Ctrl.prototype.adminOnly, undefined, 'Bearer app-token').context,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('ignores other Authorization schemes', async () => {
+      const { guard, app } = guardResolving(null, user('customer'));
+      await expect(
+        guard.canActivate(ctx(Ctrl.prototype.anyUser, undefined, 'Basic abc').context),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(app.resolveAccessToken).not.toHaveBeenCalled();
+    });
   });
 });

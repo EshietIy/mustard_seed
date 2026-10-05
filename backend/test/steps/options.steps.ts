@@ -194,7 +194,7 @@ const TABLES: Record<string, string> = {
 };
 
 /** Replaces {{item:Name}}, {{option:Name}} and {{group:Name}} with the row's id. */
-async function resolveRefs(text: string): Promise<string> {
+export async function resolveRefs(text: string): Promise<string> {
   let out = text;
   for (const [ref, kind, name] of text.matchAll(/\{\{(item|option|group):([^}]+)\}\}/g)) {
     out = out.replace(ref, await idOf(TABLES[kind], name));

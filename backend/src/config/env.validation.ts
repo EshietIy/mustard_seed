@@ -249,6 +249,25 @@ export class AppConfig {
   @Min(1)
   SESSION_TTL_HOURS_STAFF = 12;
 
+  /** Android app: access tokens are short-lived; the app refreshes them (AGENT.md 15). */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  APP_ACCESS_TTL_MINUTES = 15;
+
+  /** Android app: how long a refresh token stays valid if unused. */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  APP_REFRESH_TTL_DAYS = 30;
+
+  /** Oldest Android app version still served (x.y.z); older apps get 426. Unset = any. */
+  @IsOptional()
+  @Matches(/^\d+\.\d+\.\d+$/, { message: 'APP_MIN_VERSION must look like 1.2.3' })
+  APP_MIN_VERSION?: string;
+
   /** Used only by the seed script that creates the first super admin. */
   @IsOptional()
   @Transform(toLowerTrimmed)

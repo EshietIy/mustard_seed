@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AppAuthService } from '../app-auth.service';
 import { AuthService } from '../auth.service';
 import type { AuthenticatedUser, Role } from '../auth.types';
 import { readCookie, SESSION_COOKIE } from '../session/cookies';
@@ -13,7 +14,7 @@ import { IS_PUBLIC_KEY } from './public.decorator';
 import { ROLES_KEY } from './roles.decorator';
 
 interface AuthRequest {
-  headers: { cookie?: string };
+  headers: { cookie?: string; authorization?: string };
   user?: AuthenticatedUser;
 }
 
@@ -26,6 +27,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly auth: AuthService,
+    private readonly app: AppAuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,7 +35,11 @@ export class AuthGuard implements CanActivate {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets);
     const req = context.switchToHttp().getRequest<AuthRequest>();
 
-    const user = await this.auth.resolveSession(readCookie(req.headers.cookie, SESSION_COOKIE));
+    // The app sends a bearer token (AGENT.md section 15); the website sends the session cookie.
+    const bearer = /^Bearer (\S+)$/.exec(req.headers.authorization ?? '')?.[1];
+    const user = bearer
+      ? await this.app.resolveAccessToken(bearer)
+      : await this.auth.resolveSession(readCookie(req.headers.cookie, SESSION_COOKIE));
     if (user) req.user = user;
     if (isPublic) return true;
     if (!user) throw new UnauthorizedException();

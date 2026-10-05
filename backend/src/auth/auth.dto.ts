@@ -34,3 +34,36 @@ export class AuthUserResponseDto {
   @ApiProperty({ type: AuthUserDto })
   user!: AuthUserDto;
 }
+
+export class AppGoogleSignInDto {
+  @ApiProperty({ description: "Google ID token from Android's Credential Manager" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4096)
+  idToken!: string;
+}
+
+export class AppRefreshDto {
+  @ApiProperty({ description: 'The refresh token from sign-in or the last refresh' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  refreshToken!: string;
+}
+
+export class AppSessionDto {
+  @ApiProperty({ type: AuthUserDto })
+  user!: AuthUserDto;
+
+  @ApiProperty({ description: 'Send as "Authorization: Bearer <token>"' })
+  accessToken!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  accessTokenExpiresAt!: string;
+
+  @ApiProperty({ description: 'Single use: each refresh returns a new one. Keep it secret.' })
+  refreshToken!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  refreshTokenExpiresAt!: string;
+}

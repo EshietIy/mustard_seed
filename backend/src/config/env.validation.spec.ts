@@ -60,6 +60,16 @@ describe('validateEnv', () => {
     });
   });
 
+  it('defaults the app token lifetimes and accepts an x.y.z minimum app version', () => {
+    const env = validateEnv(base);
+    expect(env.APP_ACCESS_TTL_MINUTES).toBe(15);
+    expect(env.APP_REFRESH_TTL_DAYS).toBe(30);
+    expect(env.APP_MIN_VERSION).toBeUndefined();
+    expect(validateEnv({ ...base, APP_MIN_VERSION: '1.2.3' }).APP_MIN_VERSION).toBe('1.2.3');
+    expect(validateEnv({ ...base, APP_MIN_VERSION: '' }).APP_MIN_VERSION).toBeUndefined();
+    expect(() => validateEnv({ ...base, APP_MIN_VERSION: 'v1' })).toThrow(/APP_MIN_VERSION/);
+  });
+
   it('fails when APP_ENV is missing', () => {
     expect(() =>
       validateEnv({ ...supabase, CORS_ALLOWED_ORIGINS: 'https://mustardseed.ng' }),

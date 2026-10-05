@@ -32,6 +32,23 @@ export class AuthService {
   ) {}
 
   async signInWithGoogle(credential: string, now = new Date()): Promise<SignInResult> {
+    const { user, isNewUser } = await this.identify(credential, now);
+    const ttl =
+      user.role === 'customer'
+        ? this.config.SESSION_TTL_HOURS_CUSTOMER
+        : this.config.SESSION_TTL_HOURS_STAFF;
+    const session = await this.tokens.issue(user.id, ttl, now);
+    return { user, session, isNewUser };
+  }
+
+  /**
+   * Verifies a Google ID token and finds or creates the user, with their role. Shared by the
+   * website (cookie session) and the app (bearer tokens), so both behave the same.
+   */
+  async identify(
+    credential: string,
+    now = new Date(),
+  ): Promise<{ user: AuthenticatedUser; isNewUser: boolean }> {
     const identity = await this.google.verify(credential);
     if (!identity.emailVerified) {
       // Staff matching relies on the email, so an unverified one is never accepted.
@@ -41,22 +58,20 @@ export class AuthService {
       });
     }
     const { user: record, created } = await this.users.upsertFromGoogle(identity, now);
-    const user = await this.withRole(record);
-    const ttl =
-      user.role === 'customer'
-        ? this.config.SESSION_TTL_HOURS_CUSTOMER
-        : this.config.SESSION_TTL_HOURS_STAFF;
-    const session = await this.tokens.issue(user.id, ttl, now);
-    return { user, session, isNewUser: created };
+    return { user: await this.withRole(record), isNewUser: created };
+  }
+
+  /** A user with their current role (looked up on every request); null if there is none. */
+  async userById(userId: string): Promise<AuthenticatedUser | null> {
+    const record = await this.users.findById(userId);
+    return record ? this.withRole(record) : null;
   }
 
   /** The user behind a session cookie, with their current role; null if not signed in. */
   async resolveSession(token: string | undefined): Promise<AuthenticatedUser | null> {
     if (!token) return null;
     const claims = await this.tokens.verify(token);
-    if (!claims) return null;
-    const record = await this.users.findById(claims.userId);
-    return record ? this.withRole(record) : null;
+    return claims ? this.userById(claims.userId) : null;
   }
 
   /** Staff role only for an ACTIVE provisioned record matching the verified email. */
