@@ -15,14 +15,41 @@ async function menuItemId(name: string): Promise<string> {
   return data.id;
 }
 
-/** "Edikang Ikong x2, Zobo x1" → [{ menuItemId, quantity }] */
-async function parseItems(spec: string): Promise<Array<{ menuItemId: string; quantity: number }>> {
+async function optionId(name: string): Promise<string> {
+  const { data, error } = await testDb()
+    .from('options')
+    .select('id')
+    .eq('name', name)
+    .single<{ id: string }>();
+  if (error || !data) throw new Error(`no option named ${name}`);
+  return data.id;
+}
+
+interface ItemInput {
+  menuItemId: string;
+  quantity: number;
+  optionIds?: string[];
+}
+
+/** "Edikang Ikong x2, Afang Soup (Chicken + Egg) x1" → [{ menuItemId, quantity, optionIds }] */
+export async function parseItems(spec: string): Promise<ItemInput[]> {
   if (!spec.trim()) return [];
   return Promise.all(
     spec.split(',').map(async (part) => {
-      const match = /^\s*(.+?)\s+x(\d+)\s*$/.exec(part);
+      const match = /^\s*(.+?)(?:\s+\(([^)]*)\))?\s+x(\d+)\s*$/.exec(part);
       if (!match) throw new Error(`bad item spec: ${part}`);
-      return { menuItemId: await menuItemId(match[1]), quantity: Number(match[2]) };
+      const line: ItemInput = {
+        menuItemId: await menuItemId(match[1]),
+        quantity: Number(match[3]),
+      };
+      if (match[2] !== undefined) {
+        const names = match[2]
+          .split('+')
+          .map((n) => n.trim())
+          .filter(Boolean);
+        line.optionIds = await Promise.all(names.map(optionId));
+      }
+      return line;
     }),
   );
 }
@@ -30,7 +57,7 @@ async function parseItems(spec: string): Promise<Array<{ menuItemId: string; qua
 interface OrderBody {
   fulfilment: string;
   branchId: string;
-  items: Array<{ menuItemId: string; quantity: number }>;
+  items: ItemInput[];
   contact: { fullName: string; phone: string };
   delivery?: { streetAddress: string; city?: string };
   expectedTotalKobo: number;
@@ -203,11 +230,18 @@ Then('the stored order has:', async function (this: ApiWorld, table: DataTable) 
 Then(
   'an audit event {string} with outcome {string} is recorded',
   async function (this: ApiWorld, event: string, outcome: string) {
-    const { data } = await testDb()
-      .from('audit_events')
-      .select('event, outcome, error_code, correlation_id')
-      .eq('event', event)
-      .eq('outcome', outcome);
+    // Some audit records (e.g. the email's) are written just after the visible effect,
+    // so allow a short wait before deciding the event is missing.
+    let data: Array<NonNullable<ApiWorld['lastAudit']>> | null = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      ({ data } = await testDb()
+        .from('audit_events')
+        .select('event, outcome, error_code, correlation_id')
+        .eq('event', event)
+        .eq('outcome', outcome));
+      if (data && data.length > 0) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
     assert.ok(data && data.length > 0, `no ${outcome} ${event} audit event`);
     this.lastAudit = data[0];
   },
