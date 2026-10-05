@@ -81,4 +81,55 @@ describe('MenuItemCard', () => {
     const wrapper = mount(MenuItemCard, { props: { item: menuItem() } });
     expect(wrapper.get('button').attributes('aria-label')).toBe('Add Edikang Ikong to your order');
   });
+
+  describe('an item with choices', () => {
+    const soup = menuItem({
+      id: 'soup',
+      name: 'Afang Soup',
+      priceKobo: 400000,
+      optionGroups: [
+        {
+          id: 'g-protein',
+          name: 'Soup protein',
+          minChoices: 1,
+          maxChoices: 1,
+          options: [
+            { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+            { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+          ],
+        },
+      ],
+    });
+
+    it('opens the choice sheet instead of adding straight away', async () => {
+      const wrapper = mount(MenuItemCard, { props: { item: soup }, attachTo: document.body });
+      await wrapper.get('button[aria-label="Choose options for Afang Soup"]').trigger('click');
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(true);
+      expect(useCartStore().count).toBe(0);
+      wrapper.unmount();
+    });
+
+    it('adds the item with the chosen options, confirms it, and closes the sheet', async () => {
+      const wrapper = mount(MenuItemCard, { props: { item: soup }, attachTo: document.body });
+      await wrapper.get('button[aria-label="Choose options for Afang Soup"]').trigger('click');
+      await wrapper.get('input[value="o-chicken"]').setValue(true);
+      await wrapper.get('[data-test="add-with-options"]').trigger('click');
+      const cart = useCartStore();
+      expect(cart.lines.map((l) => [l.name, l.options.map((o) => o.name)])).toEqual([
+        ['Afang Soup', ['Chicken']],
+      ]);
+      expect(useToastStore().messages[0]?.text).toBe('Added Afang Soup (Chicken) to your order');
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+      wrapper.unmount();
+    });
+
+    it('closes the sheet without adding anything', async () => {
+      const wrapper = mount(MenuItemCard, { props: { item: soup }, attachTo: document.body });
+      await wrapper.get('button[aria-label="Choose options for Afang Soup"]').trigger('click');
+      await wrapper.get('[aria-label="Close"]').trigger('click');
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+      expect(useCartStore().count).toBe(0);
+      wrapper.unmount();
+    });
+  });
 });

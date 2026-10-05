@@ -5,6 +5,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
 import { useMenuStore } from '@/stores/menu';
+import { useToastStore } from '@/stores/toast';
 import { bodyOf, routeFetch } from '@/test-utils/fetch';
 import { menuItem } from '@/test-utils/fixtures';
 import { navigation } from '@/utils/navigation';
@@ -310,5 +311,57 @@ describe('OrderView', () => {
     routeFetch({});
     const { wrapper } = await mountOrder();
     expect(wrapper.text()).toContain('Sign in to see your order');
+  });
+
+  it('"Order again" keeps each line\'s choices, and leaves out choices no longer offered', async () => {
+    const protein = {
+      id: 'g-protein',
+      name: 'Soup protein',
+      minChoices: 1,
+      maxChoices: 1,
+      options: [{ id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true }],
+    };
+    const line = (optionId: string, name: string) => ({
+      menuItemId: 'soup',
+      name: 'Afang Soup',
+      unitPriceKobo: 450000,
+      quantity: 1,
+      lineTotalKobo: 450000,
+      options: [{ optionId, groupName: 'Soup protein', name, priceDeltaKobo: 0 }],
+    });
+    routeFetch({
+      'GET /orders/o-1': () =>
+        Response.json({
+          ...order,
+          status: 'payment_failed',
+          items: [line('o-chicken', 'Chicken'), line('o-gone', 'Goat')],
+        }),
+      'GET /menu': () =>
+        Response.json({
+          categories: [
+            {
+              id: 'calabar_classics',
+              label: 'Calabar classics',
+              items: [
+                menuItem({
+                  id: 'soup',
+                  name: 'Afang Soup',
+                  priceKobo: 400000,
+                  optionGroups: [protein],
+                }),
+              ],
+            },
+          ],
+        }),
+    });
+    const { wrapper } = await mountOrder();
+    await wrapper.get('[data-test="order-again"]').trigger('click');
+    await flushPromises();
+    expect(useCartStore().lines.map((l) => [l.name, l.options.map((o) => o.name)])).toEqual([
+      ['Afang Soup', ['Chicken']],
+    ]);
+    expect(useToastStore().messages[0]?.text).toBe(
+      'Some items are no longer available and were left out.',
+    );
   });
 });

@@ -35,7 +35,11 @@ const clientRequestId = crypto.randomUUID();
 const calabar = computed(() => site.info?.branches.find((b) => b.id === BRANCH_ID) ?? null);
 const deliveryFee = computed(() => (site.info ? formatNaira(site.info.delivery.feeKobo) : null));
 const items = computed(() =>
-  cart.lines.map((l) => ({ menuItemId: l.itemId, quantity: l.quantity })),
+  cart.lines.map((l) => ({
+    menuItemId: l.itemId,
+    quantity: l.quantity,
+    ...(l.options.length ? { optionIds: l.options.map((o) => o.id) } : {}),
+  })),
 );
 const blockingProblems = computed(() => quote.value?.problems ?? []);
 const canSubmit = computed(

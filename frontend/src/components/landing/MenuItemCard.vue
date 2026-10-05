@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import type { MenuItem } from '@/api/types';
+import OptionSheet from '@/components/menu/OptionSheet.vue';
 import PhotoPlaceholder from '@/components/ui/PhotoPlaceholder.vue';
 import { useCartStore } from '@/stores/cart';
 import { useToastStore } from '@/stores/toast';
@@ -11,10 +12,27 @@ const props = defineProps<{ item: MenuItem }>();
 const cart = useCartStore();
 const toast = useToastStore();
 const imageFailed = ref(false);
+const choosing = ref(false);
+const hasChoices = () => props.item.optionGroups.length > 0;
 
-function add(): void {
-  if (cart.add(props.item)) toast.show(`Added ${props.item.name} to your order`);
-  else if (props.item.isAvailable) toast.show(`You've reached the limit for ${props.item.name}.`);
+function add(optionIds: string[] = []): void {
+  const names = props.item.optionGroups
+    .flatMap((g) => g.options)
+    .filter((o) => optionIds.includes(o.id))
+    .map((o) => o.name);
+  const label = names.length ? `${props.item.name} (${names.join(', ')})` : props.item.name;
+  if (cart.add(props.item, optionIds)) toast.show(`Added ${label} to your order`);
+  else if (props.item.isAvailable) toast.show(`You've reached the limit for ${label}.`);
+}
+
+function onAdd(): void {
+  if (hasChoices()) choosing.value = true;
+  else add();
+}
+
+function addWithOptions(optionIds: string[]): void {
+  choosing.value = false;
+  add(optionIds);
 }
 </script>
 
@@ -43,14 +61,20 @@ function add(): void {
           v-if="item.isAvailable"
           type="button"
           class="btn-primary btn-sm"
-          :aria-label="`Add ${item.name} to your order`"
-          @click="add"
+          :aria-label="
+            item.optionGroups.length
+              ? `Choose options for ${item.name}`
+              : `Add ${item.name} to your order`
+          "
+          :aria-haspopup="item.optionGroups.length ? 'dialog' : undefined"
+          @click="onAdd"
         >
           Add
         </button>
         <button v-else type="button" class="btn-sold-out btn-sm" disabled>Sold out</button>
       </div>
     </div>
+    <OptionSheet v-if="choosing" :item="item" @add="addWithOptions" @close="choosing = false" />
   </article>
 </template>
 

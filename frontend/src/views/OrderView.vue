@@ -9,7 +9,7 @@ import SimpleHeader from '@/components/layout/SimpleHeader.vue';
 import { STATUS_LABELS } from '@/content/order-status';
 import InlineError from '@/components/ui/InlineError.vue';
 import { useAuthStore } from '@/stores/auth';
-import { useCartStore } from '@/stores/cart';
+import { canChooseOptions, useCartStore } from '@/stores/cart';
 import { useMenuStore } from '@/stores/menu';
 import { useToastStore } from '@/stores/toast';
 import { formatNaira, formatWatClock } from '@/utils/format';
@@ -110,11 +110,12 @@ async function orderAgain(): Promise<void> {
   let skipped = 0;
   for (const line of order.value.items) {
     const item = menu.allItems.find((i) => i.id === line.menuItemId);
-    if (!item?.isAvailable) {
+    const optionIds = (line.options ?? []).map((o) => o.optionId);
+    if (!item?.isAvailable || !canChooseOptions(item, optionIds)) {
       skipped += 1;
       continue;
     }
-    for (let i = 0; i < line.quantity; i++) cart.add(item);
+    for (let i = 0; i < line.quantity; i++) cart.add(item, optionIds);
   }
   if (skipped > 0) toast.show('Some items are no longer available and were left out.');
   await router.push('/checkout');

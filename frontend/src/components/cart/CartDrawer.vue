@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import IconClose from '@/components/icons/IconClose.vue';
 import IconMinus from '@/components/icons/IconMinus.vue';
 import IconPlus from '@/components/icons/IconPlus.vue';
-import { MAX_QUANTITY, useCartStore } from '@/stores/cart';
+import { MAX_QUANTITY, useCartStore, type CartLine } from '@/stores/cart';
 import { useSiteStore } from '@/stores/site';
 import { formatNaira, priceLabel, PRICE_PLACEHOLDER } from '@/utils/format';
 
@@ -22,6 +22,19 @@ const deliveryNote = computed(() =>
 const subtotal = computed(() =>
   cart.subtotalKobo === null ? PRICE_PLACEHOLDER : formatNaira(cart.subtotalKobo),
 );
+
+const hasChoiceProblems = computed(() => cart.lines.some((l) => l.needsChoice));
+
+/** The line as people say it, e.g. "Afang Soup (Chicken)", for labels. */
+const lineLabel = (line: CartLine) =>
+  line.options.length ? `${line.name} (${line.options.map((o) => o.name).join(', ')})` : line.name;
+
+const linePrice = (line: CartLine) =>
+  line.priceKobo === null
+    ? PRICE_PLACEHOLDER
+    : priceLabel(
+        line.options.reduce((sum, o) => sum + o.priceDeltaKobo, line.priceKobo) * line.quantity,
+      );
 
 function close(): void {
   emit('update:open', false);
@@ -77,24 +90,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
       <template v-else>
         <ul class="lines">
-          <li v-for="line in cart.lines" :key="line.itemId" class="line">
+          <li v-for="line in cart.lines" :key="line.key" class="line">
             <div class="line-main">
               <p class="line-name">{{ line.name }}</p>
-              <p v-if="!line.isAvailable" class="sold-out">Sold out</p>
-              <p v-else class="line-price">
-                {{
-                  line.priceKobo === null
-                    ? PRICE_PLACEHOLDER
-                    : priceLabel(line.priceKobo * line.quantity)
-                }}
+              <p v-if="line.options.length" class="line-options" data-test="line-options">
+                {{ line.options.map((o) => o.name).join(' · ') }}
               </p>
+              <p v-if="!line.isAvailable" class="sold-out">Sold out</p>
+              <p v-else-if="line.needsChoice" class="sold-out">Choose again</p>
+              <p v-else class="line-price">{{ linePrice(line) }}</p>
             </div>
             <div class="stepper">
               <button
                 type="button"
                 class="icon-btn"
-                :aria-label="`Remove one ${line.name}`"
-                @click="cart.decrement(line.itemId)"
+                :aria-label="`Remove one ${lineLabel(line)}`"
+                @click="cart.decrement(line.key)"
               >
                 <IconMinus />
               </button>
@@ -102,9 +113,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               <button
                 type="button"
                 class="icon-btn"
-                :aria-label="`Add one more ${line.name}`"
+                :aria-label="`Add one more ${lineLabel(line)}`"
                 :disabled="!line.isAvailable || line.quantity >= MAX_QUANTITY"
-                @click="cart.increment(line.itemId)"
+                @click="cart.increment(line.key)"
               >
                 <IconPlus />
               </button>
@@ -116,6 +127,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
           <p v-if="cart.hasUnavailable" class="warning" role="alert">
             Some items have sold out. Remove them to continue.
           </p>
+          <p v-else-if="hasChoiceProblems" class="warning" role="alert">
+            Some choices need updating. Remove those items and add them again with your choices.
+          </p>
           <div class="row">
             <span>Subtotal</span>
             <strong data-test="subtotal">{{ subtotal }}</strong>
@@ -125,7 +139,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             type="button"
             class="btn-primary checkout"
             data-test="checkout"
-            :disabled="cart.hasUnavailable"
+            :disabled="cart.hasProblems"
             @click="emit('checkout')"
           >
             Checkout
@@ -205,6 +219,11 @@ h2 {
 .line-name {
   margin: 0;
   font-weight: 600;
+}
+.line-options {
+  margin: 0.125rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 .line-price {
   margin: 0.125rem 0 0;

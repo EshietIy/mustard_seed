@@ -12,6 +12,7 @@ export function menuItem(overrides: Partial<MenuItem> = {}): MenuItem {
     isFreshJuice: false,
     isAvailable: true,
     image: null,
+    optionGroups: [],
     ...overrides,
   };
 }

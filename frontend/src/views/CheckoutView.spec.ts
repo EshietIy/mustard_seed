@@ -22,6 +22,7 @@ const quote = (overrides: Partial<Quote> = {}): Quote => ({
       quantity: 2,
       lineTotalKobo: 900000,
       isAvailable: true,
+      options: [],
     },
   ],
   subtotalKobo: 900000,
@@ -295,5 +296,35 @@ describe('CheckoutView', () => {
     await alert.get('button').trigger('click');
     await flushPromises();
     expect(wrapper.get('[data-test="total"]').text()).toBe('₦10,500');
+  });
+
+  it('sends each line with its chosen options', async () => {
+    signIn();
+    useCartStore().clear();
+    useCartStore().add(
+      menuItem({
+        id: 'soup',
+        name: 'Afang Soup',
+        priceKobo: 400000,
+        optionGroups: [
+          {
+            id: 'g-protein',
+            name: 'Soup protein',
+            minChoices: 1,
+            maxChoices: 1,
+            options: [
+              { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+              { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+            ],
+          },
+        ],
+      }),
+      ['o-chicken'],
+    );
+    const fetchMock = routeFetch({ 'POST /orders/quote': () => Response.json(quote()) });
+    await mountCheckout();
+    expect(bodyOf(fetchMock, 'POST /orders/quote')).toMatchObject({
+      items: [{ menuItemId: 'soup', quantity: 1, optionIds: ['o-chicken'] }],
+    });
   });
 });

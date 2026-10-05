@@ -14,6 +14,7 @@ function item(overrides: Partial<MenuItem> = {}): MenuItem {
     isFreshJuice: false,
     isAvailable: true,
     image: null,
+    optionGroups: [],
     ...overrides,
   };
 }
@@ -123,7 +124,127 @@ describe('cart store', () => {
       ['keep', 'New name', 200, true],
       ['soldout', 'Edikang Ikong', 450000, false],
     ]);
-    expect(changes).toEqual({ removed: 1, unavailable: 1 });
+    expect(changes).toEqual({ removed: 1, unavailable: 1, needsChoice: 0 });
     expect(cart.hasUnavailable).toBe(true);
+  });
+
+  describe('with options', () => {
+    const protein = {
+      id: 'g-protein',
+      name: 'Soup protein',
+      minChoices: 1,
+      maxChoices: 1,
+      options: [
+        { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+        { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+      ],
+    };
+    const soup = (overrides: Partial<MenuItem> = {}) =>
+      item({
+        id: 'soup',
+        name: 'Afang Soup',
+        priceKobo: 400000,
+        optionGroups: [protein],
+        ...overrides,
+      });
+
+    it('keeps the same item with different choices as separate lines', () => {
+      const cart = useCartStore();
+      cart.add(soup(), ['o-beef']);
+      cart.add(soup(), ['o-chicken']);
+      cart.add(soup(), ['o-beef']);
+      expect(cart.lines.map((l) => [l.quantity, l.options.map((o) => o.name)])).toEqual([
+        [2, ['Beef']],
+        [1, ['Chicken']],
+      ]);
+      expect(new Set(cart.lines.map((l) => l.key)).size).toBe(2);
+    });
+
+    it('prices a line as the base price plus its options', () => {
+      const cart = useCartStore();
+      cart.add(soup(), ['o-chicken']);
+      cart.add(soup(), ['o-chicken']);
+      expect(cart.subtotalKobo).toBe(2 * 450000);
+    });
+
+    it('treats the same choices in any order as one line', () => {
+      const cart = useCartStore();
+      const both = { ...protein, maxChoices: 2 };
+      cart.add(soup({ optionGroups: [both] }), ['o-beef', 'o-chicken']);
+      cart.add(soup({ optionGroups: [both] }), ['o-chicken', 'o-beef']);
+      expect(cart.lines).toHaveLength(1);
+      expect(cart.lines[0]!.quantity).toBe(2);
+    });
+
+    it('changes quantities per line by its key', () => {
+      const cart = useCartStore();
+      cart.add(soup(), ['o-beef']);
+      cart.add(soup(), ['o-chicken']);
+      const chicken = cart.lines[1]!.key;
+      cart.increment(chicken);
+      cart.decrement(cart.lines[0]!.key);
+      expect(cart.lines.map((l) => [l.options[0]!.name, l.quantity])).toEqual([['Chicken', 2]]);
+      cart.remove(chicken);
+      expect(cart.isEmpty).toBe(true);
+    });
+
+    it('restores a cart saved before options existed', () => {
+      localStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify({
+          lines: [
+            { itemId: 'zobo', name: 'Zobo', priceKobo: 80000, quantity: 2, isAvailable: true },
+          ],
+        }),
+      );
+      const cart = useCartStore();
+      expect(cart.lines).toEqual([
+        expect.objectContaining({ key: 'zobo', itemId: 'zobo', quantity: 2, options: [] }),
+      ]);
+    });
+
+    it('flags a line whose choice is missing or no longer offered, so checkout can be fixed', () => {
+      const cart = useCartStore();
+      cart.add(soup(), ['o-beef']);
+      cart.add(soup(), ['o-chicken']);
+      // A line saved before the soup had a required protein:
+      cart.add(item({ id: 'soup', name: 'Afang Soup', priceKobo: 400000 }));
+      const changes = cart.reconcile([
+        soup({
+          optionGroups: [
+            {
+              ...protein,
+              options: [
+                { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 70000, isAvailable: true },
+              ],
+            },
+          ],
+        }),
+      ]);
+      expect(cart.lines.map((l) => [l.options.map((o) => o.name), l.needsChoice])).toEqual([
+        [['Beef'], true],
+        [['Chicken'], false],
+        [[], true],
+      ]);
+      expect(cart.lines[1]!.options[0]!.priceDeltaKobo).toBe(70000);
+      expect(changes.needsChoice).toBe(2);
+      expect(cart.hasProblems).toBe(true);
+    });
+
+    it('flags a line whose chosen option has been switched off', () => {
+      const cart = useCartStore();
+      cart.add(soup(), ['o-beef']);
+      cart.reconcile([
+        soup({
+          optionGroups: [
+            {
+              ...protein,
+              options: [{ ...protein.options[0]!, isAvailable: false }, protein.options[1]!],
+            },
+          ],
+        }),
+      ]);
+      expect(cart.lines[0]!.needsChoice).toBe(true);
+    });
   });
 });

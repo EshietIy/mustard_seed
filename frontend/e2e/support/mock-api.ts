@@ -12,8 +12,21 @@ const item = (id: string, name: string, extra: Record<string, unknown> = {}) => 
   isFreshJuice: false,
   isAvailable: true,
   image: null,
+  optionGroups: [] as unknown[],
   ...extra,
 });
+
+/** A required single choice, like the real "Soup protein" seed. */
+const PROTEIN = {
+  id: 'g-protein',
+  name: 'Soup protein',
+  minChoices: 1,
+  maxChoices: 1,
+  options: [
+    { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+    { id: 'o-turkey', name: 'Turkey', priceDeltaKobo: 0, isAvailable: false },
+  ],
+};
 
 export function menuFixture() {
   return {
@@ -25,6 +38,10 @@ export function menuFixture() {
           item('edikang-ikong', 'Edikang Ikong', { isHouseSignature: true }),
           item('afang-soup', 'Afang Soup', { priceKobo: 450000 }),
           item('atama-soup', 'Atama Soup', { isAvailable: false }),
+          item('fisherman-soup', 'Fisherman Soup', {
+            priceKobo: 600000,
+            optionGroups: [PROTEIN],
+          }),
         ],
       },
       { id: 'swallow_sides', label: 'Swallow & sides', items: [] },
@@ -105,7 +122,7 @@ window.google = { accounts: { id: {
 
 interface QuoteRequest {
   fulfilment: 'delivery' | 'pickup';
-  items: Array<{ menuItemId: string; quantity: number }>;
+  items: Array<{ menuItemId: string; quantity: number; optionIds?: string[] }>;
 }
 
 let placedOrder: unknown = null;
@@ -113,9 +130,22 @@ let placedOrder: unknown = null;
 /** Prices a cart from the fixture menu, like the real quote endpoint. */
 export function quoteFor(body: QuoteRequest, open: boolean) {
   const all = menuFixture().categories.flatMap((c) => c.items);
-  const lines = body.items.map(({ menuItemId, quantity }) => {
+  const lines = body.items.map(({ menuItemId, quantity, optionIds = [] }) => {
     const found = all.find((i) => i.id === menuItemId);
-    const price = (found?.priceKobo as number | null | undefined) ?? null;
+    const groups = (found?.optionGroups ?? []) as Array<typeof PROTEIN>;
+    const options = groups.flatMap((g) =>
+      g.options
+        .filter((o) => optionIds.includes(o.id))
+        .map((o) => ({
+          id: o.id,
+          groupId: g.id,
+          groupName: g.name,
+          name: o.name,
+          priceDeltaKobo: o.priceDeltaKobo,
+        })),
+    );
+    const base = (found?.priceKobo as number | null | undefined) ?? null;
+    const price = base === null ? null : options.reduce((sum, o) => sum + o.priceDeltaKobo, base);
     return {
       menuItemId,
       name: found?.name ?? '?',
@@ -123,6 +153,7 @@ export function quoteFor(body: QuoteRequest, open: boolean) {
       quantity,
       lineTotalKobo: price === null ? null : price * quantity,
       isAvailable: true,
+      options,
     };
   });
   const priced = lines.every((l) => l.lineTotalKobo !== null);

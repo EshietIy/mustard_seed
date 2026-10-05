@@ -47,4 +47,35 @@ describe('OrderSummary', () => {
     expect(wrapper.text()).toContain('Free');
     expect(wrapper.get('[data-test="total"]').text()).toBe('[PRICE]');
   });
+
+  it('shows the chosen options under a line', () => {
+    const wrapper = mount(OrderSummary, {
+      props: {
+        lines: [
+          {
+            menuItemId: 'soup',
+            name: 'Afang Soup',
+            quantity: 1,
+            lineTotalKobo: 450000,
+            options: [{ name: 'Chicken' }, { name: 'Egg' }],
+          },
+          {
+            menuItemId: 'soup',
+            name: 'Afang Soup',
+            quantity: 1,
+            lineTotalKobo: 400000,
+            options: [{ name: 'Beef' }],
+          },
+        ],
+        subtotalKobo: 850000,
+        deliveryFeeKobo: 0,
+        totalKobo: 850000,
+        fulfilment: 'pickup',
+      },
+    });
+    const rows = wrapper.findAll('li');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.get('[data-test="line-options"]').text()).toBe('Chicken · Egg');
+    expect(rows[1]!.get('[data-test="line-options"]').text()).toBe('Beef');
+  });
 });

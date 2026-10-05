@@ -10,6 +10,25 @@ export interface MenuImage {
   fullUrl: string;
 }
 
+export interface MenuOption {
+  id: string;
+  name: string;
+  /** Added to the item's price, in kobo (0 = no extra cost). */
+  priceDeltaKobo: number;
+  /** False when staff have switched it off: shown, but not choosable. */
+  isAvailable: boolean;
+}
+
+export interface MenuOptionGroup {
+  id: string;
+  name: string;
+  /** 1 or more means a choice is required. */
+  minChoices: number;
+  /** 1 means a single choice (radio buttons). */
+  maxChoices: number;
+  options: MenuOption[];
+}
+
 export interface MenuItem {
   id: string;
   slug: string;
@@ -21,6 +40,8 @@ export interface MenuItem {
   isFreshJuice: boolean;
   isAvailable: boolean;
   image: MenuImage | null;
+  /** Choices offered on this item; empty if none. */
+  optionGroups: MenuOptionGroup[];
 }
 
 export interface MenuCategory {
@@ -60,12 +81,24 @@ export interface QuoteLine {
   quantity: number;
   lineTotalKobo: number | null;
   isAvailable: boolean;
+  /** Chosen options in menu order; included in unitPriceKobo. */
+  options: Array<{
+    id: string;
+    groupId: string;
+    groupName: string;
+    name: string;
+    priceDeltaKobo: number;
+  }>;
 }
 
 export interface QuoteProblem {
   code: string;
   message: string;
   menuItemId?: string;
+  /** Option problems: which line (index in the request) and group. */
+  lineIndex?: number;
+  groupId?: string;
+  optionId?: string;
 }
 
 export interface Quote {
@@ -78,12 +111,22 @@ export interface Quote {
   canPlaceOrder: boolean;
 }
 
+/** A chosen option as saved on the order (a snapshot; menu edits never change it). */
+export interface OrderLineOption {
+  optionId: string;
+  groupName: string;
+  name: string;
+  priceDeltaKobo: number;
+}
+
 export interface OrderLine {
   menuItemId: string;
   name: string;
+  /** Includes the chosen options. */
   unitPriceKobo: number;
   quantity: number;
   lineTotalKobo: number;
+  options: OrderLineOption[];
 }
 
 export interface Order {

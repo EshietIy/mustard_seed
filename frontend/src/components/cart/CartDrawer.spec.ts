@@ -103,4 +103,64 @@ describe('CartDrawer', () => {
     expect(wrapper.emitted('update:open')).toEqual([[false], [false]]);
     wrapper.unmount();
   });
+
+  it('shows the chosen options under a line and changes that line only', async () => {
+    const cart = useCartStore();
+    const soup = menuItem({
+      id: 'soup',
+      name: 'Afang Soup',
+      priceKobo: 400000,
+      optionGroups: [
+        {
+          id: 'g-protein',
+          name: 'Soup protein',
+          minChoices: 1,
+          maxChoices: 1,
+          options: [
+            { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+            { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+          ],
+        },
+      ],
+    });
+    cart.add(soup, ['o-beef']);
+    cart.add(soup, ['o-chicken']);
+    const wrapper = mount(CartDrawer, { props: { open: true } });
+    const lines = wrapper.findAll('li');
+    expect(lines[0]!.text()).toContain('Beef');
+    expect(lines[1]!.text()).toContain('Chicken');
+    expect(lines[1]!.text()).toContain('₦4,500');
+    await lines[1]!.get('[aria-label="Add one more Afang Soup (Chicken)"]').trigger('click');
+    expect(cart.lines.map((l) => l.quantity)).toEqual([1, 2]);
+  });
+
+  it('asks for the choice again and blocks checkout when a line needs it', () => {
+    const cart = useCartStore();
+    cart.add(menuItem({ id: 'soup', name: 'Afang Soup', priceKobo: 400000 }));
+    cart.reconcile([
+      menuItem({
+        id: 'soup',
+        name: 'Afang Soup',
+        priceKobo: 400000,
+        optionGroups: [
+          {
+            id: 'g-protein',
+            name: 'Soup protein',
+            minChoices: 1,
+            maxChoices: 1,
+            options: [
+              { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+              { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+            ],
+          },
+        ],
+      }),
+    ]);
+    const wrapper = mount(CartDrawer, { props: { open: true } });
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Some choices need updating. Remove those items and add them again with your choices.',
+    );
+    expect(wrapper.get('li').text()).toContain('Choose again');
+    expect(wrapper.get('button.checkout').attributes('disabled')).toBeDefined();
+  });
 });

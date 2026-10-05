@@ -38,10 +38,11 @@ watch(
   () => menu.status,
   (status) => {
     if (status !== 'ready') return;
-    const { removed, unavailable } = cart.reconcile(menu.allItems);
+    const { removed, unavailable, needsChoice } = cart.reconcile(menu.allItems);
     if (removed > 0)
       toast.show('Some items in your order are no longer on the menu and were removed.');
     else if (unavailable > 0) toast.show('Some items in your order have sold out.');
+    else if (needsChoice > 0) toast.show('Some items in your order need you to choose again.');
   },
   { immediate: true },
 );

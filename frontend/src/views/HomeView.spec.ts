@@ -70,4 +70,26 @@ describe('HomeView', () => {
     await flushPromises();
     expect(useToastStore().messages[0]?.text).toBe('Some items in your order have sold out.');
   });
+
+  it('asks the customer to choose again when a saved item now needs a choice', async () => {
+    storeCart([
+      { itemId: 'i-afang', name: 'Afang Soup', priceKobo: null, quantity: 1, isAvailable: true },
+    ]);
+    const menu = sampleMenu();
+    menu.categories[0]!.items[1]!.optionGroups = [
+      {
+        id: 'g-protein',
+        name: 'Soup protein',
+        minChoices: 1,
+        maxChoices: 1,
+        options: [{ id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true }],
+      },
+    ];
+    routeFetch(menu);
+    mount(HomeView);
+    await flushPromises();
+    expect(useToastStore().messages[0]?.text).toBe(
+      'Some items in your order need you to choose again.',
+    );
+  });
 });

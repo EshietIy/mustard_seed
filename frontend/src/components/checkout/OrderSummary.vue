@@ -8,6 +8,8 @@ defineProps<{
     name: string;
     quantity: number;
     lineTotalKobo: number | null;
+    /** Chosen options (quote, order snapshot or cart); omitted or empty when none. */
+    options?: Array<{ name: string }>;
   }>;
   subtotalKobo: number | null;
   deliveryFeeKobo: number;
@@ -20,8 +22,13 @@ defineProps<{
 <template>
   <div class="summary">
     <ul class="lines">
-      <li v-for="line in lines" :key="line.menuItemId" class="line">
-        <span>{{ line.quantity }} × {{ line.name }}</span>
+      <li v-for="(line, i) in lines" :key="i" class="line">
+        <span>
+          {{ line.quantity }} × {{ line.name }}
+          <span v-if="line.options?.length" class="options" data-test="line-options">{{
+            line.options.map((o) => o.name).join(' · ')
+          }}</span>
+        </span>
         <span>{{ priceLabel(line.lineTotalKobo) }}</span>
       </li>
     </ul>
@@ -57,6 +64,11 @@ defineProps<{
 }
 .line {
   border-bottom: 1px solid var(--color-border);
+}
+.options {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 .totals {
   margin: 0.5rem 0 0;
