@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Mustard Seed</string>
+    <string name="brand_subtitle">RESTAURANT &amp; BAR</string>
+    <string name="menu_eyebrow">Today\'s menu</string>
+    <string name="menu_title">From our pots to your table</string>
+    <string name="menu_loading">Loading the menu…</string>
+    <string name="menu_empty_category">More dishes are coming to this part of the menu soon.</string>
+    <string name="menu_unavailable_title">We couldn\'t load the menu.</string>
+    <string name="house_signature">House signature</string>
+    <string name="sold_out">Sold out</string>
+    <string name="photo_coming">Photo coming</string>
+    <string name="has_choices">Choose: %1$s</string>
+    <string name="ordering_coming">Ordering in the app is coming soon.</string>
+    <string name="test_mode_banner">TEST MODE: payments are simulated. No real money is charged.</string>
+    <string name="try_again">Try again</string>
+    <string name="reference">Reference: %1$s</string>
+    <string name="error_offline">You appear to be offline. Check your connection and try again.</string>
+    <string name="error_network">We could not reach Mustard Seed right now. Please try again.</string>
+    <string name="error_timeout">This is taking longer than usual. Please try again.</string>
+    <string name="error_rate_limited">Too many attempts. Please wait a moment and try again.</string>
+    <string name="error_not_found">We could not find that.</string>
+    <string name="error_server">Something went wrong on our side. Please try again.</string>
+    <string name="error_unknown">Something unexpected happened. Please try again.</string>
+    <string name="error_update_required">Please update the app to keep ordering.</string>
+</resources>

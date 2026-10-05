@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Window and launcher colours only. Compose UI reads the tokens in ui/theme/Color.kt. -->
+<resources>
+    <color name="cream">#FFF4F2EE</color>
+    <color name="charcoal">#FF1E221E</color>
+</resources>
