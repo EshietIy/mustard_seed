@@ -31,6 +31,17 @@ export class OrderItemInputDto {
   @Min(1)
   @Max(MAX_QUANTITY)
   quantity!: number;
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: 'uuid',
+    description: 'Chosen option ids (see the menu item’s optionGroups); omit for none',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUUID('all', { each: true })
+  optionIds?: string[];
 }
 
 export class QuoteRequestDto {
@@ -105,6 +116,14 @@ export class PlaceOrderDto extends QuoteRequestDto {
   clientRequestId!: string;
 }
 
+class QuoteLineOptionDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() groupId!: string;
+  @ApiProperty({ example: 'Soup protein' }) groupName!: string;
+  @ApiProperty({ example: 'Chicken' }) name!: string;
+  @ApiProperty() priceDeltaKobo!: number;
+}
+
 class QuoteLineDto {
   @ApiProperty() menuItemId!: string;
   @ApiProperty() name!: string;
@@ -112,12 +131,19 @@ class QuoteLineDto {
   @ApiProperty() quantity!: number;
   @ApiProperty({ type: Number, nullable: true }) lineTotalKobo!: number | null;
   @ApiProperty() isAvailable!: boolean;
+  @ApiProperty({ type: [QuoteLineOptionDto], description: 'Included in unitPriceKobo' })
+  options!: QuoteLineOptionDto[];
 }
 
 class QuoteProblemDto {
   @ApiProperty() code!: string;
   @ApiProperty() message!: string;
   @ApiPropertyOptional() menuItemId?: string;
+  @ApiPropertyOptional({ description: 'Option problems: index of the line in the request' })
+  lineIndex?: number;
+  @ApiPropertyOptional({ description: 'Option problems: the group to show the error next to' })
+  groupId?: string;
+  @ApiPropertyOptional() optionId?: string;
 }
 
 class OrderingWindowDto {
@@ -137,12 +163,21 @@ export class QuoteDto {
   @ApiProperty() canPlaceOrder!: boolean;
 }
 
+class OrderLineOptionDto {
+  @ApiProperty() optionId!: string;
+  @ApiProperty({ example: 'Soup protein' }) groupName!: string;
+  @ApiProperty({ example: 'Chicken' }) name!: string;
+  @ApiProperty() priceDeltaKobo!: number;
+}
+
 class OrderLineDto {
   @ApiProperty() menuItemId!: string;
   @ApiProperty() name!: string;
-  @ApiProperty() unitPriceKobo!: number;
+  @ApiProperty({ description: 'Includes the chosen options' }) unitPriceKobo!: number;
   @ApiProperty() quantity!: number;
   @ApiProperty() lineTotalKobo!: number;
+  @ApiProperty({ type: [OrderLineOptionDto], description: 'Snapshot taken when ordering' })
+  options!: OrderLineOptionDto[];
 }
 
 /** The public tracking view: everything the customer sees except internal ids. */

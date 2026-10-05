@@ -78,11 +78,15 @@ export class OrderEmailBuilder {
         trackingUrl: `${site}/track/${order.trackingToken}`,
         items: order.items.map((line) => {
           const item = byId.get(line.menuItemId);
-          const note = item?.isHouseSignature
-            ? 'House signature'
-            : item?.isFreshJuice
-              ? 'Fresh, no preservatives'
-              : null;
+          // Chosen options come from the order's snapshot, so menu edits never change them.
+          const note =
+            line.options.length > 0
+              ? line.options.map((o) => o.name).join(' · ')
+              : item?.isHouseSignature
+                ? 'House signature'
+                : item?.isFreshJuice
+                  ? 'Fresh, no preservatives'
+                  : null;
           return {
             quantity: line.quantity,
             name: line.name,

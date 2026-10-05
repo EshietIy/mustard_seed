@@ -72,6 +72,7 @@ async function setup(now = '2026-10-05T12:00:00+01:00') {
       {
         id: ITEM,
         slug: 'zobo',
+        optionGroups: [],
         name: 'Zobo',
         description: '',
         category: 'drinks',

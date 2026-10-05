@@ -38,6 +38,7 @@ export class MenuService {
       isFreshJuice: item.isFreshJuice,
       isAvailable: item.isAvailable,
       image: publicImageUrls(this.config, item.imagePath),
+      optionGroups: item.optionGroups,
     };
   }
 }

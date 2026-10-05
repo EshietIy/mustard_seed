@@ -15,9 +15,19 @@ export type OrderStatus =
 export interface OrderItemRecord {
   menuItemId: string;
   name: string;
+  /** Includes the chosen options' price differences. */
   unitPriceKobo: number;
   quantity: number;
   lineTotalKobo: number;
+  /** Snapshot of the chosen options at order time; later menu edits never change it. */
+  options: OrderLineOption[];
+}
+
+export interface OrderLineOption {
+  optionId: string;
+  groupName: string;
+  name: string;
+  priceDeltaKobo: number;
 }
 
 export interface OrderRecord {

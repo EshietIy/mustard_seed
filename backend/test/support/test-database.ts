@@ -57,7 +57,7 @@ async function must(p: PromiseLike<{ error: { message: string } | null }>): Prom
   if (error) throw new Error(`Test database reset failed: ${error.message}`);
 }
 
-/** Puts every table back to its migrated default state, with an empty menu. */
+/** Puts every table back to its migrated default state, with an empty menu and no options. */
 export async function resetTestDatabase(): Promise<void> {
   const db = testDb();
   // Children before parents (orders reference users and menu items).
@@ -65,6 +65,9 @@ export async function resetTestDatabase(): Promise<void> {
   await must(db.from('simulator_paystack_transactions').delete().not('reference', 'is', null));
   await must(db.from('orders').delete().not('id', 'is', null));
   await must(db.from('menu_items').delete().not('id', 'is', null));
+  // Item links and overrides went with the menu items (cascade); scenarios add their own options.
+  await must(db.from('options').delete().not('id', 'is', null));
+  await must(db.from('option_groups').delete().not('id', 'is', null));
   await must(db.from('staff_members').delete().not('id', 'is', null));
   await must(db.from('users').delete().not('id', 'is', null));
   await must(

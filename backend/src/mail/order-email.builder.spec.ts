@@ -17,6 +17,7 @@ const item = (id: string, name: string, extra: Partial<MenuItemRecord> = {}): Me
   isAvailable: true,
   imagePath: null,
   sortOrder: 0,
+  optionGroups: [],
   ...extra,
 });
 
@@ -78,6 +79,7 @@ async function setup(fulfilment: 'delivery' | 'pickup', siteRepo = site()) {
           unitPriceKobo: 100000,
           quantity: 2,
           lineTotalKobo: 200000,
+          options: [],
         },
         {
           menuItemId: 'zobo',
@@ -85,6 +87,7 @@ async function setup(fulfilment: 'delivery' | 'pickup', siteRepo = site()) {
           unitPriceKobo: 80000,
           quantity: 1,
           lineTotalKobo: 80000,
+          options: [],
         },
         {
           menuItemId: 'afang',
@@ -92,6 +95,10 @@ async function setup(fulfilment: 'delivery' | 'pickup', siteRepo = site()) {
           unitPriceKobo: 100000,
           quantity: 1,
           lineTotalKobo: 100000,
+          options: [
+            { optionId: 'o-beef', groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 },
+            { optionId: 'o-egg', groupName: 'Extras', name: 'Egg', priceDeltaKobo: 0 },
+          ],
         },
       ],
     },
@@ -153,7 +160,8 @@ describe('OrderEmailBuilder', () => {
     expect(data.items).toEqual([
       { quantity: 2, name: 'Edikang Ikong', note: 'House signature', lineTotalKobo: 200000 },
       { quantity: 1, name: 'Zobo', note: 'Fresh, no preservatives', lineTotalKobo: 80000 },
-      { quantity: 1, name: 'Afang Soup', note: null, lineTotalKobo: 100000 },
+      // The chosen options are the note (AGENT.md section 14), e.g. "Beef · Egg".
+      { quantity: 1, name: 'Afang Soup', note: 'Beef · Egg', lineTotalKobo: 100000 },
     ]);
   });
 

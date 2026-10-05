@@ -35,3 +35,19 @@ values
   ('fufu', 'Fufu', 'Cassava fufu, to go with any soup.', 'swallow_sides', false, false, 30, 56700),
   ('semo', 'Semo', 'Semovita swallow, to go with any soup.', 'swallow_sides', false, false, 40, 67800),
   ('wheat', 'Wheat', 'Wheat swallow, to go with any soup.', 'swallow_sides', false, false, 50, 34500);
+
+-- Soup protein choice (group and options come from the option-groups migration).
+-- Fisherman Soup is seafood, so Beef is not offered on it.
+insert into public.menu_item_option_groups (menu_item_id, group_id, sort_order)
+select m.id, g.id, 10
+  from public.menu_items m
+  cross join public.option_groups g
+ where g.name = 'Soup protein'
+   and m.slug in ('edikang-ikong', 'afang-soup', 'atama-soup', 'fisherman-soup', 'afia-efere');
+
+insert into public.menu_item_option_overrides (menu_item_id, option_id, is_excluded)
+select m.id, o.id, true
+  from public.menu_items m
+  join public.option_groups g on g.name = 'Soup protein'
+  join public.options o on o.group_id = g.id and o.name = 'Beef'
+ where m.slug = 'fisherman-soup';

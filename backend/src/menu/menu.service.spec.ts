@@ -17,6 +17,7 @@ function item(overrides: Partial<MenuItemRecord>): MenuItemRecord {
     isAvailable: true,
     imagePath: null,
     sortOrder: 10,
+    optionGroups: [],
     ...overrides,
   };
 }
@@ -64,7 +65,24 @@ describe('MenuService', () => {
       isFreshJuice: false,
       isAvailable: true,
       image: null,
+      optionGroups: [],
     });
+  });
+
+  it("includes an item's option groups so the site can show the choice sheet", async () => {
+    const protein = {
+      id: 'g1',
+      name: 'Soup protein',
+      minChoices: 1,
+      maxChoices: 1,
+      options: [
+        { id: 'o1', name: 'Chicken', priceDeltaKobo: 0, isAvailable: true },
+        { id: 'o2', name: 'Turkey', priceDeltaKobo: 50000, isAvailable: false },
+      ],
+    };
+    const repo = new InMemoryMenuRepository([item({ optionGroups: [protein] })]);
+    const [first] = (await new MenuService(repo, config).getMenu()).categories[0].items;
+    expect(first.optionGroups).toEqual([protein]);
   });
 
   it('includes unavailable items, flagged, and builds image URLs from the stored key', async () => {

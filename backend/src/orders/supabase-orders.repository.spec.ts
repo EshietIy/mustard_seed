@@ -29,6 +29,7 @@ const newOrder: NewOrder = {
       unitPriceKobo: 450000,
       quantity: 2,
       lineTotalKobo: 900000,
+      options: [{ optionId: 'o-1', groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 }],
     },
   ],
 };
@@ -68,6 +69,7 @@ const row = {
       quantity: 1,
       line_total_kobo: 1,
       position: 2,
+      options: null,
     },
     {
       menu_item_id: 'm-1',
@@ -76,6 +78,7 @@ const row = {
       quantity: 2,
       line_total_kobo: 900000,
       position: 1,
+      options: [{ optionId: 'o-1', groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 }],
     },
   ],
 };
@@ -106,7 +109,15 @@ describe('SupabaseOrdersRepository', () => {
         delivery_city: 'Calabar',
       },
       p_items: [
-        { menu_item_id: 'm-1', unit_price_kobo: 450000, quantity: 2, line_total_kobo: 900000 },
+        {
+          menu_item_id: 'm-1',
+          unit_price_kobo: 450000,
+          quantity: 2,
+          line_total_kobo: 900000,
+          options: [
+            { optionId: 'o-1', groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 },
+          ],
+        },
       ],
     });
   });
@@ -132,6 +143,10 @@ describe('SupabaseOrdersRepository', () => {
       deliveryCity: 'Calabar',
     });
     expect(order?.items.map((i) => i.name)).toEqual(['Edikang Ikong', 'Zobo']);
+    expect(order?.items[0].options).toEqual([
+      { optionId: 'o-1', groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 },
+    ]);
+    expect(order?.items[1].options).toEqual([]);
     expect(order?.paymentExpiresAt).toBe('2026-10-04T11:15:00Z');
     expect(order?.payment).toEqual({
       reference: 'MS0007-x',

@@ -7,10 +7,16 @@ import {
 import { SUPABASE_CLIENT } from '../database/supabase.token';
 import type { NewOrder, OrdersRepository } from './orders.repository';
 import type { Fulfilment } from './pricing';
-import type { AuditEvent, OrderRecord, OrderStatus, PaymentStatus } from './orders.types';
+import type {
+  AuditEvent,
+  OrderLineOption,
+  OrderRecord,
+  OrderStatus,
+  PaymentStatus,
+} from './orders.types';
 
 const COLUMNS =
-  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, payment_expires_at, estimated_ready_at, payments(reference, authorization_url, status, channel, paid_at), order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position)';
+  'id, order_number, tracking_token, user_id, status, fulfilment, branch_id, contact_full_name, contact_phone, delivery_street_address, delivery_city, subtotal_kobo, delivery_fee_kobo, total_kobo, created_at, payment_expires_at, estimated_ready_at, payments(reference, authorization_url, status, channel, paid_at), order_items(menu_item_id, name, unit_price_kobo, quantity, line_total_kobo, position, options)';
 
 interface OrderRow {
   id: string;
@@ -38,6 +44,7 @@ interface OrderRow {
     quantity: number;
     line_total_kobo: number;
     position: number;
+    options: OrderLineOption[] | null;
   }>;
 }
 
@@ -100,6 +107,7 @@ export class SupabaseOrdersRepository implements OrdersRepository {
           unit_price_kobo: i.unitPriceKobo,
           quantity: i.quantity,
           line_total_kobo: i.lineTotalKobo,
+          options: i.options,
         })),
         p_correlation_id: correlationId,
       }),
@@ -155,6 +163,7 @@ export class SupabaseOrdersRepository implements OrdersRepository {
           unitPriceKobo: i.unit_price_kobo,
           quantity: i.quantity,
           lineTotalKobo: i.line_total_kobo,
+          options: i.options ?? [],
         })),
     };
   }

@@ -17,12 +17,20 @@ const row = {
   sort_order: 10,
 };
 
+const none = { data: [], error: null };
+
 describe('SupabaseMenuRepository', () => {
   it('selects only the needed columns, ordered, and maps rows', async () => {
-    const { client, calls } = fakeSupabase({ data: [row], error: null });
+    const { client, calls } = fakeSupabase({ data: [row], error: null }, none, none, none, none);
     const items = await new SupabaseMenuRepository(client as unknown as SupabaseClient).listItems();
-    expect(calls.from).toEqual(['menu_items']);
-    expect(calls.select[0]).not.toContain('*');
+    expect(calls.from).toEqual([
+      'menu_items',
+      'option_groups',
+      'options',
+      'menu_item_option_groups',
+      'menu_item_option_overrides',
+    ]);
+    expect(calls.select.every((cols) => !String(cols).includes('*'))).toBe(true);
     expect(calls.order).toEqual(['category', 'sort_order', 'name']);
     expect(items).toEqual([
       {
@@ -37,6 +45,79 @@ describe('SupabaseMenuRepository', () => {
         isAvailable: true,
         imagePath: null,
         sortOrder: 10,
+        optionGroups: [],
+      },
+    ]);
+  });
+
+  it("attaches each item's option groups, with exclusions and price overrides applied", async () => {
+    const soup = { ...row, id: 'soup', slug: 'afang', name: 'Afang', category: 'calabar_classics' };
+    const { client } = fakeSupabase(
+      { data: [soup], error: null },
+      {
+        data: [
+          {
+            id: 'g1',
+            name: 'Soup protein',
+            min_choices: 1,
+            max_choices: 1,
+            sort_order: 10,
+            archived_at: null,
+          },
+        ],
+        error: null,
+      },
+      {
+        data: [
+          {
+            id: 'o1',
+            group_id: 'g1',
+            name: 'Beef',
+            price_delta_kobo: 0,
+            is_available: true,
+            sort_order: 10,
+            archived_at: null,
+          },
+          {
+            id: 'o2',
+            group_id: 'g1',
+            name: 'Chicken',
+            price_delta_kobo: 5000,
+            is_available: true,
+            sort_order: 20,
+            archived_at: null,
+          },
+          {
+            id: 'o3',
+            group_id: 'g1',
+            name: 'Goat',
+            price_delta_kobo: 0,
+            is_available: true,
+            sort_order: 30,
+            archived_at: '2026-10-01T00:00:00Z',
+          },
+        ],
+        error: null,
+      },
+      { data: [{ menu_item_id: 'soup', group_id: 'g1', sort_order: 10 }], error: null },
+      {
+        data: [
+          { menu_item_id: 'soup', option_id: 'o1', is_excluded: true, price_delta_kobo: null },
+          { menu_item_id: 'soup', option_id: 'o2', is_excluded: false, price_delta_kobo: 7000 },
+        ],
+        error: null,
+      },
+    );
+    const [item] = await new SupabaseMenuRepository(
+      client as unknown as SupabaseClient,
+    ).listItems();
+    expect(item.optionGroups).toEqual([
+      {
+        id: 'g1',
+        name: 'Soup protein',
+        minChoices: 1,
+        maxChoices: 1,
+        options: [{ id: 'o2', name: 'Chicken', priceDeltaKobo: 7000, isAvailable: true }],
       },
     ]);
   });

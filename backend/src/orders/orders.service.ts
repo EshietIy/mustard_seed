@@ -17,7 +17,7 @@ import { MENU_REPOSITORY, type MenuRepository } from '../menu/menu.repository';
 import { SITE_REPOSITORY, type SiteRepository } from '../site/site.repository';
 import { formatOrderNumber } from './order-number';
 import { ORDERS_REPOSITORY, type OrdersRepository } from './orders.repository';
-import type { OrderRecord, OrderStatus } from './orders.types';
+import type { OrderItemRecord, OrderRecord, OrderStatus } from './orders.types';
 import { normalizeNigerianPhone } from './phone';
 import {
   buildQuote,
@@ -42,13 +42,7 @@ export interface OrderView {
   status: OrderStatus;
   fulfilment: Fulfilment;
   branch: { id: string; city: string };
-  items: Array<{
-    menuItemId: string;
-    name: string;
-    unitPriceKobo: number;
-    quantity: number;
-    lineTotalKobo: number;
-  }>;
+  items: OrderItemRecord[];
   subtotalKobo: number;
   deliveryFeeKobo: number;
   totalKobo: number;
@@ -78,6 +72,10 @@ const PROBLEM_PRIORITY: QuoteProblemCode[] = [
   'ITEM_NOT_FOUND',
   'ITEM_UNAVAILABLE',
   'ITEM_PRICE_UNAVAILABLE',
+  'OPTION_NOT_OFFERED',
+  'OPTION_UNAVAILABLE',
+  'OPTION_REQUIRED',
+  'OPTION_TOO_MANY',
 ];
 
 const fieldError = (field: string, message: string) =>
@@ -179,6 +177,12 @@ export class OrdersService {
             unitPriceKobo: l.unitPriceKobo as number,
             quantity: l.quantity,
             lineTotalKobo: l.lineTotalKobo as number,
+            options: l.options.map((o) => ({
+              optionId: o.id,
+              groupName: o.groupName,
+              name: o.name,
+              priceDeltaKobo: o.priceDeltaKobo,
+            })),
           })),
         },
         correlationId,
@@ -207,9 +211,15 @@ export class OrdersService {
   }
 
   private validateShape(input: PlaceOrderInput): void {
-    const ids = input.items.map((i) => i.menuItemId);
-    if (new Set(ids).size !== ids.length) {
-      throw fieldError('items', 'Each item may appear only once; change its quantity instead');
+    // A line is an item plus its chosen options; the same combination twice is one line.
+    const keys = input.items.map((i) =>
+      [i.menuItemId, ...[...(i.optionIds ?? [])].sort()].join('|'),
+    );
+    if (new Set(keys).size !== keys.length) {
+      throw fieldError(
+        'items',
+        'Each item with the same choices may appear only once; change its quantity instead',
+      );
     }
     if (input.fulfilment === 'delivery' && !input.delivery) {
       throw fieldError('delivery.streetAddress', 'Enter a delivery address');

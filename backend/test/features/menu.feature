@@ -96,6 +96,7 @@ Feature: Browse the menu
       | isFreshJuice     |
       | isAvailable      |
       | image            |
+      | optionGroups     |
 
   Scenario: The database is unavailable
     Given the database is unreachable

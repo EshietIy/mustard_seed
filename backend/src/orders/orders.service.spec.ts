@@ -34,6 +34,7 @@ const item = (
   isAvailable,
   imagePath: null,
   sortOrder: 0,
+  optionGroups: [],
 });
 
 const site: SiteRepository = {
@@ -136,8 +137,16 @@ describe('OrdersService.place', () => {
         unitPriceKobo: 450000,
         quantity: 2,
         lineTotalKobo: 900000,
+        options: [],
       },
-      { menuItemId: ZOBO, name: 'Zobo', unitPriceKobo: 80000, quantity: 1, lineTotalKobo: 80000 },
+      {
+        menuItemId: ZOBO,
+        name: 'Zobo',
+        unitPriceKobo: 80000,
+        quantity: 1,
+        lineTotalKobo: 80000,
+        options: [],
+      },
     ]);
     expect(order.paymentExpiresAt).toBe('2026-10-04T11:15:00.000Z');
     expect(order.payment).toBeNull();
@@ -230,7 +239,7 @@ describe('OrdersService.place', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('rejects duplicate items in one order (400)', async () => {
+  it('rejects the same item with the same options twice in one order (400)', async () => {
     const { service } = setup();
     await expect(
       service.place(
@@ -304,6 +313,126 @@ describe('OrdersService.place', () => {
     await expect(service.place(user, delivery({ items: [] }), 'c')).rejects.toBeInstanceOf(
       UnprocessableEntityException,
     );
+  });
+});
+
+describe('OrdersService.place with options', () => {
+  const SOUP = '55555555-5555-4555-8555-555555555555';
+  const BEEF = '66666666-6666-4666-8666-666666666661';
+  const CHICKEN = '66666666-6666-4666-8666-666666666662';
+  const protein = {
+    id: 'g-protein',
+    name: 'Soup protein',
+    minChoices: 1,
+    maxChoices: 1,
+    options: [
+      { id: BEEF, name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+      { id: CHICKEN, name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+    ],
+  };
+  function optionSetup() {
+    const menu = new InMemoryMenuRepository([
+      { ...item(SOUP, 'Afang Soup', 400000), optionGroups: [protein] },
+    ]);
+    const orders = new InMemoryOrdersRepository();
+    const service = new OrdersService(
+      menu,
+      site,
+      orders,
+      () => new Date('2026-10-04T12:00:00+01:00'),
+      {
+        PAYMENT_WINDOW_MINUTES: 15,
+      },
+    );
+    return { service, orders };
+  }
+  const soupOrder = (items: PlaceOrderInput['items'], expectedTotalKobo: number) =>
+    delivery({ fulfilment: 'pickup', delivery: undefined, items, expectedTotalKobo });
+
+  it('saves a snapshot of the chosen options on each line, priced by the server', async () => {
+    const { service, orders } = optionSetup();
+    const { order } = await service.place(
+      user,
+      soupOrder(
+        [
+          { menuItemId: SOUP, quantity: 1, optionIds: [BEEF] },
+          { menuItemId: SOUP, quantity: 2, optionIds: [CHICKEN] },
+        ],
+        400000 + 2 * 450000,
+      ),
+      'c',
+    );
+    expect(order.items.map((i) => [i.quantity, i.unitPriceKobo, i.options])).toEqual([
+      [1, 400000, [{ optionId: BEEF, groupName: 'Soup protein', name: 'Beef', priceDeltaKobo: 0 }]],
+      [
+        2,
+        450000,
+        [{ optionId: CHICKEN, groupName: 'Soup protein', name: 'Chicken', priceDeltaKobo: 50000 }],
+      ],
+    ]);
+    expect(orders.all()[0].items[1].options).toEqual(order.items[1].options);
+  });
+
+  it('refuses a soup with no protein chosen (422 OPTION_REQUIRED) and records the failure', async () => {
+    const { service, orders } = optionSetup();
+    const err = await service
+      .place(user, soupOrder([{ menuItemId: SOUP, quantity: 1 }], 400000), 'c')
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(UnprocessableEntityException);
+    expect(codeOf(err)).toBe('OPTION_REQUIRED');
+    expect(((err as HttpException).getResponse() as { details: unknown[] }).details).toContainEqual(
+      expect.objectContaining({ code: 'OPTION_REQUIRED', lineIndex: 0, groupId: 'g-protein' }),
+    );
+    expect(orders.all()).toHaveLength(0);
+    expect(orders.audit).toContainEqual(
+      expect.objectContaining({
+        event: 'order.create',
+        outcome: 'FAILED',
+        errorCode: 'OPTION_REQUIRED',
+      }),
+    );
+  });
+
+  it('refuses an option that is not offered (422 OPTION_NOT_OFFERED)', async () => {
+    const { service } = optionSetup();
+    const err = await service
+      .place(
+        user,
+        soupOrder([{ menuItemId: SOUP, quantity: 1, optionIds: [REQUEST] }], 400000),
+        'c',
+      )
+      .catch((e: unknown) => e);
+    expect(codeOf(err)).toBe('OPTION_NOT_OFFERED');
+  });
+
+  it('ignores any price the client implies: the total must match the server', async () => {
+    const { service } = optionSetup();
+    const err = await service
+      .place(
+        user,
+        soupOrder([{ menuItemId: SOUP, quantity: 1, optionIds: [CHICKEN] }], 400000),
+        'c',
+      )
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(codeOf(err)).toBe('PRICE_CHANGED');
+  });
+
+  it('treats the same options in a different order as the same line (400)', async () => {
+    const { service } = optionSetup();
+    await expect(
+      service.place(
+        user,
+        soupOrder(
+          [
+            { menuItemId: SOUP, quantity: 1, optionIds: [BEEF, CHICKEN] },
+            { menuItemId: SOUP, quantity: 1, optionIds: [CHICKEN, BEEF] },
+          ],
+          1,
+        ),
+        'c',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

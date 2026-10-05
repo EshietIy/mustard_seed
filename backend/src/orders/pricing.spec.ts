@@ -47,6 +47,7 @@ const item = (
   isAvailable,
   imagePath: null,
   sortOrder: 0,
+  optionGroups: [],
 });
 const menu = [
   item('edikang', 'Edikang Ikong', 450000),
@@ -77,6 +78,7 @@ describe('buildQuote', () => {
         quantity: 2,
         lineTotalKobo: 900000,
         isAvailable: true,
+        options: [],
       },
       {
         menuItemId: 'zobo',
@@ -85,6 +87,7 @@ describe('buildQuote', () => {
         quantity: 3,
         lineTotalKobo: 240000,
         isAvailable: true,
+        options: [],
       },
     ]);
     expect(quote.subtotalKobo).toBe(1140000);
@@ -177,5 +180,169 @@ describe('buildQuote', () => {
     expect(() =>
       buildQuote(ctx, input({ items: [{ menuItemId: 'zobo', quantity: 1.5 }] })),
     ).toThrow(RangeError);
+  });
+});
+
+describe('buildQuote with options', () => {
+  // A required single choice, plus an optional group allowing up to two extras.
+  const protein = {
+    id: 'g-protein',
+    name: 'Soup protein',
+    minChoices: 1,
+    maxChoices: 1,
+    options: [
+      { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+      { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+      { id: 'o-turkey', name: 'Turkey', priceDeltaKobo: 0, isAvailable: false },
+    ],
+  };
+  const extras = {
+    id: 'g-extras',
+    name: 'Extras',
+    minChoices: 0,
+    maxChoices: 2,
+    options: [
+      { id: 'o-egg', name: 'Egg', priceDeltaKobo: 20000, isAvailable: true },
+      { id: 'o-ponmo', name: 'Ponmo', priceDeltaKobo: 30000, isAvailable: true },
+      { id: 'o-snail', name: 'Snail', priceDeltaKobo: 90000, isAvailable: true },
+    ],
+  };
+  const soup = { ...item('soup', 'Afang Soup', 400000), optionGroups: [protein, extras] };
+  const fish = {
+    ...item('fish', 'Fisherman Soup', 600000),
+    // Beef is excluded on this item, so it is simply not offered.
+    optionGroups: [{ ...protein, options: protein.options.filter((o) => o.id !== 'o-beef') }],
+  };
+  const optCtx = { ...ctx, menu: [soup, fish, item('zobo', 'Zobo', 80000)] };
+  const quoteFor = (items: QuoteInput['items']) =>
+    buildQuote(optCtx, { fulfilment: 'pickup', branchId: 'calabar', items });
+
+  it('prices a line as the base price plus the chosen options, and lists them', () => {
+    const quote = quoteFor([
+      { menuItemId: 'soup', quantity: 2, optionIds: ['o-chicken', 'o-egg', 'o-ponmo'] },
+    ]);
+    expect(quote.problems).toEqual([]);
+    expect(quote.lines[0]).toMatchObject({
+      unitPriceKobo: 400000 + 50000 + 20000 + 30000,
+      lineTotalKobo: 2 * 500000,
+      options: [
+        {
+          id: 'o-chicken',
+          groupId: 'g-protein',
+          groupName: 'Soup protein',
+          name: 'Chicken',
+          priceDeltaKobo: 50000,
+        },
+        {
+          id: 'o-egg',
+          groupId: 'g-extras',
+          groupName: 'Extras',
+          name: 'Egg',
+          priceDeltaKobo: 20000,
+        },
+        {
+          id: 'o-ponmo',
+          groupId: 'g-extras',
+          groupName: 'Extras',
+          name: 'Ponmo',
+          priceDeltaKobo: 30000,
+        },
+      ],
+    });
+    expect(quote.canPlaceOrder).toBe(true);
+  });
+
+  it('lists chosen options in menu order, whatever order the client sent', () => {
+    const quote = quoteFor([
+      { menuItemId: 'soup', quantity: 1, optionIds: ['o-ponmo', 'o-beef', 'o-egg'] },
+    ]);
+    expect(quote.lines[0].options.map((o) => o.name)).toEqual(['Beef', 'Egg', 'Ponmo']);
+  });
+
+  it('treats an item without option groups as before', () => {
+    const quote = quoteFor([{ menuItemId: 'zobo', quantity: 1 }]);
+    expect(quote.problems).toEqual([]);
+    expect(quote.lines[0]).toMatchObject({ unitPriceKobo: 80000, options: [] });
+  });
+
+  it('requires a choice for a required group', () => {
+    const quote = quoteFor([{ menuItemId: 'soup', quantity: 1 }]);
+    expect(quote.problems).toEqual([
+      {
+        code: 'OPTION_REQUIRED',
+        menuItemId: 'soup',
+        lineIndex: 0,
+        groupId: 'g-protein',
+        message: 'Choose a soup protein for Afang Soup.',
+      },
+    ]);
+    expect(quote.canPlaceOrder).toBe(false);
+  });
+
+  it('refuses more choices than a group allows', () => {
+    const quote = quoteFor([
+      { menuItemId: 'soup', quantity: 1, optionIds: ['o-beef', 'o-chicken'] },
+      { menuItemId: 'soup', quantity: 1, optionIds: ['o-beef', 'o-egg', 'o-ponmo', 'o-snail'] },
+    ]);
+    expect(quote.problems).toEqual([
+      expect.objectContaining({
+        code: 'OPTION_TOO_MANY',
+        lineIndex: 0,
+        groupId: 'g-protein',
+        message: 'Choose only one soup protein for Afang Soup.',
+      }),
+      expect.objectContaining({
+        code: 'OPTION_TOO_MANY',
+        lineIndex: 1,
+        groupId: 'g-extras',
+        message: 'Choose up to 2 extras for Afang Soup.',
+      }),
+    ]);
+  });
+
+  it.each([
+    ['an option this item excludes', 'fish', 'o-beef'],
+    ['an option from another item', 'zobo', 'o-chicken'],
+    ['an unknown or archived option', 'soup', '00000000-0000-4000-8000-000000000000'],
+  ])('refuses %s', (_case, menuItemId, optionId) => {
+    const quote = quoteFor([{ menuItemId, quantity: 1, optionIds: ['o-chicken', optionId] }]);
+    expect(quote.problems).toContainEqual(
+      expect.objectContaining({ code: 'OPTION_NOT_OFFERED', lineIndex: 0, optionId }),
+    );
+    expect(quote.canPlaceOrder).toBe(false);
+  });
+
+  it('refuses an option staff have switched off', () => {
+    const quote = quoteFor([{ menuItemId: 'soup', quantity: 1, optionIds: ['o-turkey'] }]);
+    expect(quote.problems).toEqual([
+      {
+        code: 'OPTION_UNAVAILABLE',
+        menuItemId: 'soup',
+        lineIndex: 0,
+        groupId: 'g-protein',
+        optionId: 'o-turkey',
+        message: 'Turkey isn’t available right now for Afang Soup. Please choose another.',
+      },
+    ]);
+  });
+
+  it('refuses the same option twice on one line', () => {
+    const quote = quoteFor([{ menuItemId: 'soup', quantity: 1, optionIds: ['o-beef', 'o-beef'] }]);
+    expect(quote.problems).toContainEqual(
+      expect.objectContaining({ code: 'OPTION_NOT_OFFERED', optionId: 'o-beef' }),
+    );
+  });
+
+  it('makes the same item with different choices two separate lines', () => {
+    const quote = quoteFor([
+      { menuItemId: 'soup', quantity: 1, optionIds: ['o-beef'] },
+      { menuItemId: 'soup', quantity: 2, optionIds: ['o-chicken'] },
+    ]);
+    expect(quote.problems).toEqual([]);
+    expect(quote.lines.map((l) => [l.options[0].name, l.quantity, l.lineTotalKobo])).toEqual([
+      ['Beef', 1, 400000],
+      ['Chicken', 2, 900000],
+    ]);
+    expect(quote.subtotalKobo).toBe(1300000);
   });
 });
