@@ -100,9 +100,10 @@ Then('the email links to the tracking page with the order token', async function
 Then(
   'the confirmation email is recorded as {string} after {int} attempt(s)',
   async function (this: ApiWorld, status: string, attempts: number) {
+    // A new row is already "pending" with 0 attempts, so wait for the attempt count too.
     const row = await eventually(
       () => outboxRow(this),
-      (r) => r?.status === status,
+      (r) => r?.status === status && r.attempts === attempts,
     );
     assert.equal(row?.status, status, JSON.stringify(row));
     assert.equal(row?.attempts, attempts);
