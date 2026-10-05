@@ -585,7 +585,6 @@ These are not settled. Do not build anything that assumes an answer; use the sta
 ### Follow-up tasks
 
 - **Rename `SUPABASE_SERVICE_ROLE_KEY` to `SUPABASE_SECRET_KEY`** (small, separate code task). Files that still use the old name: `backend/src/config/env.validation.ts`, `backend/src/config/env.validation.spec.ts`, `backend/src/database/supabase.client.ts`, `backend/src/database/supabase.client.spec.ts`, `backend/test/support/test-database.ts`, `backend/test/features/startup.feature`, `backend/.env.example` and `compose.yaml` (comment). Also rename it in every environment's settings (local `.env`, any CI secrets, hosting).
-- **Clear the cart when payment is verified paid, not when the order is created** (small task; can be done before slice B). Today the web checkout clears the cart as soon as the order is created (`frontend/src/views/CheckoutView.vue`), so a failed or abandoned payment loses it.
 - **Set the frontend security headers on staging** in `frontend/vercel.json` (section 3.3: CSP, HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`). Vercel does not use the nginx config in the frontend Docker image, so staging currently sends none of them.
 
 ---
@@ -613,7 +612,7 @@ These were decided on purpose. Do not reverse one as part of other work; changin
 
 ## 13. Cart (server-side)
 
-This is the target behaviour, built in follow-up slice B (section 11). It applies to the website and the future Android app alike.
+Built in follow-up slice B (section 11). It applies to the website and the Android app alike.
 
 - **Storage and identity:** the saved cart lives in Supabase, one per signed-in user. The cart is implicit: there is no cart ID in URLs, and the server always uses the authenticated user, so one user can never read another's cart.
 - **Guests:** a guest may build a device-local cart. Sign-in is required at checkout. On sign-in, the guest cart merges into the saved cart: identical lines (same item, same selected options) have their quantities summed; other lines are added.
@@ -637,12 +636,6 @@ This is the target behaviour, built in follow-up slice B (section 11). It applie
   - the cart survives sign-out and sign-in
   - on sign-in, a guest cart merges into the saved cart, summing identical lines and keeping different ones separate
   - the cart is cleared only after verified payment, not after a failed or abandoned one
-
-**Known gaps in the current code (closed by slice B):**
-
-- The cart lives only in the browser (`localStorage`, `frontend/src/stores/cart.ts`); there is no saved cart in Supabase and no `/api/v1/cart` endpoints.
-- Guests can add to the cart, but there is no merge into a saved cart on sign-in (there is no saved cart yet).
-- The cart is cleared when the order is created, not when payment is verified. A separate small task fixes this sooner (section 11, follow-up tasks).
 
 ---
 
