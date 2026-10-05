@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import type { Logger } from 'pino';
 import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
 import { AuthGuard } from './auth/guards/auth.guard';
 import { OriginGuard } from './auth/guards/origin.guard';
 import { systemClock, type Clock } from './common/clock';
@@ -46,6 +47,7 @@ export class AppModule {
         MenuOptionsModule,
         SiteModule,
         AuthModule,
+        CartModule,
         OrdersModule,
         PaymentsModule,
         MailModule,

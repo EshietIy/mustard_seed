@@ -114,43 +114,10 @@ export function buildQuote(ctx: PricingContext, input: QuoteInput): Quote {
 
   const byId = new Map(ctx.menu.map((m) => [m.id, m]));
   const lines: QuoteLine[] = [];
-  input.items.forEach(({ menuItemId, quantity, optionIds = [] }, lineIndex) => {
-    const menuItem = byId.get(menuItemId);
-    if (!menuItem) {
-      problems.push({
-        code: 'ITEM_NOT_FOUND',
-        menuItemId,
-        message: 'One of the items is no longer on the menu.',
-      });
-      return;
-    }
-    if (!menuItem.isAvailable) {
-      problems.push({
-        code: 'ITEM_UNAVAILABLE',
-        menuItemId,
-        message: `${menuItem.name} has just sold out.`,
-      });
-    } else if (menuItem.priceKobo === null) {
-      problems.push({
-        code: 'ITEM_PRICE_UNAVAILABLE',
-        menuItemId,
-        message: `${menuItem.name} can’t be ordered online yet.`,
-      });
-    }
-    const options = chooseOptions(menuItem, optionIds, lineIndex, problems);
-    const unitPriceKobo =
-      menuItem.priceKobo === null
-        ? null
-        : options.reduce((sum, o) => sum + o.priceDeltaKobo, menuItem.priceKobo);
-    lines.push({
-      menuItemId,
-      name: menuItem.name,
-      unitPriceKobo,
-      quantity,
-      lineTotalKobo: unitPriceKobo === null ? null : unitPriceKobo * quantity,
-      isAvailable: menuItem.isAvailable,
-      options,
-    });
+  input.items.forEach((requested, lineIndex) => {
+    const priced = priceLine(byId, requested, lineIndex);
+    problems.push(...priced.problems);
+    if (priced.line) lines.push(priced.line);
   });
 
   const priced =
@@ -168,6 +135,59 @@ export function buildQuote(ctx: PricingContext, input: QuoteInput): Quote {
     ordering: { open, opensAt, onlineOrdersCloseAt: closeAt, timezone: ctx.info.timezone },
     problems,
     canPlaceOrder: problems.length === 0 && subtotalKobo !== null,
+  };
+}
+
+/**
+ * Prices one requested line from the live menu and lists its problems (unknown, sold out or
+ * unpriced item; invalid options). Shared by quotes, orders and the cart, so they always agree.
+ * line is null only when the item is not on the menu.
+ */
+export function priceLine(
+  menuById: ReadonlyMap<string, MenuItemRecord>,
+  requested: { menuItemId: string; quantity: number; optionIds?: string[] },
+  lineIndex: number,
+): { line: QuoteLine | null; problems: QuoteProblem[] } {
+  const { menuItemId, quantity, optionIds = [] } = requested;
+  const problems: QuoteProblem[] = [];
+  const menuItem = menuById.get(menuItemId);
+  if (!menuItem) {
+    problems.push({
+      code: 'ITEM_NOT_FOUND',
+      menuItemId,
+      message: 'One of the items is no longer on the menu.',
+    });
+    return { line: null, problems };
+  }
+  if (!menuItem.isAvailable) {
+    problems.push({
+      code: 'ITEM_UNAVAILABLE',
+      menuItemId,
+      message: `${menuItem.name} has just sold out.`,
+    });
+  } else if (menuItem.priceKobo === null) {
+    problems.push({
+      code: 'ITEM_PRICE_UNAVAILABLE',
+      menuItemId,
+      message: `${menuItem.name} can’t be ordered online yet.`,
+    });
+  }
+  const options = chooseOptions(menuItem, optionIds, lineIndex, problems);
+  const unitPriceKobo =
+    menuItem.priceKobo === null
+      ? null
+      : options.reduce((sum, o) => sum + o.priceDeltaKobo, menuItem.priceKobo);
+  return {
+    line: {
+      menuItemId,
+      name: menuItem.name,
+      unitPriceKobo,
+      quantity,
+      lineTotalKobo: unitPriceKobo === null ? null : unitPriceKobo * quantity,
+      isAvailable: menuItem.isAvailable,
+      options,
+    },
+    problems,
   };
 }
 

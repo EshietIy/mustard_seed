@@ -31,7 +31,7 @@ function sessionCookieFrom(world: ApiWorld): string | undefined {
   return pair && pair !== `${SESSION_COOKIE}=` ? pair : undefined;
 }
 
-async function signIn(world: ApiWorld, opts: TokenOptions): Promise<void> {
+export async function signIn(world: ApiWorld, opts: TokenOptions): Promise<void> {
   const res = await postSignIn(world, await googleIdToken(opts));
   assert.equal(res.status, 200, res.text);
   const cookie = sessionCookieFrom(world);
