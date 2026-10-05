@@ -1,0 +1,2141 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/config/public": {
+      "get": {
+        "operationId": "ConfigPublicController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "config"
+        ]
+      }
+    },
+    "/api/v1/menu": {
+      "get": {
+        "operationId": "MenuController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The full menu, grouped into the four tabs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenuDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable"
+          }
+        },
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/admin/option-groups": {
+      "get": {
+        "operationId": "MenuOptionsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminOptionGroupDto"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "MenuOptionsController_createGroup_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOptionGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOptionGroupDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "409": {
+            "description": "OPTION_NAME_TAKEN"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/option-groups/{groupId}": {
+      "patch": {
+        "operationId": "MenuOptionsController_updateGroup_v1",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOptionGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOptionGroupDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "OPTION_NAME_TAKEN"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/option-groups/{groupId}/options": {
+      "post": {
+        "operationId": "MenuOptionsController_createOption_v1",
+        "parameters": [
+          {
+            "name": "groupId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The group, with the new option",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOptionGroupDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "OPTION_NAME_TAKEN or OPTION_GROUP_ARCHIVED"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/options/{optionId}": {
+      "patch": {
+        "operationId": "MenuOptionsController_updateOption_v1",
+        "parameters": [
+          {
+            "name": "optionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The option's group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOptionGroupDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "OPTION_NAME_TAKEN"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/menu-items/{itemId}/option-groups": {
+      "put": {
+        "operationId": "MenuOptionsController_setItemGroups_v1",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetItemOptionGroupsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The groups the item now offers"
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/menu-items/{itemId}/options/{optionId}": {
+      "put": {
+        "operationId": "MenuOptionsController_setOverride_v1",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "optionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetItemOptionOverrideDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The item\u2019s special setting for the option"
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          },
+          "422": {
+            "description": "OPTION_NOT_ON_ITEM: the item doesn't use the group"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "delete": {
+        "operationId": "MenuOptionsController_deleteOverride_v1",
+        "parameters": [
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "optionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The item uses the option\u2019s normal settings again"
+          },
+          "403": {
+            "description": "Not allowed for this role"
+          },
+          "404": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/site": {
+      "get": {
+        "operationId": "SiteController_get_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Branches, hours, delivery fee and contact",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteInfoDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database is unavailable"
+          }
+        },
+        "tags": [
+          "site"
+        ]
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "operationId": "AuthController_google_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSignInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in; session cookie set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid Google token or unverified email"
+          },
+          "429": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_me_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in or the session expired"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Session cookie cleared (idempotent)"
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/orders/quote": {
+      "post": {
+        "operationId": "OrdersController_quote_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders": {
+      "post": {
+        "operationId": "OrdersController_place_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaceOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Same checkout submitted again: existing order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Order created, awaiting payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "PRICE_CHANGED: totals differ from what the customer saw"
+          },
+          "422": {
+            "description": "Closed, sold out, unpriced, outside Calabar\u2026"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/track/{token}": {
+      "get": {
+        "operationId": "OrdersController_track_v1",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackedOrderDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or malformed tracking token"
+          }
+        },
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}": {
+      "get": {
+        "operationId": "OrdersController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such order, or not yours"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "orders"
+        ]
+      }
+    },
+    "/api/v1/orders/{id}/payments": {
+      "post": {
+        "operationId": "PaymentsController_start_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentStartedDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Order already paid, expired or failed"
+          },
+          "503": {
+            "description": "Paystack unreachable; order unchanged"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/payments/verify": {
+      "post": {
+        "operationId": "PaymentsController_verify_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/api/v1/admin/staff": {
+      "get": {
+        "operationId": "StaffController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffDto"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "StaffController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin"
+          },
+          "409": {
+            "description": "Email already provisioned"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/staff/{id}": {
+      "patch": {
+        "operationId": "StaffController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a super admin"
+          },
+          "404": {
+            "description": ""
+          },
+          "409": {
+            "description": "Would leave no active super admin"
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          }
+        ],
+        "tags": [
+          "admin"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Mustard Seed API",
+    "description": "",
+    "version": "1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "PublicConfigDto": {
+        "type": "object",
+        "properties": {
+          "paymentMode": {
+            "type": "string",
+            "enum": [
+              "simulated",
+              "live"
+            ]
+          },
+          "googleClientId": {
+            "type": "string",
+            "description": "Google OAuth client ID for the sign-in button (public)"
+          }
+        },
+        "required": [
+          "paymentMode",
+          "googleClientId"
+        ]
+      },
+      "MenuImageDto": {
+        "type": "object",
+        "properties": {
+          "thumbnailUrl": {
+            "type": "string",
+            "description": "Small WebP for lists"
+          },
+          "fullUrl": {
+            "type": "string",
+            "description": "Large WebP for detail views"
+          }
+        },
+        "required": [
+          "thumbnailUrl",
+          "fullUrl"
+        ]
+      },
+      "MenuOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chicken"
+          },
+          "priceDeltaKobo": {
+            "type": "number",
+            "description": "Added to the item's price, in kobo (0 = no extra cost)"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "description": "False when staff have switched it off: show it, but not choosable"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priceDeltaKobo",
+          "isAvailable"
+        ]
+      },
+      "MenuOptionGroupDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "example": "Soup protein"
+          },
+          "minChoices": {
+            "type": "number",
+            "description": "Fewest choices allowed; 1 or more means a choice is required"
+          },
+          "maxChoices": {
+            "type": "number",
+            "description": "Most choices allowed; 1 means a single choice (radio buttons)"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuOptionDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "minChoices",
+          "maxChoices",
+          "options"
+        ]
+      },
+      "MenuItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "priceKobo": {
+            "type": "number",
+            "nullable": true,
+            "description": "Price in kobo; null until the real price is supplied ([PRICE] placeholder)"
+          },
+          "isHouseSignature": {
+            "type": "boolean"
+          },
+          "isFreshJuice": {
+            "type": "boolean",
+            "description": "Shown in the Fresh juices band"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "description": "False when staff have marked it sold out"
+          },
+          "image": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MenuImageDto"
+              }
+            ]
+          },
+          "optionGroups": {
+            "description": "Choices offered on this item (empty if none); see AGENT.md section 14",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuOptionGroupDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "description",
+          "priceKobo",
+          "isHouseSignature",
+          "isFreshJuice",
+          "isAvailable",
+          "image",
+          "optionGroups"
+        ]
+      },
+      "MenuCategoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "calabar_classics",
+              "swallow_sides",
+              "continental",
+              "drinks"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuItemDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "items"
+        ]
+      },
+      "MenuDto": {
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenuCategoryDto"
+            }
+          }
+        },
+        "required": [
+          "categories"
+        ]
+      },
+      "PriceOverrideDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "priceDeltaKobo": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "itemId",
+          "priceDeltaKobo"
+        ]
+      },
+      "AdminOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priceDeltaKobo": {
+            "type": "number"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "excludedFromItemIds": {
+            "description": "Items using the group that do not offer it",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priceOverrides": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceOverrideDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priceDeltaKobo",
+          "isAvailable",
+          "sortOrder",
+          "archived",
+          "excludedFromItemIds",
+          "priceOverrides"
+        ]
+      },
+      "AdminOptionGroupDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "minChoices": {
+            "type": "number"
+          },
+          "maxChoices": {
+            "type": "number"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "itemIds": {
+            "description": "Items that offer this group",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminOptionDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "minChoices",
+          "maxChoices",
+          "sortOrder",
+          "archived",
+          "itemIds",
+          "options"
+        ]
+      },
+      "CreateOptionGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Soup protein"
+          },
+          "minChoices": {
+            "type": "number",
+            "description": "Fewest choices; 1 or more makes the choice required",
+            "example": 1
+          },
+          "maxChoices": {
+            "type": "number",
+            "description": "Most choices; 1 means a single choice",
+            "example": 1
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "minChoices",
+          "maxChoices"
+        ]
+      },
+      "UpdateOptionGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "minChoices": {
+            "type": "number"
+          },
+          "maxChoices": {
+            "type": "number"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "true archives (hidden from the menu), false restores"
+          }
+        }
+      },
+      "CreateOptionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Goat"
+          },
+          "priceDeltaKobo": {
+            "type": "number",
+            "description": "Extra cost in kobo; default 0",
+            "example": 0
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "itemIds": {
+            "description": "Items (among those using the group) that offer the new option; the rest exclude it. Default: all.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateOptionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "super_admin only"
+          },
+          "priceDeltaKobo": {
+            "type": "number",
+            "description": "super_admin only"
+          },
+          "sortOrder": {
+            "type": "number",
+            "description": "super_admin only"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "description": "Supervisors may change this (switch on/off)"
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "super_admin only; true archives, false restores"
+          }
+        }
+      },
+      "SetItemOptionGroupsDto": {
+        "type": "object",
+        "properties": {
+          "groupIds": {
+            "description": "In display order; [] removes all",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "groupIds"
+        ]
+      },
+      "SetItemOptionOverrideDto": {
+        "type": "object",
+        "properties": {
+          "isExcluded": {
+            "type": "boolean",
+            "description": "true: this item does not offer the option"
+          },
+          "priceDeltaKobo": {
+            "type": "number",
+            "nullable": true,
+            "description": "This item's price difference in kobo; null uses the option's own"
+          }
+        }
+      },
+      "HoursDto": {
+        "type": "object",
+        "properties": {
+          "opensAt": {
+            "type": "string",
+            "example": "08:00"
+          },
+          "closesAt": {
+            "type": "string",
+            "example": "23:00"
+          },
+          "onlineOrdersCloseAt": {
+            "type": "string",
+            "example": "22:30",
+            "description": "Online orders close at this time"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Lagos"
+          }
+        },
+        "required": [
+          "opensAt",
+          "closesAt",
+          "onlineOrdersCloseAt",
+          "timezone"
+        ]
+      },
+      "DeliveryDto": {
+        "type": "object",
+        "properties": {
+          "feeKobo": {
+            "type": "number",
+            "example": 150000,
+            "description": "Flat delivery fee in kobo"
+          },
+          "area": {
+            "type": "string",
+            "example": "Calabar"
+          }
+        },
+        "required": [
+          "feeKobo",
+          "area"
+        ]
+      },
+      "BranchDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "calabar"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "headquarters",
+              "branch"
+            ]
+          },
+          "streetAddress": {
+            "type": "string",
+            "nullable": true,
+            "description": "null until supplied (placeholder)"
+          },
+          "onlineOrderingEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "city",
+          "state",
+          "role",
+          "streetAddress",
+          "onlineOrderingEnabled"
+        ]
+      },
+      "SiteInfoDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phoneWhatsapp": {
+            "type": "string",
+            "nullable": true,
+            "description": "null until supplied (placeholder)"
+          },
+          "hours": {
+            "$ref": "#/components/schemas/HoursDto"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/DeliveryDto"
+          },
+          "branches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchDto"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "phoneWhatsapp",
+          "hours",
+          "delivery",
+          "branches"
+        ]
+      },
+      "GoogleSignInDto": {
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": "string",
+            "description": "The ID token (credential) returned by Google Identity Services"
+          }
+        },
+        "required": [
+          "credential"
+        ]
+      },
+      "AuthUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "customer",
+              "supervisor",
+              "super_admin"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "fullName",
+          "avatarUrl",
+          "role"
+        ]
+      },
+      "AuthUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUserDto"
+          }
+        },
+        "required": [
+          "user"
+        ]
+      },
+      "OrderItemInputDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "optionIds": {
+            "description": "Chosen option ids (see the menu item\u2019s optionGroups); omit for none",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "menuItemId",
+          "quantity"
+        ]
+      },
+      "QuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "fulfilment": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          },
+          "branchId": {
+            "type": "string",
+            "example": "calabar"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemInputDto"
+            }
+          }
+        },
+        "required": [
+          "fulfilment",
+          "branchId",
+          "items"
+        ]
+      },
+      "QuoteLineOptionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "groupId": {
+            "type": "string"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "Soup protein"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chicken"
+          },
+          "priceDeltaKobo": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "groupId",
+          "groupName",
+          "name",
+          "priceDeltaKobo"
+        ]
+      },
+      "QuoteLineDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitPriceKobo": {
+            "type": "number",
+            "nullable": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "lineTotalKobo": {
+            "type": "number",
+            "nullable": true
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "options": {
+            "description": "Included in unitPriceKobo",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLineOptionDto"
+            }
+          }
+        },
+        "required": [
+          "menuItemId",
+          "name",
+          "unitPriceKobo",
+          "quantity",
+          "lineTotalKobo",
+          "isAvailable",
+          "options"
+        ]
+      },
+      "OrderingWindowDto": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          },
+          "opensAt": {
+            "type": "string",
+            "example": "08:00"
+          },
+          "onlineOrdersCloseAt": {
+            "type": "string",
+            "example": "22:30"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "Africa/Lagos"
+          }
+        },
+        "required": [
+          "open",
+          "opensAt",
+          "onlineOrdersCloseAt",
+          "timezone"
+        ]
+      },
+      "QuoteProblemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "menuItemId": {
+            "type": "string"
+          },
+          "lineIndex": {
+            "type": "number",
+            "description": "Option problems: index of the line in the request"
+          },
+          "groupId": {
+            "type": "string",
+            "description": "Option problems: the group to show the error next to"
+          },
+          "optionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "QuoteDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLineDto"
+            }
+          },
+          "subtotalKobo": {
+            "type": "number",
+            "nullable": true
+          },
+          "deliveryFeeKobo": {
+            "type": "number"
+          },
+          "totalKobo": {
+            "type": "number",
+            "nullable": true
+          },
+          "ordering": {
+            "$ref": "#/components/schemas/OrderingWindowDto"
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteProblemDto"
+            }
+          },
+          "canPlaceOrder": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "lines",
+          "subtotalKobo",
+          "deliveryFeeKobo",
+          "totalKobo",
+          "ordering",
+          "problems",
+          "canPlaceOrder"
+        ]
+      },
+      "ContactDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "example": "Ekaette Bassey"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0803 123 4567",
+            "description": "Nigerian number; stored as +234\u2026"
+          }
+        },
+        "required": [
+          "fullName",
+          "phone"
+        ]
+      },
+      "DeliveryAddressDto": {
+        "type": "object",
+        "properties": {
+          "streetAddress": {
+            "type": "string",
+            "example": "12 Marian Road, near the roundabout"
+          },
+          "city": {
+            "type": "string",
+            "example": "Calabar",
+            "description": "Delivery is Calabar only"
+          }
+        },
+        "required": [
+          "streetAddress"
+        ]
+      },
+      "PlaceOrderDto": {
+        "type": "object",
+        "properties": {
+          "fulfilment": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          },
+          "branchId": {
+            "type": "string",
+            "example": "calabar"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderItemInputDto"
+            }
+          },
+          "contact": {
+            "$ref": "#/components/schemas/ContactDto"
+          },
+          "delivery": {
+            "description": "Required for delivery only",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeliveryAddressDto"
+              }
+            ]
+          },
+          "expectedTotalKobo": {
+            "type": "number",
+            "description": "The total (kobo) the customer was shown"
+          },
+          "clientRequestId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "One per checkout attempt (idempotency)"
+          }
+        },
+        "required": [
+          "fulfilment",
+          "branchId",
+          "items",
+          "contact",
+          "expectedTotalKobo",
+          "clientRequestId"
+        ]
+      },
+      "OrderLineOptionDto": {
+        "type": "object",
+        "properties": {
+          "optionId": {
+            "type": "string"
+          },
+          "groupName": {
+            "type": "string",
+            "example": "Soup protein"
+          },
+          "name": {
+            "type": "string",
+            "example": "Chicken"
+          },
+          "priceDeltaKobo": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "optionId",
+          "groupName",
+          "name",
+          "priceDeltaKobo"
+        ]
+      },
+      "OrderLineDto": {
+        "type": "object",
+        "properties": {
+          "menuItemId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitPriceKobo": {
+            "type": "number",
+            "description": "Includes the chosen options"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "lineTotalKobo": {
+            "type": "number"
+          },
+          "options": {
+            "description": "Snapshot taken when ordering",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineOptionDto"
+            }
+          }
+        },
+        "required": [
+          "menuItemId",
+          "name",
+          "unitPriceKobo",
+          "quantity",
+          "lineTotalKobo",
+          "options"
+        ]
+      },
+      "OrderDto": {
+        "type": "object",
+        "properties": {
+          "orderNumber": {
+            "type": "string",
+            "example": "#MS-0001"
+          },
+          "status": {
+            "type": "string",
+            "example": "awaiting_payment"
+          },
+          "fulfilment": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          },
+          "branch": {
+            "type": "object"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          },
+          "subtotalKobo": {
+            "type": "number"
+          },
+          "deliveryFeeKobo": {
+            "type": "number"
+          },
+          "totalKobo": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string",
+            "example": "NGN"
+          },
+          "contact": {
+            "type": "object"
+          },
+          "delivery": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "orderNumber",
+          "status",
+          "fulfilment",
+          "branch",
+          "items",
+          "subtotalKobo",
+          "deliveryFeeKobo",
+          "totalKobo",
+          "currency",
+          "contact",
+          "delivery",
+          "createdAt",
+          "id"
+        ]
+      },
+      "TrackedOrderDto": {
+        "type": "object",
+        "properties": {
+          "orderNumber": {
+            "type": "string",
+            "example": "#MS-0001"
+          },
+          "status": {
+            "type": "string",
+            "example": "awaiting_payment"
+          },
+          "fulfilment": {
+            "type": "string",
+            "enum": [
+              "delivery",
+              "pickup"
+            ]
+          },
+          "branch": {
+            "type": "object"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderLineDto"
+            }
+          },
+          "subtotalKobo": {
+            "type": "number"
+          },
+          "deliveryFeeKobo": {
+            "type": "number"
+          },
+          "totalKobo": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string",
+            "example": "NGN"
+          },
+          "contact": {
+            "type": "object"
+          },
+          "delivery": {
+            "type": "object",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "orderNumber",
+          "status",
+          "fulfilment",
+          "branch",
+          "items",
+          "subtotalKobo",
+          "deliveryFeeKobo",
+          "totalKobo",
+          "currency",
+          "contact",
+          "delivery",
+          "createdAt"
+        ]
+      },
+      "PaymentStartedDto": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string"
+          },
+          "authorizationUrl": {
+            "type": "string",
+            "description": "Send the customer here to pay"
+          }
+        },
+        "required": [
+          "reference",
+          "authorizationUrl"
+        ]
+      },
+      "VerifyPaymentDto": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "example": "MS0001-Ab3dEf9h",
+            "description": "The reference Paystack returned with"
+          }
+        },
+        "required": [
+          "reference"
+        ]
+      },
+      "StaffDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "supervisor",
+              "super_admin"
+            ]
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deactivatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "isActive",
+          "createdAt",
+          "deactivatedAt"
+        ]
+      },
+      "CreateStaffDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "chef@example.com",
+            "description": "Their Google account email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "supervisor",
+              "super_admin"
+            ]
+          }
+        },
+        "required": [
+          "email",
+          "role"
+        ]
+      },
+      "UpdateStaffDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "supervisor",
+              "super_admin"
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false deactivates, true reactivates"
+          }
+        }
+      }
+    }
+  }
+}
