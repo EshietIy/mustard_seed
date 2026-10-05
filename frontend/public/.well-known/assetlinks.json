@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ng.mustardseed.app",
+      "sha256_cert_fingerprints": [
+        "0A:FA:EE:40:2A:B7:0B:E4:11:FE:F9:1E:D7:5B:08:0A:18:C3:A4:E5:8D:67:4D:34:9C:80:37:43:CD:7F:13:B7"
+      ]
+    }
+  }
+]
