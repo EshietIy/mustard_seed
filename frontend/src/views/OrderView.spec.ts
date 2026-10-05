@@ -7,12 +7,31 @@ import { useCartStore } from '@/stores/cart';
 import { useMenuStore } from '@/stores/menu';
 import { useToastStore } from '@/stores/toast';
 import { bodyOf, routeFetch } from '@/test-utils/fetch';
+import { fakeCartApi } from '@/test-utils/cartApi';
 import { menuItem } from '@/test-utils/fixtures';
 import { navigation } from '@/utils/navigation';
 import { routes } from '@/router';
 import OrderView from './OrderView.vue';
 
 enableAutoUnmount(afterEach);
+
+const cartMenu = [
+  menuItem({ priceKobo: 450000 }),
+  menuItem({
+    id: 'soup',
+    name: 'Afang Soup',
+    priceKobo: 400000,
+    optionGroups: [
+      {
+        id: 'g-protein',
+        name: 'Soup protein',
+        minChoices: 1,
+        maxChoices: 1,
+        options: [{ id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true }],
+      },
+    ],
+  }),
+];
 
 const order = {
   id: 'o-1',
@@ -66,7 +85,10 @@ describe('OrderView', () => {
   afterEach(() => vi.useRealTimers());
 
   it('shows the order, totals and a Pay now button with the deadline', async () => {
-    routeFetch({ 'GET /orders/o-1': () => Response.json(order) });
+    routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
+      'GET /orders/o-1': () => Response.json(order),
+    });
     const { wrapper } = await mountOrder();
     expect(wrapper.get('h1').text()).toContain('#MS-0007');
     expect(wrapper.text()).toContain('Awaiting payment');
@@ -82,6 +104,7 @@ describe('OrderView', () => {
   it('Pay now sends the customer to the payment page', async () => {
     const assign = vi.spyOn(navigation, 'assign').mockImplementation(() => {});
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () => Response.json(order),
       'POST /orders/o-1/payments': () =>
         Response.json(
@@ -97,6 +120,7 @@ describe('OrderView', () => {
 
   it('explains when the payment service is unavailable and keeps Pay now', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () => Response.json(order),
       'POST /orders/o-1/payments': () =>
         Response.json(
@@ -115,6 +139,7 @@ describe('OrderView', () => {
   it('refreshes the order when it can no longer be paid (409)', async () => {
     let calls = 0;
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () =>
         Response.json(++calls === 1 ? order : { ...order, status: 'expired' }),
       'POST /orders/o-1/payments': () =>
@@ -137,6 +162,7 @@ describe('OrderView', () => {
 
   it('a paid order shows the estimated time and that the email is on its way', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () =>
         Response.json({ ...order, status: 'paid', estimatedReadyAt: '2026-10-05T18:45:00.000Z' }),
     });
@@ -147,6 +173,7 @@ describe('OrderView', () => {
 
   it('a paid pickup order shows when it will be ready', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () =>
         Response.json({
           ...order,
@@ -162,6 +189,7 @@ describe('OrderView', () => {
 
   it('confirms a returning payment with the server before saying it was paid', async () => {
     const fetchMock = routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'POST /payments/verify': () =>
         Response.json({
           ...order,
@@ -182,6 +210,7 @@ describe('OrderView', () => {
     vi.useFakeTimers();
     let calls = 0;
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'POST /payments/verify': () =>
         Response.json(
           ++calls < 3
@@ -203,6 +232,7 @@ describe('OrderView', () => {
   it('stops polling after a while and explains the payment is still pending', async () => {
     vi.useFakeTimers();
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'POST /payments/verify': () =>
         Response.json({ ...order, payment: { status: 'ongoing', channel: null, paidAt: null } }),
     });
@@ -215,6 +245,7 @@ describe('OrderView', () => {
 
   it('tells the customer clearly when the payment did not go through', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'POST /payments/verify': () =>
         Response.json({
           ...order,
@@ -233,6 +264,7 @@ describe('OrderView', () => {
   it('never guesses when confirmation fails: it says so and offers a retry', async () => {
     let calls = 0;
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'POST /payments/verify': () =>
         ++calls === 1
           ? Response.json(
@@ -252,6 +284,7 @@ describe('OrderView', () => {
 
   it('"Order again" refills the cart from the order and opens checkout', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () => Response.json({ ...order, status: 'expired' }),
       'GET /menu': () =>
         Response.json({
@@ -279,6 +312,7 @@ describe('OrderView', () => {
 
   it('shows pickup details and a paid order without Pay now', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () =>
         Response.json({
           ...order,
@@ -296,6 +330,7 @@ describe('OrderView', () => {
 
   it('explains a missing order', async () => {
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/nope': () =>
         Response.json(
           { error: { code: 'ORDER_NOT_FOUND', message: 'We could not find that order.' } },
@@ -308,7 +343,9 @@ describe('OrderView', () => {
 
   it('asks a signed-out visitor to sign in', async () => {
     useAuthStore().status = 'signed-out';
-    routeFetch({});
+    routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
+    });
     const { wrapper } = await mountOrder();
     expect(wrapper.text()).toContain('Sign in to see your order');
   });
@@ -330,6 +367,7 @@ describe('OrderView', () => {
       options: [{ optionId, groupName: 'Soup protein', name, priceDeltaKobo: 0 }],
     });
     routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
       'GET /orders/o-1': () =>
         Response.json({
           ...order,
@@ -363,5 +401,15 @@ describe('OrderView', () => {
     expect(useToastStore().messages[0]?.text).toBe(
       'Some items are no longer available and were left out.',
     );
+  });
+
+  it('refreshes the saved cart once the payment is verified (ordered items leave it)', async () => {
+    routeFetch({
+      ...fakeCartApi(cartMenu).handlers,
+      'POST /payments/verify': () => Response.json({ ...order, status: 'paid' }),
+    });
+    const refresh = vi.spyOn(useCartStore(), 'refresh');
+    await mountOrder('/orders/o-1?reference=MS0007-abc');
+    expect(refresh).toHaveBeenCalled();
   });
 });

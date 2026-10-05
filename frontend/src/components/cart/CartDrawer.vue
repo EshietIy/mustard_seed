@@ -24,17 +24,14 @@ const subtotal = computed(() =>
 );
 
 const hasChoiceProblems = computed(() => cart.lines.some((l) => l.needsChoice));
+const hasPriceChanges = computed(() => cart.lines.some((l) => l.priceChange !== null));
 
 /** The line as people say it, e.g. "Afang Soup (Chicken)", for labels. */
 const lineLabel = (line: CartLine) =>
   line.options.length ? `${line.name} (${line.options.map((o) => o.name).join(', ')})` : line.name;
 
 const linePrice = (line: CartLine) =>
-  line.priceKobo === null
-    ? PRICE_PLACEHOLDER
-    : priceLabel(
-        line.options.reduce((sum, o) => sum + o.priceDeltaKobo, line.priceKobo) * line.quantity,
-      );
+  line.unitPriceKobo === null ? PRICE_PLACEHOLDER : priceLabel(line.unitPriceKobo * line.quantity);
 
 function close(): void {
   emit('update:open', false);
@@ -98,7 +95,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               </p>
               <p v-if="!line.isAvailable" class="sold-out">Sold out</p>
               <p v-else-if="line.needsChoice" class="sold-out">Choose again</p>
+              <p v-else-if="line.problems.length" class="sold-out">{{ line.problems[0] }}</p>
               <p v-else class="line-price">{{ linePrice(line) }}</p>
+              <p v-if="line.priceChange" class="price-change" data-test="price-change">
+                Price changed from {{ formatNaira(line.priceChange.fromKobo) }} to
+                {{ formatNaira(line.priceChange.toKobo) }}.
+                <button
+                  type="button"
+                  class="link-btn"
+                  :aria-label="`Accept the new price for ${lineLabel(line)}`"
+                  @click="cart.acceptPrice(line.key)"
+                >
+                  OK
+                </button>
+              </p>
             </div>
             <div class="stepper">
               <button
@@ -129,6 +139,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
           </p>
           <p v-else-if="hasChoiceProblems" class="warning" role="alert">
             Some choices need updating. Remove those items and add them again with your choices.
+          </p>
+          <p v-else-if="hasPriceChanges" class="warning" role="alert">
+            Some prices have changed. Check them and tap OK to continue.
+          </p>
+          <p v-else-if="cart.hasProblems" class="warning" role="alert">
+            Some items can't be ordered right now. Remove them to continue.
           </p>
           <div class="row">
             <span>Subtotal</span>
@@ -219,6 +235,21 @@ h2 {
 .line-name {
   margin: 0;
   font-weight: 600;
+}
+.price-change {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-crimson);
+}
+.link-btn {
+  padding: 0 0.25rem;
+  border: 0;
+  background: none;
+  color: var(--color-crimson);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .line-options {
   margin: 0.125rem 0 0;

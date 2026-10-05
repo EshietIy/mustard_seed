@@ -1,6 +1,6 @@
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCartStore } from '@/stores/cart';
 import { useSiteStore } from '@/stores/site';
 import { menuItem, sampleSite } from '@/test-utils/fixtures';
@@ -161,6 +161,30 @@ describe('CartDrawer', () => {
       'Some choices need updating. Remove those items and add them again with your choices.',
     );
     expect(wrapper.get('li').text()).toContain('Choose again');
+    expect(wrapper.get('button.checkout').attributes('disabled')).toBeDefined();
+  });
+
+  it('shows a price change with an OK button that accepts it, and blocks checkout', async () => {
+    const cart = useCartStore();
+    cart.add(menuItem({ id: 'zobo', name: 'Zobo', priceKobo: 90000 }));
+    cart.lines[0]!.priceChange = { fromKobo: 80000, toKobo: 90000 };
+    const accept = vi.spyOn(cart, 'acceptPrice').mockResolvedValue();
+    const wrapper = mount(CartDrawer, { props: { open: true } });
+    expect(wrapper.get('[data-test="price-change"]').text()).toContain(
+      'Price changed from ₦800 to ₦900.',
+    );
+    expect(wrapper.get('[role="alert"]').text()).toContain('Some prices have changed.');
+    expect(wrapper.get('button.checkout').attributes('disabled')).toBeDefined();
+    await wrapper.get('[aria-label="Accept the new price for Zobo"]').trigger('click');
+    expect(accept).toHaveBeenCalledWith('zobo');
+  });
+
+  it("shows the server's reason a line can't be ordered", () => {
+    const cart = useCartStore();
+    cart.add(menuItem({ id: 'zobo', name: 'Zobo', priceKobo: 80000 }));
+    cart.lines[0]!.problems = ["Zobo can't be ordered online yet."];
+    const wrapper = mount(CartDrawer, { props: { open: true } });
+    expect(wrapper.get('li').text()).toContain("Zobo can't be ordered online yet.");
     expect(wrapper.get('button.checkout').attributes('disabled')).toBeDefined();
   });
 });

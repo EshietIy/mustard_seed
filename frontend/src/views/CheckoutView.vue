@@ -43,7 +43,8 @@ const items = computed(() =>
 );
 const blockingProblems = computed(() => quote.value?.problems ?? []);
 const canSubmit = computed(
-  () => !!quote.value?.canPlaceOrder && !submitting.value && !quoteLoading.value,
+  () =>
+    !!quote.value?.canPlaceOrder && !cart.hasProblems && !submitting.value && !quoteLoading.value,
 );
 
 async function loadQuote(): Promise<void> {
@@ -93,7 +94,6 @@ async function placeOrder(): Promise<void> {
       expectedTotalKobo: quote.value.totalKobo,
       clientRequestId,
     });
-    cart.clear();
     await router.push(`/orders/${order.id}`);
   } catch (err) {
     const error = asApiError(err);
@@ -126,7 +126,8 @@ watch(
 
 onMounted(() => {
   if (site.status === 'idle') void site.load();
-  void loadQuote();
+  // The saved cart may have changed on another device: refresh before quoting.
+  void cart.refresh().then(loadQuote);
 });
 </script>
 

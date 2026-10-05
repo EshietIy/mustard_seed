@@ -6,6 +6,7 @@ import type { Quote } from '@/api/types';
 import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
 import { useSiteStore } from '@/stores/site';
+import { fakeCartApi } from '@/test-utils/cartApi';
 import { menuItem, sampleSite } from '@/test-utils/fixtures';
 import { bodyOf, routeFetch } from '@/test-utils/fetch';
 import { routes } from '@/router';
@@ -85,7 +86,10 @@ describe('CheckoutView', () => {
 
   it('asks a signed-out customer to sign in, keeping their order', async () => {
     useAuthStore().status = 'signed-out';
-    routeFetch({ 'POST /orders/quote': () => Response.json(quote()) });
+    routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
+      'POST /orders/quote': () => Response.json(quote()),
+    });
     const { wrapper } = await mountCheckout();
     expect(wrapper.text()).toContain('Sign in to place your order');
     await wrapper.get('[data-test="checkout-sign-in"]').trigger('click');
@@ -96,7 +100,9 @@ describe('CheckoutView', () => {
   it('shows an empty state when the cart is empty', async () => {
     signIn();
     useCartStore().clear();
-    routeFetch({});
+    routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
+    });
     const { wrapper } = await mountCheckout();
     expect(wrapper.text()).toContain('Your order is empty');
     expect(wrapper.findAll('main a[href="/"]').map((a) => a.text())).toEqual(['Back to the menu']);
@@ -105,6 +111,7 @@ describe('CheckoutView', () => {
   it('shows server totals, prefills the name and re-quotes when switching to pickup', async () => {
     signIn();
     const fetchMock = routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': (init) => {
         const body = JSON.parse(String(init?.body)) as { fulfilment: string };
         return Response.json(
@@ -130,9 +137,10 @@ describe('CheckoutView', () => {
     expect(wrapper.text()).toContain('[CALABAR ADDRESS]');
   });
 
-  it('places the order with the total the customer saw, clears the cart and opens the order', async () => {
+  it('places the order with the total the customer saw, keeps the cart until payment, and opens the order', async () => {
     signIn();
     const fetchMock = routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () => Response.json(quote()),
       'POST /orders': () => Response.json(order, { status: 201 }),
     });
@@ -150,14 +158,18 @@ describe('CheckoutView', () => {
       expectedTotalKobo: 1050000,
     });
     expect(sent.clientRequestId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(useCartStore().isEmpty).toBe(true);
+    // The cart is emptied only once payment is verified (AGENT.md section 13), not now.
+    expect(useCartStore().isEmpty).toBe(false);
     // The order page is lazy-loaded, so navigation completes a little later.
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/orders/o-1'));
   });
 
   it('checks required fields before sending', async () => {
     signIn();
-    const fetchMock = routeFetch({ 'POST /orders/quote': () => Response.json(quote()) });
+    const fetchMock = routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
+      'POST /orders/quote': () => Response.json(quote()),
+    });
     const { wrapper } = await mountCheckout();
     await wrapper.get('form').trigger('submit');
     await flushPromises();
@@ -165,8 +177,7 @@ describe('CheckoutView', () => {
     expect(wrapper.text()).toContain('Enter your street address');
     expect(
       fetchMock.mock.calls.some(
-        ([, init]) =>
-          init?.method === 'POST' && !String(fetchMock.mock.calls[0]?.[0]).includes('quote'),
+        ([url, init]) => init?.method === 'POST' && String(url).endsWith('/orders'),
       ),
     ).toBe(false);
   });
@@ -174,6 +185,7 @@ describe('CheckoutView', () => {
   it('shows field errors from the server next to the inputs', async () => {
     signIn();
     routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () => Response.json(quote()),
       'POST /orders': () =>
         Response.json(
@@ -206,6 +218,7 @@ describe('CheckoutView', () => {
   it('explains closed hours and blocks placing the order', async () => {
     signIn();
     routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () =>
         Response.json(
           quote({
@@ -234,6 +247,7 @@ describe('CheckoutView', () => {
     signIn();
     let quoteCalls = 0;
     routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () => {
         quoteCalls += 1;
         return Response.json(
@@ -263,6 +277,7 @@ describe('CheckoutView', () => {
   it('keeps the form and offers a retry on a server or network error', async () => {
     signIn();
     routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () => Response.json(quote()),
       'POST /orders': () =>
         Response.json(
@@ -285,6 +300,7 @@ describe('CheckoutView', () => {
     signIn();
     let calls = 0;
     routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 })]).handlers,
       'POST /orders/quote': () => {
         calls += 1;
         return calls === 1 ? new Response('', { status: 503 }) : Response.json(quote());
@@ -299,29 +315,31 @@ describe('CheckoutView', () => {
   });
 
   it('sends each line with its chosen options', async () => {
+    const soup = menuItem({
+      id: 'soup',
+      name: 'Afang Soup',
+      priceKobo: 400000,
+      optionGroups: [
+        {
+          id: 'g-protein',
+          name: 'Soup protein',
+          minChoices: 1,
+          maxChoices: 1,
+          options: [
+            { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
+            { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
+          ],
+        },
+      ],
+    });
+    const fetchMock = routeFetch({
+      ...fakeCartApi([menuItem({ priceKobo: 450000 }), soup]).handlers,
+      'POST /orders/quote': () => Response.json(quote()),
+    });
     signIn();
+    await flushPromises();
     useCartStore().clear();
-    useCartStore().add(
-      menuItem({
-        id: 'soup',
-        name: 'Afang Soup',
-        priceKobo: 400000,
-        optionGroups: [
-          {
-            id: 'g-protein',
-            name: 'Soup protein',
-            minChoices: 1,
-            maxChoices: 1,
-            options: [
-              { id: 'o-beef', name: 'Beef', priceDeltaKobo: 0, isAvailable: true },
-              { id: 'o-chicken', name: 'Chicken', priceDeltaKobo: 50000, isAvailable: true },
-            ],
-          },
-        ],
-      }),
-      ['o-chicken'],
-    );
-    const fetchMock = routeFetch({ 'POST /orders/quote': () => Response.json(quote()) });
+    await useCartStore().add(soup, ['o-chicken']);
     await mountCheckout();
     expect(bodyOf(fetchMock, 'POST /orders/quote')).toMatchObject({
       items: [{ menuItemId: 'soup', quantity: 1, optionIds: ['o-chicken'] }],

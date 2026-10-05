@@ -38,7 +38,8 @@ test.describe('Feature: checkout', () => {
     await expect(page.getByText('Awaiting payment')).toBeVisible();
     await expect(page.getByText('12 Marian Road, near the roundabout')).toBeVisible();
     await page.getByRole('link', { name: 'Back to the menu', exact: true }).click();
-    await expect(page.getByRole('button', { name: /^Your order, 0 items$/ })).toBeVisible();
+    // The cart is kept until payment is verified (AGENT.md section 13).
+    await expect(page.getByRole('button', { name: /^Your order, 3 items$/ })).toBeVisible();
   });
 
   test('Scenario: switching to pickup removes the delivery fee and the address field', async ({

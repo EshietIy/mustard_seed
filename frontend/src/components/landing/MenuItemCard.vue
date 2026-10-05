@@ -15,24 +15,24 @@ const imageFailed = ref(false);
 const choosing = ref(false);
 const hasChoices = () => props.item.optionGroups.length > 0;
 
-function add(optionIds: string[] = []): void {
+async function add(optionIds: string[] = []): Promise<void> {
   const names = props.item.optionGroups
     .flatMap((g) => g.options)
     .filter((o) => optionIds.includes(o.id))
     .map((o) => o.name);
   const label = names.length ? `${props.item.name} (${names.join(', ')})` : props.item.name;
-  if (cart.add(props.item, optionIds)) toast.show(`Added ${label} to your order`);
+  if (await cart.add(props.item, optionIds)) toast.show(`Added ${label} to your order`);
   else if (props.item.isAvailable) toast.show(`You've reached the limit for ${label}.`);
 }
 
 function onAdd(): void {
   if (hasChoices()) choosing.value = true;
-  else add();
+  else void add();
 }
 
 function addWithOptions(optionIds: string[]): void {
   choosing.value = false;
-  add(optionIds);
+  void add(optionIds);
 }
 </script>
 

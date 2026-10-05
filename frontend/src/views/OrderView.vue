@@ -115,7 +115,7 @@ async function orderAgain(): Promise<void> {
       skipped += 1;
       continue;
     }
-    for (let i = 0; i < line.quantity; i++) cart.add(item, optionIds);
+    for (let i = 0; i < line.quantity; i++) await cart.add(item, optionIds);
   }
   if (skipped > 0) toast.show('Some items are no longer available and were left out.');
   await router.push('/checkout');
@@ -133,6 +133,13 @@ watch(
   () => auth.status,
   (status) => {
     if (status === 'signed-in' && !order.value) start();
+  },
+);
+// A verified payment empties the ordered items from the saved cart (on the server).
+watch(
+  () => order.value?.status,
+  (status) => {
+    if (status === 'paid') void cart.refresh();
   },
 );
 onBeforeUnmount(() => clearTimeout(pollTimer));
