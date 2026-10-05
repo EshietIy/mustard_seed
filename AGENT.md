@@ -45,7 +45,7 @@ Three separate app folders, three separate apps. They communicate only through t
 ├── docs/        # design sources of truth (landing-page.pdf, email-order-confirmation.pdf)
 ├── backend/     # NestJS (TypeScript)
 ├── frontend/    # Vue 3 (TypeScript)
-└── mobileapp/   # Android app (reserved; may exist empty; no code until mobile work starts, section 15)
+└── mobileapp/   # Android app: Kotlin + Jetpack Compose (section 15)
 ```
 
 - `docs/landing-page.pdf` and `docs/email-order-confirmation.pdf` are the approved designs. Read the relevant one before building any page or email, and match it.
@@ -53,8 +53,8 @@ Three separate app folders, three separate apps. They communicate only through t
 - Do not import code between `backend/`, `frontend/` and `mobileapp/`. The apps talk only through the backend REST API. If the web frontend needs shared types, duplicate them or publish a small contract (e.g. OpenAPI spec) — do not couple the folders.
 - The backend's OpenAPI spec is the shared contract. The mobile client is generated from it; never copy backend code or types into `mobileapp/`.
 - `backend/` and `frontend/` each have their own `package.json`, lint config, test config and `.env.example`.
-- `mobileapp/` will have its own tooling, README, `.env` or config files, tests and CI workflow when it is created. Its toolchain follows the chosen approach (native Kotlin or a wrapper), recorded when that decision is made (section 11, open decisions).
-- **`mobileapp/` is reserved; it may exist empty, but no code goes in it until mobile work starts.** All mobile app work happens inside `mobileapp/` and must not touch `backend/` or `frontend/` except through the API. Once it starts, every rule in this file (TDD and BDD with happy and sad paths, colours from the design tokens, error handling for every failure, no secrets in git) applies to it too.
+- `mobileapp/` has its own tooling (Gradle wrapper, JDK 21), README, build configuration, tests and CI workflow (`.github/workflows/mobileapp.yml`). See `mobileapp/README.md`.
+- All mobile app work happens inside `mobileapp/` and must not touch `backend/` or `frontend/` except through the API. Every rule in this file (TDD and BDD with happy and sad paths, colours from the design tokens, error handling for every failure, no secrets in git) applies to it too.
 - Never commit `.env` files or secrets. Keep `.env.example` up to date.
 
 ---
@@ -579,13 +579,13 @@ These are not settled. Do not build anything that assumes an answer; use the sta
 
 - **ETA formula** for the confirmation email: a documented, configurable default until the owner confirms the formula.
 - **Production hosting provider:** not chosen. Frontend security headers, the webhook URL, CORS origins and Google sign-in settings all depend on it. Staging currently runs on Vercel (frontend, `https://msd.eshiet.i.ng`) and Render (backend, `https://msd-api.eshiet.i.ng`).
-- **Mobile app technology:** fully native Kotlin versus a wrapper (such as Capacitor) around the Vue site. The location is fixed (`mobileapp/`); the technology is open.
 - **Option prices:** whether proteins carry an extra price. The model supports it; the default price difference is 0 until staff set one.
 
 ### Follow-up tasks
 
 - **Rename `SUPABASE_SERVICE_ROLE_KEY` to `SUPABASE_SECRET_KEY`** (small, separate code task). Files that still use the old name: `backend/src/config/env.validation.ts`, `backend/src/config/env.validation.spec.ts`, `backend/src/database/supabase.client.ts`, `backend/src/database/supabase.client.spec.ts`, `backend/test/support/test-database.ts`, `backend/test/features/startup.feature`, `backend/.env.example` and `compose.yaml` (comment). Also rename it in every environment's settings (local `.env`, any CI secrets, hosting).
 - **Clear the cart when payment is verified paid, not when the order is created** (small task; can be done before slice B). Today the web checkout clears the cart as soon as the order is created (`frontend/src/views/CheckoutView.vue`), so a failed or abandoned payment loses it.
+- **Mark whole-number fields as integers in the backend's OpenAPI spec** (kobo amounts, quantities, min/max choices are typed `number`). The mobile client maps `number` to `Long` until then.
 - **Set the frontend security headers on staging** in `frontend/vercel.json` (section 3.3: CSP, HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`). Vercel does not use the nginx config in the frontend Docker image, so staging currently sends none of them.
 
 ---
@@ -608,6 +608,7 @@ These were decided on purpose. Do not reverse one as part of other work; changin
   - The `@StrictThrottle()` marker applies the stricter limit. It is used on sign-in, order creation, payment initialisation and staff management; the image-upload endpoints must use it when they are built.
   - Frontend security headers are set by the hosting layer. Production hosting is not chosen yet (section 11, open decisions). Staging runs on Vercel (frontend) and Render (backend); its headers are still to be set in `frontend/vercel.json` (section 11, follow-up tasks). The frontend Docker image's nginx config already sets them for container hosting.
 - **Menu option groups replace the earlier "no menu variants yet" decision** (section 14).
+- **The Android app is native Kotlin + Jetpack Compose, package `ng.mustardseed.app`** (decided 2026-10-05). Its first slice (browsing the menu) was started before follow-up slices B and C by the owner's choice; ordering in the app waits for them.
 
 ---
 
@@ -698,10 +699,11 @@ Options are part of the menu. They are built in follow-up slice A (section 11).
 
 ## 15. Future mobile app
 
-An Android app will live in `mobileapp/` at the repo root. It is **out of scope for now**: the folder is reserved and may exist empty, but no code goes in it until the owner starts mobile work.
+The Android app lives in `mobileapp/` at the repo root: native Kotlin + Jetpack Compose, package `ng.mustardseed.app`, minimum Android 8.0 (API 26). The first slice is read-only menu browsing; sign-in, cart, checkout, payment and tracking follow once slices C (app sign-in) and B (server cart) exist.
 
 - **Sign-in, two paths on the same backend:** the website keeps HttpOnly cookie sessions. The native app signs in with Google, sends the Google ID token to the backend for verification, and then uses bearer tokens: a short-lived access token plus a refresh token that is rotated and revocable. CORS and the cookie `Origin` check apply to the web path only. Design follow-up slice C (section 11) so both paths share the same user, role and session logic as the existing web sign-in.
 - **Backwards compatibility:** keep `/api/v1` backwards compatible, because users update apps slowly. Add a configurable minimum supported app version (for example via an `X-App-Version` header) so the backend can tell old apps to update.
 - **Generated client:** generate the mobile client from the backend's OpenAPI spec instead of hand-writing requests. The spec must therefore stay accurate: every endpoint, request and response shape is documented.
 - **Design and errors:** the app uses the same design tokens (colours, fonts) as the website, defined once in its own theme file, and handles every error state as in section 7.
-- **Open decision:** fully native Kotlin versus a wrapper (such as Capacitor) around the Vue site. Either way it lives in `mobileapp/` (section 11, open decisions).
+- **Technology (decided):** native Kotlin + Jetpack Compose, not a wrapper around the website (Google blocks its sign-in in embedded web views, and a wrapper could only load the live site). The API client is generated from `mobileapp/api/openapi.json`, a committed copy of the backend's spec refreshed with `mobileapp/scripts/update-openapi.sh`.
+- **App version check:** every request already sends `X-App-Version`; the app shows "Please update the app" on HTTP 426, which the backend will return once slice C adds the minimum-version setting.
