@@ -154,6 +154,31 @@ Feature: Menu option groups
     Then the response status is 400
     And the response JSON at "error.code" is "VALIDATION_FAILED"
 
+  Scenario: A null option list means no options (as the Android app sends it)
+    Given I am signed in as "ekaette@example.com"
+    When I POST "/api/v1/orders/quote" with JSON:
+      """
+      { "fulfilment": "pickup", "branchId": "calabar", "items": [{ "menuItemId": "{{item:Zobo}}", "quantity": 2, "optionIds": null }] }
+      """
+    Then the response status is 200
+    And the response JSON at "totalKobo" is JSON:
+      """
+      160000
+      """
+    When I send the order body:
+      """
+      { "fulfilment": "pickup", "branchId": "calabar", "items": [{ "menuItemId": "{{item:Zobo}}", "quantity": 2, "optionIds": null }], "contact": { "fullName": "Ekaette Bassey", "phone": "0803 123 4567" }, "expectedTotalKobo": 160000, "clientRequestId": "22222222-2222-4222-8222-222222222222" }
+      """
+    Then the response status is 201
+
+  Scenario: A null option list on an item that needs a choice explains the missing choice
+    When I POST "/api/v1/orders/quote" with JSON:
+      """
+      { "fulfilment": "pickup", "branchId": "calabar", "items": [{ "menuItemId": "{{item:Afang Soup}}", "quantity": 1, "optionIds": null }] }
+      """
+    Then the response status is 200
+    And the response JSON at "problems.0.code" is "OPTION_REQUIRED"
+
   # ---------- snapshots ----------
 
   Scenario: A placed order keeps its choices after the menu changes

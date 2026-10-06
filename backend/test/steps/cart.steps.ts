@@ -4,6 +4,7 @@ import { ApiWorld, DEFAULT_ENV } from '../support/world';
 import { req } from './api.steps';
 import { signIn } from './auth.steps';
 import { parseItems } from './orders.steps';
+import { resolveRefs } from './options.steps';
 
 interface CartJson {
   lines: Array<{
@@ -63,7 +64,7 @@ When('I set {string} in my cart', async function (this: ApiWorld, spec: string) 
 When('I send the cart line:', async function (this: ApiWorld, body: string) {
   this.response = await req(this, 'put', '/api/v1/cart/lines')
     .set('Content-Type', 'application/json')
-    .send(body);
+    .send(await resolveRefs(body));
 });
 
 When('I look at my cart', async function (this: ApiWorld) {

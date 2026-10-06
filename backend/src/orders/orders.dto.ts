@@ -21,6 +21,10 @@ import { normalizeNigerianPhone } from './phone';
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
+/** Clients (the Android app's generated client) may send `null` for "no options". */
+export const noOptionsWhenNull = ({ value }: { value: unknown }): unknown =>
+  value === null ? [] : value;
+
 export class OrderItemInputDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -37,6 +41,7 @@ export class OrderItemInputDto {
     format: 'uuid',
     description: 'Chosen option ids (see the menu item’s optionGroups); omit for none',
   })
+  @Transform(noOptionsWhenNull)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)

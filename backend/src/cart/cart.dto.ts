@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -10,6 +10,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { noOptionsWhenNull } from '../orders/orders.dto';
 
 export class CartLineInputDto {
   @ApiProperty({ format: 'uuid' })
@@ -21,6 +22,7 @@ export class CartLineInputDto {
     format: 'uuid',
     description: 'Chosen options; omit for none',
   })
+  @Transform(noOptionsWhenNull)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)

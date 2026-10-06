@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { testDb } from '../support/test-database';
 import { ApiWorld, getPath } from '../support/world';
 import { req } from './api.steps';
+import { resolveRefs } from './options.steps';
 
 async function menuItemId(name: string): Promise<string> {
   const { data, error } = await testDb()
@@ -180,7 +181,7 @@ When('I submit the same order twice at the same time', async function (this: Api
 When('I send the order body:', async function (this: ApiWorld, body: string) {
   this.response = await req(this, 'post', '/api/v1/orders')
     .set('Content-Type', 'application/json')
-    .send(body);
+    .send(await resolveRefs(body));
 });
 
 When('I fetch that order', async function (this: ApiWorld) {

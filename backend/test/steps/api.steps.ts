@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { testSupabaseEnv } from '../support/test-database';
 import { ApiWorld, DEFAULT_ENV, getPath, LogEntry, SITE_ORIGIN } from '../support/world';
+import { resolveRefs } from './options.steps';
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options';
 
@@ -87,7 +88,9 @@ When(
 );
 
 When('I POST {string} with JSON:', async function (this: ApiWorld, path: string, body: string) {
-  this.response = await req(this, 'post', path).set('Content-Type', 'application/json').send(body);
+  this.response = await req(this, 'post', path)
+    .set('Content-Type', 'application/json')
+    .send(await resolveRefs(body));
 });
 
 When(

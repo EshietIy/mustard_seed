@@ -209,6 +209,17 @@ Feature: Server-side cart
       | unknown field  | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1, "price": 1 }  | 400    | VALIDATION_FAILED   |
       | unknown item   | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1 }              | 404    | MENU_ITEM_NOT_FOUND |
 
+  Scenario: A null option list means no options (as the Android app sends it)
+    Given I am signed in as "ekaette@example.com"
+    When I send the cart line:
+      """
+      { "menuItemId": "{{item:Zobo}}", "quantity": 2, "optionIds": null }
+      """
+    Then the response status is 200
+    And my cart has:
+      | item | quantity |
+      | Zobo | 2        |
+
   Scenario: Removing a line that isn't in the cart
     Given I am signed in as "ekaette@example.com"
     When I DELETE the cart line "00000000-0000-4000-8000-000000000001"
