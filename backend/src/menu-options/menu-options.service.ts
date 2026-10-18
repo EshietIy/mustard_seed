@@ -108,9 +108,17 @@ function toViews(rows: OptionRows): AdminOptionGroupView[] {
   });
 }
 
+/** What a supervisor may change on an option; everything else is super_admin only. */
+const SUPERVISOR_OPTION_FIELDS = new Set(['isAvailable', 'priceDeltaKobo']);
+
+const superAdminOnly = (message: string) =>
+  new ForbiddenException({ code: 'SUPER_ADMIN_ONLY', message });
+
 /**
- * Staff management of menu options (AGENT.md section 14). super_admin manages everything;
- * a supervisor may only switch an option on or off. Every change is audited.
+ * Staff management of menu options (AGENT.md sections 3.4 and 14). super_admin manages
+ * everything; a supervisor may add options, price them (also per item) and switch them on or
+ * off, but not rename, reorder, archive, or change which items offer them. Every change is
+ * audited.
  */
 @Injectable()
 export class MenuOptionsService {
@@ -174,6 +182,9 @@ export class MenuOptionsService {
     input: { name: string; priceDeltaKobo?: number; sortOrder?: number; itemIds?: string[] },
     correlationId: string,
   ): Promise<AdminOptionGroupView> {
+    if (actor.role !== 'super_admin' && input.sortOrder !== undefined) {
+      throw superAdminOnly('Only a super admin can choose where an option appears.');
+    }
     const rows = await this.repo.loadAll();
     const group = rows.groups.find((g) => g.id === groupId);
     if (!group) throw groupNotFound();
@@ -228,11 +239,13 @@ export class MenuOptionsService {
     },
     correlationId: string,
   ): Promise<AdminOptionGroupView> {
-    if (actor.role !== 'super_admin' && Object.keys(patch).some((k) => k !== 'isAvailable')) {
-      throw new ForbiddenException({
-        code: 'SUPER_ADMIN_ONLY',
-        message: 'Only a super admin can change options. Supervisors can switch them on or off.',
-      });
+    if (
+      actor.role !== 'super_admin' &&
+      Object.keys(patch).some((k) => !SUPERVISOR_OPTION_FIELDS.has(k))
+    ) {
+      throw superAdminOnly(
+        'Only a super admin can rename, reorder or archive options. Supervisors can change prices and switch options on or off.',
+      );
     }
     const option = (await this.repo.loadAll()).options.find((o) => o.id === optionId);
     if (!option) throw optionNotFound();
@@ -276,6 +289,10 @@ export class MenuOptionsService {
     isExcluded: boolean;
     priceDeltaKobo: number | null;
   }> {
+    const supervisor = actor.role !== 'super_admin';
+    if (supervisor && input.isExcluded !== undefined) {
+      throw superAdminOnly('Only a super admin can change which items offer an option.');
+    }
     const [rows, itemIds] = await Promise.all([this.repo.loadAll(), this.repo.listMenuItemIds()]);
     if (!itemIds.includes(itemId)) throw itemNotFound();
     const option = rows.options.find((o) => o.id === optionId);
@@ -284,6 +301,16 @@ export class MenuOptionsService {
       throw new UnprocessableEntityException({
         code: 'OPTION_NOT_ON_ITEM',
         message: "This item doesn't offer that option's group. Add the group to the item first.",
+      });
+    }
+    // Saving a price also clears an exclusion, so a supervisor must not re-offer it this way.
+    const excluded = rows.overrides.some(
+      (o) => o.menuItemId === itemId && o.optionId === optionId && o.isExcluded,
+    );
+    if (supervisor && excluded) {
+      throw new ForbiddenException({
+        code: 'OPTION_EXCLUDED_ON_ITEM',
+        message: "This item doesn't offer that option. Ask a super admin to offer it first.",
       });
     }
     const value = {

@@ -10,7 +10,7 @@ const item = (id: string, name: string, extra: Partial<MenuItemRecord> = {}): Me
   slug: id,
   name,
   description: '',
-  category: 'calabar_classics',
+  category: 'calabar_soups',
   priceKobo: 100000,
   isHouseSignature: false,
   isFreshJuice: false,
@@ -118,7 +118,7 @@ async function setup(fulfilment: 'delivery' | 'pickup', siteRepo = site()) {
   });
   const menu = new InMemoryMenuRepository([
     item('edikang', 'Edikang Ikong', { isHouseSignature: true }),
-    item('zobo', 'Zobo', { isFreshJuice: true, category: 'drinks' }),
+    item('zobo', 'Zobo', { isFreshJuice: true, category: 'fresh_juices' }),
     item('afang', 'Afang Soup'),
   ]);
   const builder = new OrderEmailBuilder(orders, users, menu, siteRepo, {

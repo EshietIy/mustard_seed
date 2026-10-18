@@ -8,7 +8,7 @@ const row = {
   slug: 'zobo',
   name: 'Zobo',
   description: '',
-  category: 'drinks',
+  category: 'fresh_juices',
   price_kobo: 80000,
   is_house_signature: false,
   is_fresh_juice: true,
@@ -38,7 +38,7 @@ describe('SupabaseMenuRepository', () => {
         slug: 'zobo',
         name: 'Zobo',
         description: '',
-        category: 'drinks',
+        category: 'fresh_juices',
         priceKobo: 80000,
         isHouseSignature: false,
         isFreshJuice: true,
@@ -51,7 +51,7 @@ describe('SupabaseMenuRepository', () => {
   });
 
   it("attaches each item's option groups, with exclusions and price overrides applied", async () => {
-    const soup = { ...row, id: 'soup', slug: 'afang', name: 'Afang', category: 'calabar_classics' };
+    const soup = { ...row, id: 'soup', slug: 'afang', name: 'Afang', category: 'calabar_soups' };
     const { client } = fakeSupabase(
       { data: [soup], error: null },
       {

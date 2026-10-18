@@ -75,7 +75,7 @@ async function setup(now = '2026-10-05T12:00:00+01:00') {
         optionGroups: [],
         name: 'Zobo',
         description: '',
-        category: 'drinks',
+        category: 'fresh_juices',
         priceKobo: 80000,
         isHouseSignature: false,
         isFreshJuice: true,

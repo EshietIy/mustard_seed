@@ -7,8 +7,8 @@ Feature: Signing in from the Android app
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name | category | price |
-      | Zobo | drinks   | 80000 |
+      | name | category     | price |
+      | Zobo | fresh_juices | 80000 |
 
   # ---------- happy paths ----------
 
@@ -112,11 +112,11 @@ Feature: Signing in from the Android app
     And the response JSON at "error.code" is "<code>"
 
     Examples:
-      | case                 | path                      | body                       | status | code              |
-      | missing ID token     | /api/v1/auth/app/google   | { }                        | 400    | VALIDATION_FAILED |
-      | invalid ID token     | /api/v1/auth/app/google   | { "idToken": "nope" }      | 401    | INVALID_GOOGLE_TOKEN |
-      | missing refresh      | /api/v1/auth/app/refresh  | { }                        | 400    | VALIDATION_FAILED |
-      | unknown refresh      | /api/v1/auth/app/refresh  | { "refreshToken": "nope" } | 401    | SESSION_EXPIRED   |
+      | case             | path                     | body                       | status | code                 |
+      | missing ID token | /api/v1/auth/app/google  | { }                        | 400    | VALIDATION_FAILED    |
+      | invalid ID token | /api/v1/auth/app/google  | { "idToken": "nope" }      | 401    | INVALID_GOOGLE_TOKEN |
+      | missing refresh  | /api/v1/auth/app/refresh | { }                        | 400    | VALIDATION_FAILED    |
+      | unknown refresh  | /api/v1/auth/app/refresh | { "refreshToken": "nope" } | 401    | SESSION_EXPIRED      |
 
   # ---------- app version ----------
 
@@ -128,11 +128,11 @@ Feature: Signing in from the Android app
     Then the response status is <status>
 
     Examples:
-      | case        | version | status |
-      | current     | 1.2.0   | 200    |
-      | newer       | 1.10.0  | 200    |
-      | outdated    | 1.1.9   | 426    |
-      | not a version | beta  | 426    |
+      | case          | version | status |
+      | current       | 1.2.0   | 200    |
+      | newer         | 1.10.0  | 200    |
+      | outdated      | 1.1.9   | 426    |
+      | not a version | beta    | 426    |
 
   Scenario: An outdated app is told why
     Given the API is running with:

@@ -27,7 +27,7 @@ const item = (
   slug: name.toLowerCase().replace(/\W+/g, '-'),
   name,
   description: '',
-  category: 'calabar_classics',
+  category: 'calabar_soups',
   priceKobo,
   isHouseSignature: false,
   isFreshJuice: false,

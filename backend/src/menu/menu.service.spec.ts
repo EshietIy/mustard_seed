@@ -10,7 +10,7 @@ function item(overrides: Partial<MenuItemRecord>): MenuItemRecord {
     slug: 'edikang-ikong',
     name: 'Edikang Ikong',
     description: 'Ugu and waterleaf soup.',
-    category: 'calabar_classics',
+    category: 'calabar_soups',
     priceKobo: null,
     isHouseSignature: false,
     isFreshJuice: false,
@@ -23,21 +23,23 @@ function item(overrides: Partial<MenuItemRecord>): MenuItemRecord {
 }
 
 describe('MenuService', () => {
-  it('always returns the four categories in display order, even when empty', async () => {
+  it('always returns the six categories in display order, even when empty', async () => {
     const service = new MenuService(new InMemoryMenuRepository([]), config);
     const menu = await service.getMenu();
     expect(menu.categories.map((c) => [c.id, c.label, c.items.length])).toEqual([
-      ['calabar_classics', 'Calabar classics', 0],
-      ['swallow_sides', 'Swallow & sides', 0],
+      ['calabar_soups', 'Calabar soups', 0],
+      ['swallow', 'Swallow', 0],
+      ['rice_native', 'Rice & native dishes', 0],
       ['continental', 'Continental', 0],
-      ['drinks', 'Drinks', 0],
+      ['fresh_juices', 'Fresh juices', 0],
+      ['soft_drinks_water', 'Soft drinks & water', 0],
     ]);
   });
 
   it('groups items by category, ordered by sort order then name', async () => {
     const repo = new InMemoryMenuRepository([
       item({ id: 'a', slug: 'afang', name: 'Afang Soup', sortOrder: 20 }),
-      item({ id: 'z', slug: 'zobo', name: 'Zobo', category: 'drinks', isFreshJuice: true }),
+      item({ id: 'z', slug: 'zobo', name: 'Zobo', category: 'fresh_juices', isFreshJuice: true }),
       item({ id: 'e', slug: 'edikang', name: 'Edikang Ikong', sortOrder: 10 }),
       item({ id: 'b', slug: 'atama', name: 'Atama Soup', sortOrder: 20 }),
     ]);
@@ -47,7 +49,7 @@ describe('MenuService', () => {
       'Afang Soup',
       'Atama Soup',
     ]);
-    expect(menu.categories[3]?.items.map((i) => i.name)).toEqual(['Zobo']);
+    expect(menu.categories[4]?.items.map((i) => i.name)).toEqual(['Zobo']);
   });
 
   it('maps an item to the public shape, keeping placeholders as null', async () => {

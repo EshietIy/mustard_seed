@@ -32,15 +32,14 @@ const rolesOf = (method: keyof MenuOptionsController) =>
   ]);
 
 describe('MenuOptionsController', () => {
-  it('lets staff read and switch options, and keeps everything else for super admins', () => {
-    expect(rolesOf('list')).toEqual(['supervisor', 'super_admin']);
-    expect(rolesOf('updateOption')).toEqual(['supervisor', 'super_admin']);
+  it('lets staff read, add, price and switch options, and keeps the rest for super admins', () => {
+    for (const method of ['list', 'createOption', 'updateOption', 'setOverride'] as const) {
+      expect(rolesOf(method)).toEqual(['supervisor', 'super_admin']);
+    }
     for (const method of [
       'createGroup',
       'updateGroup',
-      'createOption',
       'setItemGroups',
-      'setOverride',
       'deleteOverride',
     ] as const) {
       expect(rolesOf(method)).toEqual(['super_admin']);
