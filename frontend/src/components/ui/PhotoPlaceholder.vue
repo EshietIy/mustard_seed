@@ -1,5 +1,8 @@
 <script setup lang="ts">
-/** Diagonal-stripe placeholder with a small pill, used until real photography exists. */
+/**
+ * Diagonal-stripe placeholder used until real photography exists. The pill sits top-left on
+ * cards and in the middle of the hero arch; an empty label shows the stripes alone.
+ */
 withDefaults(
   defineProps<{ label?: string; tone?: 'light' | 'dark'; align?: 'start' | 'center' }>(),
   { label: 'Photo coming', tone: 'light', align: 'start' },
@@ -8,7 +11,7 @@ withDefaults(
 
 <template>
   <div class="placeholder" :class="[`placeholder--${tone}`, `placeholder--${align}`]">
-    <span class="pill">{{ label }}</span>
+    <span v-if="label" class="pill">{{ label }}</span>
   </div>
 </template>
 
@@ -18,8 +21,8 @@ withDefaults(
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: flex-end;
-  padding: 0.75rem;
+  align-items: flex-start;
+  padding: 0.625rem;
 }
 .placeholder--light {
   background:
@@ -40,24 +43,24 @@ withDefaults(
     var(--color-charcoal);
 }
 .placeholder--center {
+  align-items: center;
   justify-content: center;
-  padding-bottom: 1.25rem;
 }
 .pill {
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.6rem;
   border-radius: var(--radius-pill);
-  font-size: 0.6875rem;
+  font-size: 0.5625rem;
+  font-weight: 700;
   line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--color-white) 90%, transparent);
+  color: var(--color-charcoal);
 }
-.placeholder--light .pill {
-  background: color-mix(in srgb, var(--color-white) 85%, transparent);
-  color: var(--color-text-muted);
-}
-.placeholder--dark .pill {
+.placeholder--center .pill {
   background: color-mix(in srgb, var(--color-charcoal) 85%, var(--color-cream));
   color: var(--color-gold);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  font-weight: 500;
   font-size: 0.625rem;
   padding: 0.35rem 0.8rem;
 }

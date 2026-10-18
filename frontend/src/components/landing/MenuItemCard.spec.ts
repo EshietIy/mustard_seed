@@ -12,12 +12,12 @@ describe('MenuItemCard', () => {
     setActivePinia(createPinia());
   });
 
-  it('renders name, description, the [PRICE] placeholder and the house signature badge', () => {
+  it('renders name, description, the [PRICE] placeholder and the signature badge', () => {
     const wrapper = mount(MenuItemCard, { props: { item: menuItem() } });
     expect(wrapper.get('h3').text()).toBe('Edikang Ikong');
     expect(wrapper.text()).toContain('Ugu and waterleaf soup');
     expect(wrapper.text()).toContain('[PRICE]');
-    expect(wrapper.text()).toContain('House signature');
+    expect(wrapper.get('[data-test="signature"]').text()).toBe('Signature');
   });
 
   it('formats a real price and hides the badge for normal items', () => {
@@ -25,12 +25,12 @@ describe('MenuItemCard', () => {
       props: { item: menuItem({ priceKobo: 450000, isHouseSignature: false }) },
     });
     expect(wrapper.text()).toContain('₦4,500');
-    expect(wrapper.text()).not.toContain('House signature');
+    expect(wrapper.find('[data-test="signature"]').exists()).toBe(false);
   });
 
-  it('shows the "Photo coming" placeholder when there is no image', () => {
+  it('shows the striped photo placeholder when there is no image', () => {
     const wrapper = mount(MenuItemCard, { props: { item: menuItem() } });
-    expect(wrapper.text()).toContain('Photo coming');
+    expect(wrapper.find('.placeholder--light').exists()).toBe(true);
     expect(wrapper.find('img').exists()).toBe(false);
   });
 
@@ -48,7 +48,7 @@ describe('MenuItemCard', () => {
     expect(img.attributes('alt')).toBe('Edikang Ikong');
     await img.trigger('error');
     expect(wrapper.find('img').exists()).toBe(false);
-    expect(wrapper.text()).toContain('Photo coming');
+    expect(wrapper.find('.placeholder').exists()).toBe(true);
   });
 
   it('adds the item to the cart and confirms it', async () => {
@@ -80,6 +80,23 @@ describe('MenuItemCard', () => {
   it('labels the Add button with the dish name for screen readers', () => {
     const wrapper = mount(MenuItemCard, { props: { item: menuItem() } });
     expect(wrapper.get('button').attributes('aria-label')).toBe('Add Edikang Ikong to your order');
+  });
+
+  describe('the compact variant (Top dishes)', () => {
+    it('shows name, price and the dark "Photo coming" pill, without description or badge', () => {
+      const wrapper = mount(MenuItemCard, { props: { item: menuItem(), variant: 'compact' } });
+      expect(wrapper.get('h3').text()).toBe('Edikang Ikong');
+      expect(wrapper.text()).toContain('[PRICE]');
+      expect(wrapper.text()).not.toContain('Ugu and waterleaf soup');
+      expect(wrapper.find('[data-test="signature"]').exists()).toBe(false);
+      expect(wrapper.find('.placeholder--dark').text()).toBe('Photo coming');
+    });
+
+    it('still adds to the order', async () => {
+      const wrapper = mount(MenuItemCard, { props: { item: menuItem(), variant: 'compact' } });
+      await wrapper.get('button[aria-label="Add Edikang Ikong to your order"]').trigger('click');
+      expect(useCartStore().count).toBe(1);
+    });
   });
 
   describe('an item with choices', () => {

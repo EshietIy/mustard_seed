@@ -290,8 +290,8 @@ describe('OrderView', () => {
         Response.json({
           categories: [
             {
-              id: 'calabar_classics',
-              label: 'Calabar classics',
+              id: 'calabar_soups',
+              label: 'Calabar soups',
               items: [menuItem({ priceKobo: 450000 })],
             },
           ],
@@ -378,8 +378,8 @@ describe('OrderView', () => {
         Response.json({
           categories: [
             {
-              id: 'calabar_classics',
-              label: 'Calabar classics',
+              id: 'calabar_soups',
+              label: 'Calabar soups',
               items: [
                 menuItem({
                   id: 'soup',

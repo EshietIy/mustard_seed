@@ -1,51 +1,143 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import IconArrowRight from '@/components/icons/IconArrowRight.vue';
-import IconBag from '@/components/icons/IconBag.vue';
+import { computed, ref } from 'vue';
+import BrandMark from '@/components/ui/BrandMark.vue';
+import IconChevronLeft from '@/components/icons/IconChevronLeft.vue';
+import IconChevronRight from '@/components/icons/IconChevronRight.vue';
 import IconClock from '@/components/icons/IconClock.vue';
-import IconScooter from '@/components/icons/IconScooter.vue';
+import IconPin from '@/components/icons/IconPin.vue';
+import IconSearch from '@/components/icons/IconSearch.vue';
 import PhotoPlaceholder from '@/components/ui/PhotoPlaceholder.vue';
 import { landing } from '@/content/landing';
+import { useMenuStore } from '@/stores/menu';
 import { useSiteStore } from '@/stores/site';
 import { formatNaira, formatTime } from '@/utils/format';
 
+const menu = useMenuStore();
 const site = useSiteStore();
 const hero = landing.hero;
+const text = ref('');
+const slideIndex = ref(0);
 
-const hoursFact = computed(() =>
-  site.info
-    ? `Open daily, ${formatTime(site.info.hours.opensAt)} – ${formatTime(site.info.hours.closesAt)}`
-    : null,
-);
-const deliveryFact = computed(() =>
-  site.info
-    ? `${formatNaira(site.info.delivery.feeKobo)} delivery anywhere in ${site.info.delivery.area}`
-    : null,
-);
+const slide = computed(() => hero.slides[slideIndex.value]!);
+const hours = computed(() => site.info?.hours ?? null);
+const delivery = computed(() => site.info?.delivery ?? null);
+
+function show(index: number): void {
+  const count = hero.slides.length;
+  slideIndex.value = (index + count) % count;
+}
+
+function search(query: string): void {
+  menu.search(query);
+  document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 </script>
 
 <template>
   <section id="top" class="hero" aria-labelledby="hero-title">
     <div class="inner">
       <div class="copy">
-        <p class="eyebrow eyebrow--rule">{{ hero.eyebrow }}</p>
+        <p class="badge">
+          <BrandMark class="badge-mark" />
+          {{ hero.badge }}
+        </p>
         <h1 id="hero-title">
-          {{ hero.titleLead }} <em>{{ hero.titleEmphasis }}</em>
+          {{ hero.titleLead }}<br />
+          {{ hero.titleTail }} <em>{{ hero.titleEmphasis }}</em>
         </h1>
         <p class="body">{{ hero.body }}</p>
-        <div class="ctas">
-          <a href="#menu" class="btn-primary"> {{ hero.primaryCta }} <IconArrowRight /> </a>
-          <a href="#story" class="btn-outline-light">{{ hero.secondaryCta }}</a>
+
+        <form class="search" role="search" @submit.prevent="search(text)">
+          <IconSearch class="search-icon" />
+          <label for="hero-search" class="sr-only">{{ hero.searchLabel }}</label>
+          <input
+            id="hero-search"
+            v-model="text"
+            type="search"
+            :placeholder="hero.searchPlaceholder"
+            autocomplete="off"
+          />
+          <button type="submit" class="btn-primary">{{ hero.searchButton }}</button>
+        </form>
+
+        <div class="quick" data-test="quick-find">
+          <span id="quick-find-label" class="quick-label">{{ hero.quickFindLabel }}</span>
+          <ul aria-labelledby="quick-find-label">
+            <li v-for="word in hero.quickFind" :key="word">
+              <button type="button" class="chip" @click="search(word)">{{ word }}</button>
+            </li>
+          </ul>
         </div>
-        <ul class="facts">
-          <li v-if="hoursFact"><IconClock class="fact-icon" />{{ hoursFact }}</li>
-          <li v-if="deliveryFact"><IconScooter class="fact-icon" />{{ deliveryFact }}</li>
-          <li><IconBag class="fact-icon" />{{ hero.pickup }}</li>
-        </ul>
       </div>
-      <div class="arch-trim">
-        <div class="arch">
-          <PhotoPlaceholder :label="hero.photoLabel" tone="dark" align="center" />
+
+      <div class="art">
+        <div class="blob" aria-hidden="true" />
+        <div class="arch-trim">
+          <div class="arch">
+            <PhotoPlaceholder
+              :key="slideIndex"
+              :label="slide.photoLabel"
+              tone="dark"
+              align="center"
+            />
+          </div>
+        </div>
+
+        <div class="card card--branches">
+          <span class="card-icon"><IconPin /></span>
+          <span>
+            <strong>{{ hero.branchesCard.title }}</strong>
+            <small>{{ hero.branchesCard.body }}</small>
+          </span>
+        </div>
+        <div v-if="delivery" class="card card--delivery">
+          <span class="eyebrow">Delivery</span>
+          <strong>{{ formatNaira(delivery.feeKobo) }}</strong>
+          <small>anywhere in {{ delivery.area }}</small>
+        </div>
+        <div class="card card--juices"><span class="dot" />{{ hero.juicesCard }}</div>
+        <div v-if="hours" class="card card--hours">
+          <span class="card-icon card-icon--dark"><IconClock /></span>
+          <span>
+            <strong>Open {{ formatTime(hours.opensAt) }} – {{ formatTime(hours.closesAt) }}</strong>
+            <small>Online orders until {{ formatTime(hours.onlineOrdersCloseAt) }}</small>
+          </span>
+        </div>
+
+        <div class="controls">
+          <button
+            type="button"
+            class="ctl"
+            aria-label="Previous photo"
+            @click="show(slideIndex - 1)"
+          >
+            <IconChevronLeft />
+          </button>
+          <div class="status">
+            <p data-test="slide-caption" aria-live="polite">
+              {{ slideIndex + 1 }} / {{ hero.slides.length }} · {{ slide.caption }}
+            </p>
+            <div class="dots">
+              <button
+                v-for="(s, i) in hero.slides"
+                :key="i"
+                type="button"
+                class="dot-btn"
+                data-test="dot"
+                :aria-label="`Photo ${i + 1}: ${s.caption}`"
+                :aria-current="i === slideIndex ? 'true' : undefined"
+                @click="show(i)"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            class="ctl ctl--dark"
+            aria-label="Next photo"
+            @click="show(slideIndex + 1)"
+          >
+            <IconChevronRight />
+          </button>
         </div>
       </div>
     </div>
@@ -54,85 +146,321 @@ const deliveryFact = computed(() =>
 
 <style scoped>
 .hero {
-  background: var(--color-charcoal);
-  color: var(--color-text-on-dark);
+  background: var(--color-cream);
+  scroll-margin-top: 5rem;
 }
 .inner {
-  max-width: var(--page-width);
+  max-width: var(--landing-width);
   margin: 0 auto;
-  padding: 4rem var(--gutter);
+  padding: 4rem var(--gutter) 5rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 3rem;
   align-items: center;
 }
-h1 {
-  margin: 1rem 0 1.25rem;
-  font-size: clamp(2.5rem, 5.5vw, 4rem);
-  color: var(--color-cream);
-}
-h1 em {
-  display: block;
-  color: var(--color-gold);
-  font-weight: 500;
-}
-.body {
-  max-width: 34rem;
-  color: var(--color-text-on-dark-muted);
-}
-.ctas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin: 1.75rem 0;
-}
-.ctas a {
-  gap: 0.5rem;
-  text-decoration: none;
-}
-.facts {
-  list-style: none;
-  margin: 0;
-  padding: 1.25rem 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--color-cream) 15%, transparent);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  font-size: 0.8125rem;
-  color: var(--color-text-on-dark-muted);
-}
-.facts li {
+.badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  margin: 0;
+  padding: 0.3rem 0.875rem 0.3rem 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-gold) 55%, var(--color-charcoal));
 }
-.fact-icon {
-  color: var(--color-gold);
-  font-size: 1rem;
+.badge-mark {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+h1 {
+  margin: 1.25rem 0 1.25rem;
+  font-size: clamp(2.75rem, 6vw, 4.25rem);
+  font-weight: 500;
+  line-height: 1.05;
+}
+h1 em {
+  color: var(--color-crimson);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+.body {
+  max-width: 34rem;
+  margin: 0 0 1.75rem;
+  font-size: 1.0625rem;
+  color: var(--color-text-muted);
+}
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 34rem;
+  padding: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--color-charcoal) 10%, transparent);
+}
+.search-icon {
+  flex: none;
+  margin: 0 0.5rem 0 0.75rem;
+  color: var(--color-text-muted);
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: 0.9375rem var(--font-body);
+}
+.search input:focus-visible {
+  outline: none;
+}
+.search:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 1.25rem;
+}
+.quick-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.quick ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  min-height: 2.25rem;
+  padding: 0.375rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  color: var(--color-text);
+  font: 500 0.8125rem var(--font-body);
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--color-crimson);
+  color: var(--color-crimson);
+}
+
+/* The photo carousel with its floating cards. */
+.art {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 1rem 0 2rem;
+}
+.blob {
+  position: absolute;
+  inset: 4% 4% 10%;
+  border-radius: 50% 50% 46% 54%;
+  background: color-mix(in srgb, var(--color-gold) 30%, var(--color-cream));
 }
 .arch-trim {
-  padding: 10px;
+  position: relative;
+  width: min(100%, 16.5rem);
+  padding: 8px;
   border-radius: 999px 999px 1.25rem 1.25rem;
   background: repeating-linear-gradient(
     135deg,
-    var(--color-crimson) 0 6px,
-    var(--color-gold) 6px 12px
+    var(--color-crimson) 0 5px,
+    var(--color-gold) 5px 10px
   );
 }
+@media (min-width: 1024px) {
+  .arch-trim {
+    width: min(70%, 22rem);
+  }
+  .art {
+    padding-bottom: 1rem;
+  }
+}
 .arch {
-  aspect-ratio: 1 / 0.92;
+  aspect-ratio: 1 / 1.3;
   border-radius: 999px 999px 0.875rem 0.875rem;
   overflow: hidden;
 }
+.card {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.875rem;
+  background: var(--color-white);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-charcoal) 12%, transparent);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+.card strong {
+  display: block;
+  font-weight: 700;
+}
+.card small {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+}
+.card-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-crimson-soft);
+  color: var(--color-crimson);
+}
+.card-icon--dark {
+  background: var(--color-charcoal);
+  color: var(--color-gold);
+}
+.card--branches {
+  top: 2%;
+  left: 0;
+}
+.card--delivery {
+  top: 6%;
+  right: -1rem;
+  display: block;
+  rotate: 4deg;
+  background: var(--color-charcoal);
+  color: var(--color-cream);
+}
+.card--delivery strong {
+  font-family: var(--font-heading);
+  font-size: 1.375rem;
+}
+.card--delivery small {
+  color: var(--color-text-on-dark-muted);
+}
+.card--juices {
+  top: 56%;
+  left: 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-gold);
+}
+.card--hours {
+  bottom: 18%;
+  right: -1rem;
+}
+.controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: -1.25rem;
+  padding: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-charcoal) 12%, transparent);
+}
+.ctl {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.ctl--dark {
+  border-color: var(--color-charcoal);
+  background: var(--color-charcoal);
+  color: var(--color-cream);
+}
+.status {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  min-width: 10rem;
+}
+.status p {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dots {
+  display: flex;
+  gap: 0.25rem;
+}
+.dot-btn {
+  width: 1.25rem;
+  height: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+.dot-btn::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  translate: -50% -50%;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-charcoal) 25%, transparent);
+}
+.dot-btn[aria-current='true']::after {
+  width: 1rem;
+  background: var(--color-crimson);
+}
 
-@media (max-width: 860px) {
+@media (max-width: 1023px) {
   .inner {
     grid-template-columns: 1fr;
-    padding-block: 2.5rem 3rem;
+    padding-block: 2.5rem 3.5rem;
     gap: 2rem;
   }
-  .arch {
-    aspect-ratio: 1 / 0.75;
+  .art {
+    max-width: 36rem;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .card--delivery,
+  .card--hours {
+    right: 0;
+  }
+}
+@media (max-width: 600px) {
+  .card {
+    display: none;
+  }
+  .blob {
+    inset: 0 0 8%;
   }
 }
 </style>

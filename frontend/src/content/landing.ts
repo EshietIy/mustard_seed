@@ -6,7 +6,6 @@
 export const PLACEHOLDERS = {
   phone: '[PHONE / WHATSAPP]',
   address: (city: string) => `[${city.toUpperCase()} ADDRESS]`,
-  founderLine: '[ADD A LINE ABOUT THE FOUNDER OR THE NAME "MUSTARD SEED"]',
 } as const;
 
 export const landing = {
@@ -14,66 +13,60 @@ export const landing = {
     name: 'Mustard Seed',
     subtitle: 'Restaurant & Bar',
     fullName: 'Mustard Seed Restaurant & Bar',
+    domain: 'mustardseed.ng',
   },
   nav: [
+    { href: '#top', label: 'Home' },
     { href: '#menu', label: 'Menu' },
-    { href: '#juices', label: 'Fresh juices' },
-    { href: '#story', label: 'Our story' },
     { href: '#visit', label: 'Visit us' },
   ],
+  orderNow: 'Order now',
   hero: {
-    eyebrow: 'Amedi · Welcome',
-    titleLead: 'The soul of Calabar,',
-    titleEmphasis: 'served warm.',
-    body: 'Edikang Ikong, Afang, Ekpang Nkukwo and the great pots of Akwa-Cross, cooked the way they have always been. Plus continental favourites and fresh juices pressed every morning.',
-    primaryCta: 'Order now',
-    secondaryCta: 'Our story',
-    pickup: 'Or pick up yourself',
-    photoLabel: 'Photo: Edikang Ikong in an earthen pot',
+    badge: "Amedi · Calabar's own since 2012",
+    titleLead: 'Calabar flavour,',
+    titleTail: 'at your',
+    titleEmphasis: 'door.',
+    body: 'Edikang Ikong, Afang, Ekpang Nkukwo and more, cooked fresh in our Calabar kitchen. Delivered across the city, or ready for you to pick up.',
+    searchLabel: 'Search the menu',
+    searchPlaceholder: 'What are you craving? (e.g. Afang)',
+    searchButton: 'Search',
+    quickFindLabel: 'Quick find',
+    quickFind: ['Afang', 'Fish', 'Pounded yam', 'Fresh juice'],
+    /**
+     * Carousel slides, in order. The design names slides 4 and 5 only; the others stay
+     * "Photo coming" until the owner supplies photos and captions.
+     */
+    slides: [
+      { caption: 'Photo coming', photoLabel: 'Photo coming' },
+      { caption: 'Photo coming', photoLabel: 'Photo coming' },
+      { caption: 'Photo coming', photoLabel: 'Photo coming' },
+      { caption: 'The bar', photoLabel: 'Photo: The bar' },
+      { caption: 'Fresh juices, pressed daily', photoLabel: 'Photo: Fresh juices, pressed daily' },
+    ],
+    branchesCard: { title: 'Calabar & Uyo', body: 'Two kitchens, one recipe book' },
+    juicesCard: 'Fresh juices, no preservatives',
   },
-  steps: [
-    { title: 'Sign in with Google', body: 'One tap. No new password to remember.' },
-    {
-      title: 'Pick your food and drinks',
-      body: 'Choose delivery to your door or pickup at the restaurant.',
-    },
-    {
-      title: 'Pay online, we start cooking',
-      body: 'Your order goes to the kitchen as soon as payment clears. Track it live.',
-    },
-  ],
+  topDishes: {
+    eyebrow: 'House signatures',
+    title: 'Top dishes',
+  },
   menu: {
-    eyebrow: "Today's menu",
-    title: 'From our pots to your table',
+    titleLead: 'Our',
+    titleEmphasis: 'menu',
+    body: 'Food and non-alcoholic drinks for delivery or pickup.',
+    allLabel: 'All',
+    searchLabel: 'Search dishes, ingredients…',
+    /** Cards shown before "Show full menu". */
+    initialCount: 8,
     emptyCategory: 'More dishes are coming to this part of the menu soon.',
-  },
-  juices: {
-    eyebrow: 'Pressed every morning',
-    title: 'Fresh juices. Nothing added, nothing hidden.',
-    body: 'No preservatives, ever. Add a bottle to any order — they travel cold with your food.',
-    cta: 'See all drinks',
-  },
-  story: {
-    eyebrow: 'Since 2012',
-    titleLead: 'Two states. One table.',
-    titleEmphasis: 'Akwa-Cross',
-    titleTail: 'on every plate.',
-    body: 'Efik and Ibibio cooking is a cooking of patience — leaves shredded by hand, soups built slowly, nothing rushed. That is how our kitchen still works, in Calabar and in Uyo.',
-    founderLine: PLACEHOLDERS.founderLine,
-    photoLabel: 'Photo: the dining room / the kitchen team',
-  },
-  visit: {
-    title: 'Visit us',
-    roleLabel: { headquarters: 'Headquarters', branch: 'Branch' },
-    onlineAvailable: 'Online delivery and pickup available',
-    onlineComingSoon: 'Online ordering coming soon',
-    hoursEyebrow: 'Hours',
-    events: 'Weddings, birthdays and corporate events hosted on request.',
+    clearSearch: 'Clear search',
   },
   footer: {
-    tagline: 'Local classics of Cross River and Akwa Ibom. Since 2012.',
-    orderOnline: 'Order online',
-    findUs: 'Find us',
-    domain: 'mustardseed.ng',
+    tagline:
+      'Efik and Ibibio cooking from Calabar and Uyo, made fresh and delivered warm. Since 2012.',
+    headquartersSuffix: '(HQ)',
+    onlineAvailable: 'Delivery & pickup online',
+    onlineComingSoon: 'Online ordering soon',
+    hoursTitle: 'Hours & contact',
   },
 } as const;

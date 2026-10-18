@@ -32,8 +32,8 @@ export function menuFixture() {
   return {
     categories: [
       {
-        id: 'calabar_classics',
-        label: 'Calabar classics',
+        id: 'calabar_soups',
+        label: 'Calabar soups',
         items: [
           item('edikang-ikong', 'Edikang Ikong', { isHouseSignature: true }),
           item('afang-soup', 'Afang Soup', { priceKobo: 450000 }),
@@ -44,17 +44,19 @@ export function menuFixture() {
           }),
         ],
       },
-      { id: 'swallow_sides', label: 'Swallow & sides', items: [] },
+      { id: 'swallow', label: 'Swallow', items: [] },
+      { id: 'rice_native', label: 'Rice & native dishes', items: [] },
       { id: 'continental', label: 'Continental', items: [] },
       {
-        id: 'drinks',
-        label: 'Drinks',
+        id: 'fresh_juices',
+        label: 'Fresh juices',
         items: [
           item('zobo', 'Zobo', { isFreshJuice: true, description: '', priceKobo: 80000 }),
           item('pineapple-ginger', 'Pineapple & ginger', { isFreshJuice: true, description: '' }),
           item('watermelon', 'Watermelon', { isFreshJuice: true, description: '' }),
         ],
       },
+      { id: 'soft_drinks_water', label: 'Soft drinks & water', items: [] },
     ],
   };
 }

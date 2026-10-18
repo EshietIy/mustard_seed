@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import IconBag from '@/components/icons/IconBag.vue';
+import IconClose from '@/components/icons/IconClose.vue';
+import IconMenu from '@/components/icons/IconMenu.vue';
+import IconUser from '@/components/icons/IconUser.vue';
 import BrandMark from '@/components/ui/BrandMark.vue';
-import ZigzagTrim from '@/components/ui/ZigzagTrim.vue';
 import { landing } from '@/content/landing';
 import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
@@ -12,6 +14,8 @@ defineEmits<{ 'open-cart': [] }>();
 const cart = useCartStore();
 const auth = useAuthStore();
 const accountOpen = ref(false);
+const menuOpen = ref(false);
+const menuToggle = ref<HTMLButtonElement | null>(null);
 
 const orderLabel = computed(
   () => `Your order, ${cart.count} ${cart.count === 1 ? 'item' : 'items'}`,
@@ -21,11 +25,18 @@ async function signOut(): Promise<void> {
   accountOpen.value = false;
   await auth.signOut();
 }
+
+async function closeMenu(returnFocus = false): Promise<void> {
+  menuOpen.value = false;
+  if (returnFocus) {
+    await nextTick();
+    menuToggle.value?.focus();
+  }
+}
 </script>
 
 <template>
   <header class="site-header">
-    <ZigzagTrim size="sm" />
     <div class="bar">
       <a href="#top" class="brand" aria-label="Mustard Seed Restaurant & Bar, home">
         <BrandMark />
@@ -66,23 +77,58 @@ async function signOut(): Promise<void> {
             </button>
           </div>
         </div>
-        <button v-else type="button" class="sign-in" data-test="sign-in" @click="auth.openSignIn()">
-          <span class="g" aria-hidden="true">G</span>
-          <span class="sign-in-text">Sign in</span>
+        <button
+          v-else
+          type="button"
+          class="sign-in"
+          data-test="sign-in"
+          aria-label="Sign in"
+          @click="auth.openSignIn()"
+        >
+          <IconUser class="sign-in-icon" />
+          <span class="sign-in-text" aria-hidden="true">Sign in</span>
         </button>
+        <a href="#menu" class="btn-primary order-now" data-test="order-now">
+          {{ landing.orderNow }}
+        </a>
         <button
           type="button"
-          class="order"
+          class="cart"
           data-test="open-cart"
           :aria-label="orderLabel"
           @click="$emit('open-cart')"
         >
           <IconBag />
-          <span class="order-text">Your order</span>
           <span class="count">{{ cart.count }}</span>
+        </button>
+        <button
+          ref="menuToggle"
+          type="button"
+          class="menu-toggle"
+          data-test="menu-toggle"
+          aria-label="Menu"
+          aria-controls="mobile-menu"
+          :aria-expanded="menuOpen"
+          @click="menuOpen = !menuOpen"
+        >
+          <IconClose v-if="menuOpen" />
+          <IconMenu v-else />
         </button>
       </div>
     </div>
+
+    <nav
+      v-if="menuOpen"
+      id="mobile-menu"
+      class="mobile-menu"
+      aria-label="Sections"
+      @keydown.esc="closeMenu(true)"
+    >
+      <a v-for="link in landing.nav" :key="link.href" :href="link.href" @click="closeMenu()">
+        {{ link.label }}
+      </a>
+      <a href="#menu" class="btn-primary" @click="closeMenu()">{{ landing.orderNow }}</a>
+    </nav>
   </header>
 </template>
 
@@ -91,11 +137,11 @@ async function signOut(): Promise<void> {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--color-cream);
+  background: var(--color-white);
   border-bottom: 1px solid var(--color-border);
 }
 .bar {
-  max-width: var(--page-width);
+  max-width: var(--landing-width);
   margin: 0 auto;
   padding: 0.75rem var(--gutter);
   display: grid;
@@ -128,8 +174,9 @@ async function signOut(): Promise<void> {
 }
 .nav {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 1.75rem;
+  margin-right: 0.75rem;
 }
 .nav a {
   color: var(--color-text);
@@ -145,21 +192,24 @@ async function signOut(): Promise<void> {
   align-items: center;
   gap: 0.5rem;
 }
-.sign-in,
-.order {
+.sign-in {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   min-height: 2.5rem;
+  padding: 0.25rem 1rem;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
+  background: var(--color-white);
+  color: var(--color-text);
   font: 600 0.8125rem var(--font-body);
   cursor: pointer;
 }
-.sign-in {
-  padding: 0.25rem 0.875rem 0.25rem 0.25rem;
-  background: var(--color-white);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+.account .sign-in {
+  padding-left: 0.25rem;
+}
+.sign-in-icon {
+  font-size: 1rem;
 }
 .g {
   display: grid;
@@ -205,57 +255,95 @@ async function signOut(): Promise<void> {
 .account-menu button:hover {
   background: var(--color-surface-soft);
 }
-.order {
-  padding: 0.25rem 0.375rem 0.25rem 1rem;
-  border: 0;
-  background: var(--color-crimson);
-  color: var(--color-white);
+.order-now {
+  min-height: 2.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8125rem;
+  text-decoration: none;
 }
-.count {
+.cart,
+.menu-toggle {
+  position: relative;
   display: grid;
   place-items: center;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  padding: 0 0.375rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.125rem;
+  cursor: pointer;
+}
+.cart {
+  border: 0;
+  background: var(--color-charcoal);
+  color: var(--color-cream);
+}
+.count {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  display: grid;
+  place-items: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
   border-radius: var(--radius-pill);
   background: var(--color-gold);
   color: var(--color-charcoal);
-  font-size: 0.75rem;
+  font: 700 0.625rem var(--font-body);
+}
+.menu-toggle {
+  display: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+}
+.mobile-menu {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem var(--gutter) 1rem;
+  border-top: 1px solid var(--color-border);
+}
+.mobile-menu a:not(.btn-primary) {
+  padding: 0.75rem 0;
+  color: var(--color-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+.mobile-menu .btn-primary {
+  margin-top: 0.5rem;
+  text-decoration: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1023px) {
+  .sign-in:not(.account .sign-in) {
+    width: 2.5rem;
+    padding: 0;
+    justify-content: center;
+  }
+  .sign-in-text {
+    display: none;
+  }
+  .nav {
+    gap: 1.25rem;
+  }
+}
+@media (max-width: 720px) {
+  .nav,
+  .order-now {
+    display: none;
+  }
   .bar {
     grid-template-columns: auto auto;
     justify-content: space-between;
-    row-gap: 0.5rem;
   }
-  .nav {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: space-between;
-    gap: 0.75rem;
-    overflow-x: auto;
-  }
-  .nav a {
-    font-size: 0.8125rem;
-    white-space: nowrap;
+  .menu-toggle {
+    display: grid;
   }
 }
-@media (max-width: 480px) {
-  .sign-in {
-    padding: 0.25rem;
-  }
-  .sign-in-text,
-  .order-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .order {
-    padding: 0.25rem 0.375rem 0.25rem 0.75rem;
+@media (min-width: 721px) {
+  .mobile-menu {
+    display: none;
   }
 }
 </style>

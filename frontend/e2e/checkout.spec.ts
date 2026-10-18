@@ -6,7 +6,7 @@ async function addToOrderAndCheckout(page: Page, options: MockOptions = {}) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Add Afang Soup to your order' }).click();
   await page.getByRole('button', { name: 'Add Afang Soup to your order' }).click();
-  await page.getByRole('tab', { name: 'Drinks' }).click();
+  await page.getByRole('tab', { name: 'Fresh juices' }).click();
   await page.getByRole('button', { name: 'Add Zobo to your order' }).click();
   await page.getByRole('button', { name: /^Your order, 3 items$/ }).click();
   await page
