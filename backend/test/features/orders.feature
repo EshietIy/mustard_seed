@@ -7,18 +7,18 @@ Feature: Place an order
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name          | category         | price  | available |
-      | Edikang Ikong | calabar_classics | 450000 | yes       |
-      | Afang Soup    | calabar_classics | 400000 | yes       |
-      | Atama Soup    | calabar_classics |        | yes       |
-      | Zobo          | drinks           | 80000  | yes       |
+      | name          | category      | price  | available |
+      | Edikang Ikong | calabar_soups | 450000 | yes       |
+      | Afang Soup    | calabar_soups | 400000 | yes       |
+      | Atama Soup    | calabar_soups |        | yes       |
+      | Zobo          | fresh_juices  | 80000  | yes       |
 
   # ---------- quote ----------
 
   Scenario: A quote shows server-computed totals before checkout
     When I ask for a quote with:
-      | fulfilment | delivery                     |
-      | items      | Edikang Ikong x2, Zobo x3    |
+      | fulfilment | delivery                  |
+      | items      | Edikang Ikong x2, Zobo x3 |
     Then the response status is 200
     And the response JSON at "subtotalKobo" is JSON:
       """
@@ -90,16 +90,16 @@ Feature: Place an order
     And an audit event "order.created" with outcome "SUCCESS" is recorded
     And that audit event carries the request id
     And an "info" log entry has:
-      | event            | order.created             |
-      | outcome          | SUCCESS                   |
-      | amountKobo       | 1130000                   |
-      | statusTransition | none -> awaiting_payment  |
+      | event            | order.created            |
+      | outcome          | SUCCESS                  |
+      | amountKobo       | 1130000                  |
+      | statusTransition | none -> awaiting_payment |
 
   Scenario: A customer places a pickup order with no delivery fee
     Given I am signed in as "ekaette@example.com"
     When I place an order with:
-      | fulfilment | pickup    |
-      | items      | Zobo x2   |
+      | fulfilment | pickup  |
+      | items      | Zobo x2 |
     Then the response status is 201
     And the response JSON at "deliveryFeeKobo" is JSON:
       """

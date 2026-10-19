@@ -13,16 +13,17 @@ describe('SiteHeader', () => {
     setActivePinia(createPinia());
   });
 
-  it('has the brand, section links and an order button with the item count', async () => {
+  it('has the brand, section links, Order now and a cart button with the item count', async () => {
     const wrapper = mount(SiteHeader);
     expect(wrapper.text()).toContain('Mustard Seed');
     expect(wrapper.text()).toContain('Restaurant & Bar');
-    expect(wrapper.findAll('nav a').map((a) => a.attributes('href'))).toEqual([
-      '#menu',
-      '#juices',
-      '#story',
-      '#visit',
+    expect(wrapper.findAll('nav.nav a').map((a) => [a.attributes('href'), a.text()])).toEqual([
+      ['#top', 'Home'],
+      ['#menu', 'Menu'],
+      ['#visit', 'Visit us'],
     ]);
+    expect(wrapper.get('[data-test="order-now"]').attributes('href')).toBe('#menu');
+    expect(wrapper.get('[data-test="order-now"]').text()).toBe('Order now');
     const order = wrapper.get('[data-test="open-cart"]');
     expect(order.text()).toContain('0');
     useCartStore().add(menuItem());
@@ -30,6 +31,45 @@ describe('SiteHeader', () => {
     await wrapper.vm.$nextTick();
     expect(order.text()).toContain('2');
     expect(order.attributes('aria-label')).toBe('Your order, 2 items');
+  });
+
+  describe('the mobile menu', () => {
+    it('opens and closes from the menu button', async () => {
+      const wrapper = mount(SiteHeader, { attachTo: document.body });
+      const toggle = wrapper.get('[data-test="menu-toggle"]');
+      expect(toggle.attributes('aria-expanded')).toBe('false');
+      expect(wrapper.find('#mobile-menu').exists()).toBe(false);
+      await toggle.trigger('click');
+      expect(toggle.attributes('aria-expanded')).toBe('true');
+      expect(toggle.attributes('aria-controls')).toBe('mobile-menu');
+      expect(wrapper.findAll('#mobile-menu a').map((a) => a.text())).toEqual([
+        'Home',
+        'Menu',
+        'Visit us',
+        'Order now',
+      ]);
+      await toggle.trigger('click');
+      expect(wrapper.find('#mobile-menu').exists()).toBe(false);
+      wrapper.unmount();
+    });
+
+    it('closes when a link is chosen', async () => {
+      const wrapper = mount(SiteHeader, { attachTo: document.body });
+      await wrapper.get('[data-test="menu-toggle"]').trigger('click');
+      await wrapper.get('#mobile-menu a[href="#menu"]').trigger('click');
+      expect(wrapper.find('#mobile-menu').exists()).toBe(false);
+      wrapper.unmount();
+    });
+
+    it('closes on Escape and returns focus to the menu button', async () => {
+      const wrapper = mount(SiteHeader, { attachTo: document.body });
+      const toggle = wrapper.get('[data-test="menu-toggle"]');
+      await toggle.trigger('click');
+      await wrapper.get('#mobile-menu').trigger('keydown', { key: 'Escape' });
+      expect(wrapper.find('#mobile-menu').exists()).toBe(false);
+      expect(document.activeElement).toBe(toggle.element);
+      wrapper.unmount();
+    });
   });
 
   it('emits open-cart when the order button is pressed', async () => {

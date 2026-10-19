@@ -32,7 +32,7 @@ const item = (id: string, name: string, extra: Partial<MenuItemRecord> = {}): Me
   slug: id,
   name,
   description: '',
-  category: 'calabar_classics',
+  category: 'calabar_soups',
   priceKobo: 400000,
   isHouseSignature: false,
   isFreshJuice: false,
@@ -46,7 +46,7 @@ const item = (id: string, name: string, extra: Partial<MenuItemRecord> = {}): Me
 function setup() {
   const items = [
     item(SOUP, 'Afang Soup', { optionGroups: [protein] }),
-    item(ZOBO, 'Zobo', { category: 'drinks', priceKobo: 80000 }),
+    item(ZOBO, 'Zobo', { category: 'fresh_juices', priceKobo: 80000 }),
   ];
   const menu = new InMemoryMenuRepository(items);
   const repo = new InMemoryCartRepository();

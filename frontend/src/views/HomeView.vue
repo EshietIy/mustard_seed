@@ -3,13 +3,10 @@ import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import CartDrawer from '@/components/cart/CartDrawer.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
-import HowItWorks from '@/components/landing/HowItWorks.vue';
-import JuicesSection from '@/components/landing/JuicesSection.vue';
 import MenuSection from '@/components/landing/MenuSection.vue';
 import SiteFooter from '@/components/landing/SiteFooter.vue';
 import SiteHeader from '@/components/landing/SiteHeader.vue';
-import StorySection from '@/components/landing/StorySection.vue';
-import VisitSection from '@/components/landing/VisitSection.vue';
+import TopDishes from '@/components/landing/TopDishes.vue';
 import ToastHost from '@/components/ui/ToastHost.vue';
 import { useCartStore } from '@/stores/cart';
 import { useMenuStore } from '@/stores/menu';
@@ -52,13 +49,22 @@ watch(
   <SiteHeader @open-cart="cartOpen = true" />
   <main>
     <HeroSection />
-    <HowItWorks />
-    <MenuSection />
-    <JuicesSection />
-    <StorySection />
-    <VisitSection />
+    <div class="sheet">
+      <TopDishes />
+      <MenuSection />
+    </div>
   </main>
   <SiteFooter />
   <CartDrawer v-model:open="cartOpen" @checkout="goToCheckout" />
   <ToastHost />
 </template>
+
+<style scoped>
+/* The white panel with rounded top corners that rises over the hero (design). */
+.sheet {
+  position: relative;
+  background: var(--color-white);
+  border-radius: 2rem 2rem 0 0;
+  margin-top: -1.5rem;
+}
+</style>

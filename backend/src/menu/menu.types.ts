@@ -1,9 +1,11 @@
 /** Display order and labels of the menu tabs (docs/landing-page.pdf). */
 export const MENU_CATEGORIES = [
-  { id: 'calabar_classics', label: 'Calabar classics' },
-  { id: 'swallow_sides', label: 'Swallow & sides' },
+  { id: 'calabar_soups', label: 'Calabar soups' },
+  { id: 'swallow', label: 'Swallow' },
+  { id: 'rice_native', label: 'Rice & native dishes' },
   { id: 'continental', label: 'Continental' },
-  { id: 'drinks', label: 'Drinks' },
+  { id: 'fresh_juices', label: 'Fresh juices' },
+  { id: 'soft_drinks_water', label: 'Soft drinks & water' },
 ] as const;
 
 export type MenuCategoryId = (typeof MENU_CATEGORIES)[number]['id'];

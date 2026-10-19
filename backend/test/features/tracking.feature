@@ -7,9 +7,9 @@ Feature: Track an order
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name          | category         | price  | available |
-      | Edikang Ikong | calabar_classics | 450000 | yes       |
-      | Zobo          | drinks           | 80000  | yes       |
+      | name          | category      | price  | available |
+      | Edikang Ikong | calabar_soups | 450000 | yes       |
+      | Zobo          | fresh_juices  | 80000  | yes       |
     And I am signed in as "ekaette@example.com"
 
   # ---------- happy paths ----------

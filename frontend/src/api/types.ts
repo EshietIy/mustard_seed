@@ -3,7 +3,8 @@
  * (AGENT.md §2: no code is shared across frontend/ and backend/).
  */
 
-export type MenuCategoryId = 'calabar_classics' | 'swallow_sides' | 'continental' | 'drinks';
+/** Category IDs come from the API; the site shows whatever categories it is sent. */
+export type MenuCategoryId = string;
 
 export interface MenuImage {
   thumbnailUrl: string;

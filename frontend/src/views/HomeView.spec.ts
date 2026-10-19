@@ -34,7 +34,8 @@ describe('HomeView', () => {
     ]);
     expect(
       wrapper.findAll('section').map((s) => s.attributes('id') ?? s.attributes('aria-label')),
-    ).toEqual(['top', 'How ordering works', 'menu', 'juices', 'story', 'visit']);
+    ).toEqual(['top', 'top-dishes', 'menu']);
+    expect(wrapper.find('footer#visit').exists()).toBe(true);
     wrapper.unmount();
   });
 

@@ -96,7 +96,7 @@ export class CreateOptionDto {
   @Max(MAX_DELTA_KOBO)
   priceDeltaKobo?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'super_admin only; default: the end of the group' })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -124,7 +124,7 @@ export class UpdateOptionDto {
   @Length(1, 40)
   name?: string;
 
-  @ApiPropertyOptional({ description: 'super_admin only' })
+  @ApiPropertyOptional({ description: 'Supervisors may change this (the extra cost in kobo)' })
   @IsOptional()
   @IsInt()
   @Min(0)
@@ -158,7 +158,9 @@ export class SetItemOptionGroupsDto {
 }
 
 export class SetItemOptionOverrideDto {
-  @ApiPropertyOptional({ description: 'true: this item does not offer the option' })
+  @ApiPropertyOptional({
+    description: 'super_admin only. true: this item does not offer the option',
+  })
   @IsOptional()
   @IsBoolean()
   isExcluded?: boolean;
@@ -166,7 +168,8 @@ export class SetItemOptionOverrideDto {
   @ApiPropertyOptional({
     type: Number,
     nullable: true,
-    description: "This item's price difference in kobo; null uses the option's own",
+    description:
+      "This item's price difference in kobo; null uses the option's own. Supervisors may set this.",
   })
   @IsOptional()
   @ValidateIf((_o, v) => v !== null)

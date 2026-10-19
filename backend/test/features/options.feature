@@ -7,10 +7,10 @@ Feature: Menu option groups
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name           | category         | price  |
-      | Afang Soup     | calabar_classics | 400000 |
-      | Fisherman Soup | calabar_classics | 600000 |
-      | Zobo           | drinks           | 80000  |
+      | name           | category      | price  |
+      | Afang Soup     | calabar_soups | 400000 |
+      | Fisherman Soup | calabar_soups | 600000 |
+      | Zobo           | fresh_juices  | 80000  |
     And the option group "Soup protein" (choose 1 to 1) with options:
       | name    | price |
       | Beef    | 0     |
@@ -54,8 +54,8 @@ Feature: Menu option groups
   Scenario: A customer orders a soup with a protein, priced by the server
     Given I am signed in as "ekaette@example.com"
     When I place an order with:
-      | fulfilment | pickup                                 |
-      | items      | Afang Soup (Chicken) x2, Zobo x1        |
+      | fulfilment | pickup                           |
+      | items      | Afang Soup (Chicken) x2, Zobo x1 |
     Then the response status is 201
     And the order lines are:
       | item       | quantity | unit price | choices |
@@ -75,7 +75,7 @@ Feature: Menu option groups
   Scenario: The same soup with two different proteins is two lines
     Given I am signed in as "ekaette@example.com"
     When I place an order with:
-      | fulfilment | pickup                                       |
+      | fulfilment | pickup                                        |
       | items      | Afang Soup (Beef) x1, Afang Soup (Chicken) x1 |
     Then the response status is 201
     And the order lines are:
@@ -85,7 +85,7 @@ Feature: Menu option groups
 
   Scenario: The quote prices options and explains a missing choice
     When I ask for a quote with:
-      | fulfilment | pickup                       |
+      | fulfilment | pickup                                    |
       | items      | Afang Soup x1, Fisherman Soup (Turkey) x1 |
     Then the response status is 200
     And the response JSON at "canPlaceOrder" is JSON:
@@ -139,11 +139,11 @@ Feature: Menu option groups
     And the option problem is "<code>" on line 1
 
     Examples:
-      | case                         | setup                                       | items                         | code               |
-      | excluded on this item        | the menu is as above                        | Fisherman Soup (Beef) x1      | OPTION_NOT_OFFERED |
-      | belongs to another item      | the menu is as above                        | Zobo (Chicken) x1             | OPTION_NOT_OFFERED |
-      | archived                     | the option "Beef" is archived               | Afang Soup (Beef) x1          | OPTION_NOT_OFFERED |
-      | switched off by staff        | the option "Turkey" is switched off         | Afang Soup (Turkey) x1        | OPTION_UNAVAILABLE |
+      | case                    | setup                               | items                    | code               |
+      | excluded on this item   | the menu is as above                | Fisherman Soup (Beef) x1 | OPTION_NOT_OFFERED |
+      | belongs to another item | the menu is as above                | Zobo (Chicken) x1        | OPTION_NOT_OFFERED |
+      | archived                | the option "Beef" is archived       | Afang Soup (Beef) x1     | OPTION_NOT_OFFERED |
+      | switched off by staff   | the option "Turkey" is switched off | Afang Soup (Turkey) x1   | OPTION_UNAVAILABLE |
 
   Scenario: Option ids must be well-formed
     Given I am signed in as "ekaette@example.com"

@@ -6,8 +6,8 @@ Feature: Order confirmation email
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name | category | price | fresh juice |
-      | Zobo | drinks   | 80000 | yes         |
+      | name | category     | price | fresh juice |
+      | Zobo | fresh_juices | 80000 | yes         |
     And I am signed in as "ekaette@example.com"
 
   Scenario: A successful payment sends one confirmation email
@@ -20,9 +20,9 @@ Feature: Order confirmation email
     And the confirmation email is recorded as "sent" after 1 attempt
     And an audit event "email.order_confirmation" with outcome "SUCCESS" is recorded
     And an "info" log entry has:
-      | event           | email.sent   |
-      | outcome         | SENT         |
-      | recipientDomain | example.com  |
+      | event           | email.sent  |
+      | outcome         | SENT        |
+      | recipientDomain | example.com |
     And no log entry contains "ekaette@example.com" in full
 
   Scenario: The email shows the order, totals and pickup details
@@ -31,13 +31,13 @@ Feature: Order confirmation email
     Then a confirmation email is sent to "ekaette@example.com"
     And the email has:
       | from          | Mustard Seed Restaurant & Bar <orders@mustardseed.ng> |
-      | text contains | Amedi, Ekaette! Your order is in the kitchen.          |
-      | text contains | 2× Zobo (Fresh, no preservatives) — ₦1,600             |
-      | text contains | Total paid: ₦1,600                                     |
-      | text contains | Ready for pickup by: 12:30pm                           |
-      | text contains | PICK UP AT                                             |
-      | text contains | [CALABAR ADDRESS]                                      |
-      | html contains | Track your order live                                  |
+      | text contains | Amedi, Ekaette! Your order is in the kitchen.         |
+      | text contains | 2× Zobo (Fresh, no preservatives) — ₦1,600            |
+      | text contains | Total paid: ₦1,600                                    |
+      | text contains | Ready for pickup by: 12:30pm                          |
+      | text contains | PICK UP AT                                            |
+      | text contains | [CALABAR ADDRESS]                                     |
+      | html contains | Track your order live                                 |
     And the email links to the tracking page with the order token
     And the order has an estimated time 30 minutes after payment
 

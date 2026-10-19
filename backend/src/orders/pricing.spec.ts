@@ -40,7 +40,7 @@ const item = (
   slug: id,
   name,
   description: '',
-  category: 'calabar_classics',
+  category: 'calabar_soups',
   priceKobo,
   isHouseSignature: false,
   isFreshJuice: false,

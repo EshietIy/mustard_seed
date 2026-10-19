@@ -13,7 +13,7 @@ Instructions for any AI coding agent (or developer) working in this repository. 
 - Domain: `mustardseed.ng`
 - Open daily 8am – 11pm. **Online orders close at 10:30pm.**
 
-The first deliverable is the **customer landing page and ordering flow**, matching the approved design (`Mustard_Seed_Restaurant_and_Bar___Landing_Page.pdf`).
+The first deliverable is the **customer landing page and ordering flow**, matching the approved design (`docs/landing-page.pdf`).
 
 ### Core customer flow
 
@@ -27,9 +27,10 @@ The first deliverable is the **customer landing page and ordering flow**, matchi
 - Delivery is a flat **₦1,500 anywhere in Calabar**. Pickup is free.
 - Online ordering is live for **Calabar only**. Uyo shows "Online ordering coming soon".
 - Alcohol is **not** sold online. Menu covers food, soups, swallow and sides, continental dishes, and non-alcoholic drinks (including fresh juices).
-- Menu categories: Calabar classics, Swallow & sides, Continental, Drinks.
+- Menu categories: Calabar soups, Swallow, Rice & native dishes, Continental, Fresh juices, Soft drinks & water (approved 2026-10-18 with the redesigned landing page). "All" is a filter in the UI, not a category.
 - Items can be marked "House signature" and can be switched available/unavailable by staff.
 - Items can carry option groups (for example a soup protein or a swallow choice). Options are data managed by staff, never hard-coded (section 14).
+- Each soup protein carries its own price (decided 2026-10-19): the line price is the soup's base price plus the chosen protein's price, so the same soup costs differently with different proteins. Protein prices are placeholders until the owner supplies them.
 - Prices, photos, the Calabar address and the phone/WhatsApp number are **placeholders** (`[PRICE]`, `[CALABAR ADDRESS]`, `[PHONE / WHATSAPP]`) until real data is supplied. Never invent real values. Render placeholders from data/config so they can be replaced without code changes.
 
 ---
@@ -272,7 +273,7 @@ The approved design is `docs/email-order-confirmation.pdf`. Build the email to m
 ### 3.4 Roles and staff provisioning
 
 - Roles: `customer`, `supervisor` and `super_admin`.
-  - `supervisor` (kitchen supervisor): the kitchen board, and switching menu items and options available/unavailable. Nothing else.
+  - `supervisor` (kitchen supervisor): the kitchen board; switching menu items and options available/unavailable; and adding options (for example a new soup protein) and setting option prices, including per-item price overrides (decided 2026-10-19). Nothing else: item prices, renaming, reordering and archiving options, photos and staff stay `super_admin` only.
   - `super_admin`: everything, including prices (item prices and option price differences), photos, managing options (add, rename, reorder, re-price, archive), reports and staff management.
 - **Customers** are created automatically on first Google sign-in with the `customer` role.
 - **Staff are provisioned on the backend only.** There is no staff self-signup, no "become staff" option in the UI, and the client can never choose or change a role.
@@ -292,16 +293,16 @@ The design in the attached PDF is the source of truth. **Follow the theme colour
 
 | Token | Hex | Use |
 |---|---|---|
-| `--color-crimson` | `#9F2D2D` | Primary actions (Order now, Add, Your order), the red juice section, accent text |
+| `--color-crimson` | `#9F2D2D` | Primary actions (Order now, Add, Search, Your order), accent text |
 | `--color-gold` | `#C5A059` | Eyebrow labels, italic highlight text on dark, avatar, zigzag trim, "House signature" badge text |
-| `--color-charcoal` | `#1E221E` | Hero and footer backgrounds, primary text, dark cards (Hours), active category pill |
-| `--color-cream` | `#F4F2EE` | Page background, light text on dark |
+| `--color-charcoal` | `#1E221E` | Footer background, primary text, dark cards (Delivery), dark photo placeholders, active category pill, cart button |
+| `--color-cream` | `#F4F2EE` | Page and hero background, light text on dark |
 | `--color-white` | `#FFFFFF` | Cards |
 
 Rules:
 
 - Define these once as CSS custom properties (and in the Tailwind/theme config if used). Components must reference tokens, never raw hex values.
-- Crimson is reserved for actions and key accents. Do not use it as a decorative background except where the design does (the fresh-juices band).
+- Crimson is reserved for actions and key accents. Do not use it as a decorative background.
 - Muted/secondary text and soft section backgrounds must be derived from the tokens above using opacity, not new hex values, and must still look like the PDF.
 - **Exception for email:** many email clients (notably Outlook) ignore `rgba()` and opacity. In email templates only, use a **solid hex precomputed by blending a token over white or cream**, define each one once as a named constant in the email theme file (e.g. `crimsonTint`, `charcoalMuted`), and note which token it comes from. Do not invent hues.
 - Meet WCAG AA contrast for text. If a token pairing fails AA, raise it with the owner rather than silently changing the colour.
@@ -314,15 +315,15 @@ Rules:
 
 ### Visual motifs (from the design)
 
-- Zigzag/chevron border trim in crimson and gold (top of header, around the hero arch, above the juice section, above the footer).
-- Arch-shaped image frames (hero and juice bottles).
+- Zigzag/chevron border trim in crimson and gold (around the hero arch, above the footer).
+- Arch-shaped image frame (the hero photo carousel).
 - Rounded cards with soft borders; pill-shaped buttons and category chips.
 - Photo placeholders: diagonal-stripe texture with a small "Photo coming" pill, until real photography exists.
 
 ### Layout
 
-- **Mobile-first.** Design for ~375px first, then scale up. The PDF shows both desktop and mobile layouts; match both.
-- Sections, in order: header, hero, 3-step "how it works", Today's menu (category tabs + item cards), Fresh juices, Our story, Visit us, footer.
+- **Mobile-first.** Design for ~375px first, then scale up. The PDF shows mobile (~375px), tablet, desktop (1280 and 1440px) and wide layouts; match them all.
+- Sections, in order: header (with cart count), hero (search, Quick find chips, photo carousel with info cards), Top dishes (house signatures, scrolling row), Our menu (search, category pills with "All", item cards, "Show full menu"), footer (Calabar and Uyo addresses, hours and contact).
 
 ---
 
@@ -570,7 +571,7 @@ Follow-up slices, added after slices 1–7 were built. Do them in this order, be
 - **B. Server-side cart** (section 13), including closing the known gaps listed there.
 - **C. Bearer-token sign-in for the mobile app** (section 15): `POST /api/v1/auth/app/google`, `/refresh` (rotating; a reused refresh token revokes the session) and `/logout`. With `APP_MIN_VERSION` set, apps sending an older `X-App-Version` get 426 `APP_UPDATE_REQUIRED`; requests without the header (the website) are never affected.
 
-8. Admin: menu availability, prices and image upload
+8. Admin: menu availability, prices and image upload, including a **Meats & prices** screen where a supervisor or super_admin adds proteins, sets their prices (per soup where they differ) and switches them available/unavailable
 9. Kitchen board for the supervisor
 
 ### Open decisions
@@ -579,7 +580,6 @@ These are not settled. Do not build anything that assumes an answer; use the sta
 
 - **ETA formula** for the confirmation email: a documented, configurable default until the owner confirms the formula.
 - **Production hosting provider:** not chosen. Frontend security headers, the webhook URL, CORS origins and Google sign-in settings all depend on it. Staging currently runs on Vercel (frontend, `https://msd.eshiet.i.ng`) and Render (backend, `https://msd-api.eshiet.i.ng`).
-- **Option prices:** whether proteins carry an extra price. The model supports it; the default price difference is 0 until staff set one.
 
 ### Follow-up tasks
 
@@ -652,7 +652,7 @@ Options are part of the menu. They are built in follow-up slice A (section 11).
 
 **Managing options**
 
-- `super_admin` adds, renames, reorders, re-prices (including per-item price overrides) and archives options. `supervisor` can only switch an option available/unavailable; any other option change gets `403`. Customers cannot manage options at all (`403`).
+- `super_admin` adds, renames, reorders, re-prices (including per-item price overrides) and archives options. `supervisor` can add options, set option prices (including per-item price overrides) and switch an option available/unavailable; renaming, reordering and archiving get `403`. Customers cannot manage options at all (`403`).
 - Options are archived, never hard-deleted, so past orders and emails still display correctly.
 - Names are unique within a group, length-limited, and HTML-escaped wherever displayed, including in emails.
 - When staff add a new option to a group, the admin UI offers a checklist of the items to attach it to, all ticked by default.
@@ -680,7 +680,7 @@ Options are part of the menu. They are built in follow-up slice A (section 11).
 
 - every validation rule above
 - a new option appears on attached items but not on items that exclude it
-- option management is `super_admin`-only, except availability, which a `supervisor` may also switch (a customer gets 403 for everything; a supervisor gets 403 for anything but availability)
+- option management is `super_admin`-only, except adding options, setting option prices and switching availability, which a `supervisor` may also do (a customer gets 403 for everything; a supervisor gets 403 for renaming, reordering and archiving)
 - a duplicate option name in a group is rejected
 - an archived or excluded option is rejected at checkout, while old orders still display it
 - a price change reaches new carts and flags existing ones

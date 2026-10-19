@@ -7,9 +7,9 @@ Feature: Server-side cart
     Given the API is running
     And the time in Calabar is "12:00"
     And the menu contains:
-      | name       | category         | price  |
-      | Afang Soup | calabar_classics | 400000 |
-      | Zobo       | drinks           | 80000  |
+      | name       | category      | price  |
+      | Afang Soup | calabar_soups | 400000 |
+      | Zobo       | fresh_juices  | 80000  |
     And the option group "Soup protein" (choose 1 to 1) with options:
       | name    | price |
       | Beef    | 0     |
@@ -26,8 +26,8 @@ Feature: Server-side cart
     Then the response status is 200
     When on my phone
     Then my cart has:
-      | item                  | quantity | unit price |
-      | Afang Soup (Chicken)  | 2        | 450000     |
+      | item                 | quantity | unit price |
+      | Afang Soup (Chicken) | 2        | 450000     |
 
   Scenario: Changes from two devices to different lines don't overwrite each other
     Given I am signed in as "ekaette@example.com" on my laptop
@@ -106,8 +106,8 @@ Feature: Server-side cart
     And I set "Zobo x2" in my cart
     And the price of "Zobo" changes to 90000 kobo
     Then my cart has:
-      | item | unit price | price change    |
-      | Zobo | 90000      | 80000 -> 90000  |
+      | item | unit price | price change   |
+      | Zobo | 90000      | 80000 -> 90000 |
     And my cart cannot be checked out
     When I set "Zobo x2" in my cart
     Then my cart has:
@@ -157,9 +157,9 @@ Feature: Server-side cart
       | Afang Soup (Chicken) | 1        |
 
     Examples:
-      | outcome  | action           |
-      | declined | decline the card |
-      | cancelled | cancel          |
+      | outcome   | action           |
+      | declined  | decline the card |
+      | cancelled | cancel           |
 
   # ---------- sad paths ----------
 
@@ -187,11 +187,11 @@ Feature: Server-side cart
     And my cart is empty
 
     Examples:
-      | case               | line                 | status | code               |
-      | required choice    | Afang Soup x1        | 422    | OPTION_REQUIRED    |
-      | too many choices   | Afang Soup (Beef + Chicken) x1 | 422 | OPTION_TOO_MANY |
-      | sold out           | Zobo x1              | 422    | ITEM_UNAVAILABLE   |
-      | quantity too large | Zobo x21             | 400    | VALIDATION_FAILED  |
+      | case               | line                           | status | code              |
+      | required choice    | Afang Soup x1                  | 422    | OPTION_REQUIRED   |
+      | too many choices   | Afang Soup (Beef + Chicken) x1 | 422    | OPTION_TOO_MANY   |
+      | sold out           | Zobo x1                        | 422    | ITEM_UNAVAILABLE  |
+      | quantity too large | Zobo x21                       | 400    | VALIDATION_FAILED |
 
   Scenario Outline: Malformed requests are refused (<case>)
     Given I am signed in as "ekaette@example.com"
@@ -203,11 +203,11 @@ Feature: Server-side cart
     And the response JSON at "error.code" is "<code>"
 
     Examples:
-      | case           | body                                                                                 | status | code                |
-      | zero quantity  | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 0 }              | 400    | VALIDATION_FAILED   |
-      | bad item id    | { "menuItemId": "nope", "quantity": 1 }                                              | 400    | VALIDATION_FAILED   |
-      | unknown field  | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1, "price": 1 }  | 400    | VALIDATION_FAILED   |
-      | unknown item   | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1 }              | 404    | MENU_ITEM_NOT_FOUND |
+      | case          | body                                                                                | status | code                |
+      | zero quantity | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 0 }             | 400    | VALIDATION_FAILED   |
+      | bad item id   | { "menuItemId": "nope", "quantity": 1 }                                             | 400    | VALIDATION_FAILED   |
+      | unknown field | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1, "price": 1 } | 400    | VALIDATION_FAILED   |
+      | unknown item  | { "menuItemId": "00000000-0000-4000-8000-000000000001", "quantity": 1 }             | 404    | MENU_ITEM_NOT_FOUND |
 
   Scenario: A null option list means no options (as the Android app sends it)
     Given I am signed in as "ekaette@example.com"

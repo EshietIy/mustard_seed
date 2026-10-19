@@ -174,23 +174,49 @@ describe('MenuOptionsService options', () => {
     });
   });
 
-  it('lets a supervisor switch an option off, and nothing else (403)', async () => {
+  it('lets a supervisor switch an option off and re-price it, and nothing else (403)', async () => {
     const { service, group } = await setup();
     const { options } = await service.createOption(admin, group.id, { name: 'Turkey' }, 'c');
     const updated = await service.updateOption(
       supervisor,
       options[0].id,
-      { isAvailable: false },
+      { isAvailable: false, priceDeltaKobo: 70000 },
       'c',
     );
-    expect(updated.options[0].isAvailable).toBe(false);
-    for (const patch of [{ priceDeltaKobo: 1 }, { name: 'X' }, { archived: true }]) {
+    expect(updated.options[0]).toMatchObject({ isAvailable: false, priceDeltaKobo: 70000 });
+    for (const patch of [{ name: 'X' }, { sortOrder: 5 }, { archived: true }]) {
       const err = await service
         .updateOption(supervisor, options[0].id, { isAvailable: true, ...patch }, 'c')
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(ForbiddenException);
       expect(codeOf(err)).toBe('SUPER_ADMIN_ONLY');
     }
+  });
+
+  it('lets a supervisor add an option with its price on the items they tick', async () => {
+    const { service, group, audit } = await setup();
+    const { options } = await service.createOption(
+      supervisor,
+      group.id,
+      { name: 'Goat meat', priceDeltaKobo: 90000, itemIds: [SOUP] },
+      'c',
+    );
+    expect(options[0]).toMatchObject({
+      name: 'Goat meat',
+      priceDeltaKobo: 90000,
+      excludedFromItemIds: [FISH],
+    });
+    expect(audit.at(-1)).toMatchObject({ event: 'option.created', userId: 'u-sup' });
+  });
+
+  it("refuses a supervisor's chosen position for a new option (403)", async () => {
+    const { service, group, repo } = await setup();
+    const err = await service
+      .createOption(supervisor, group.id, { name: 'Goat meat', sortOrder: 1 }, 'c')
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenException);
+    expect(codeOf(err)).toBe('SUPER_ADMIN_ONLY');
+    expect(repo.rows.options).toHaveLength(0);
   });
 
   it('404s for an unknown option', async () => {
@@ -238,6 +264,44 @@ describe('MenuOptionsService items', () => {
     await expect(service.deleteOverride(admin, FISH, options[0].id, 'c')).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it("lets a supervisor set or clear an option's price on one item", async () => {
+    const { service, group, repo } = await setup();
+    const { options } = await service.createOption(admin, group.id, { name: 'Goat' }, 'c');
+    await service.setOverride(supervisor, SOUP, options[0].id, { priceDeltaKobo: 120000 }, 'c');
+    expect(repo.rows.overrides).toEqual([
+      { menuItemId: SOUP, optionId: options[0].id, isExcluded: false, priceDeltaKobo: 120000 },
+    ]);
+    await service.setOverride(supervisor, SOUP, options[0].id, { priceDeltaKobo: null }, 'c');
+    expect(repo.rows.overrides[0]?.priceDeltaKobo).toBeNull();
+  });
+
+  it('refuses a supervisor changing which items offer an option (403)', async () => {
+    const { service, group, repo } = await setup();
+    const { options } = await service.createOption(admin, group.id, { name: 'Beef' }, 'c');
+    for (const setting of [{ isExcluded: true }, { isExcluded: false, priceDeltaKobo: 5 }]) {
+      const err = await service
+        .setOverride(supervisor, FISH, options[0].id, setting, 'c')
+        .catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(codeOf(err)).toBe('SUPER_ADMIN_ONLY');
+    }
+    expect(repo.rows.overrides).toHaveLength(0);
+  });
+
+  it('refuses a supervisor pricing an option an item does not offer, keeping it hidden (403)', async () => {
+    const { service, group, repo } = await setup();
+    const { options } = await service.createOption(admin, group.id, { name: 'Beef' }, 'c');
+    await service.setOverride(admin, FISH, options[0].id, { isExcluded: true }, 'c');
+    const err = await service
+      .setOverride(supervisor, FISH, options[0].id, { priceDeltaKobo: 5000 }, 'c')
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenException);
+    expect(codeOf(err)).toBe('OPTION_EXCLUDED_ON_ITEM');
+    expect(repo.rows.overrides).toEqual([
+      { menuItemId: FISH, optionId: options[0].id, isExcluded: true, priceDeltaKobo: null },
+    ]);
   });
 
   it("refuses an override for an option the item's groups don't include (422)", async () => {

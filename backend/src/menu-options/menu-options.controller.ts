@@ -99,6 +99,7 @@ export class MenuOptionsController {
   }
 
   @Post('option-groups/:groupId/options')
+  @Roles('supervisor', 'super_admin')
   @StrictThrottle()
   @ApiCreatedResponse({ type: AdminOptionGroupDto, description: 'The group, with the new option' })
   @ApiNotFoundResponse()
@@ -156,6 +157,7 @@ export class MenuOptionsController {
   }
 
   @Put('menu-items/:itemId/options/:optionId')
+  @Roles('supervisor', 'super_admin')
   @StrictThrottle()
   @ApiOkResponse({ description: 'The item’s special setting for the option' })
   @ApiNotFoundResponse()
