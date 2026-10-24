@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { ORDERS_REPOSITORY, type OrdersRepository } from '../orders/orders.repository';
 import {
@@ -10,9 +10,12 @@ import {
 
 type Actor = Pick<AuthenticatedUser, 'id' | 'role'>;
 
+/** What a supervisor may change on a dish; everything else is super_admin only. */
+const SUPERVISOR_ITEM_FIELDS = new Set<string>(['isAvailable']);
+
 /**
  * Staff changes to dishes (AGENT.md sections 3.4 and 11, slice 8). Supervisors and super
- * admins switch dishes on and off. Every change is audited.
+ * admins switch dishes on and off; only a super admin sets prices. Every change is audited.
  */
 @Injectable()
 export class MenuAdminService {
@@ -29,6 +32,15 @@ export class MenuAdminService {
     patch: MenuItemPatch,
     correlationId: string,
   ): Promise<AdminMenuItem> {
+    if (
+      actor.role !== 'super_admin' &&
+      Object.keys(patch).some((k) => !SUPERVISOR_ITEM_FIELDS.has(k))
+    ) {
+      throw new ForbiddenException({
+        code: 'SUPER_ADMIN_ONLY',
+        message: 'Only a super admin can change prices. Supervisors can switch dishes on or off.',
+      });
+    }
     const item = await this.repo.updateItem(itemId, patch);
     if (!item) {
       throw new NotFoundException({

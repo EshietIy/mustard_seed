@@ -14,6 +14,8 @@ export interface AdminMenuItem {
 
 export interface MenuItemPatch {
   isAvailable?: boolean;
+  /** Integer kobo above zero, or null to show [PRICE] (not orderable). */
+  priceKobo?: number | null;
 }
 
 /** Staff changes to menu items (AGENT.md section 11, slice 8). */

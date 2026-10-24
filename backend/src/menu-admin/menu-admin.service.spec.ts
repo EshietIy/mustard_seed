@@ -1,4 +1,4 @@
-import { HttpException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, HttpException, NotFoundException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import type { AuditEvent } from '../orders/orders.types';
 import { InMemoryMenuAdminRepository } from './in-memory-menu-admin.repository';
@@ -7,6 +7,7 @@ import { MenuAdminService } from './menu-admin.service';
 const SOUP = '11111111-1111-4111-8111-111111111111';
 const UNKNOWN = '99999999-9999-4999-8999-999999999999';
 const supervisor = { id: 'u-sup', role: 'supervisor' } as AuthenticatedUser;
+const admin = { id: 'u-admin', role: 'super_admin' } as AuthenticatedUser;
 
 const codeOf = (err: unknown) => ((err as HttpException).getResponse() as { code: string }).code;
 
@@ -86,5 +87,36 @@ describe('MenuAdminService.updateItem', () => {
     await expect(service.updateItem(supervisor, SOUP, { isAvailable: false }, 'c')).rejects.toBe(
       down,
     );
+  });
+
+  it('lets a super admin set a price and records it', async () => {
+    const { repo, service, audit } = setup();
+    const item = await service.updateItem(admin, SOUP, { priceKobo: 450000 }, 'corr-2');
+    expect(item.priceKobo).toBe(450000);
+    expect(repo.items[0]?.priceKobo).toBe(450000);
+    expect(audit[0]).toMatchObject({
+      event: 'menu_item.updated',
+      userId: 'u-admin',
+      details: { itemId: SOUP, changes: { priceKobo: 450000 } },
+    });
+  });
+
+  it('lets a super admin take a price away', async () => {
+    const { service } = setup();
+    const item = await service.updateItem(admin, SOUP, { priceKobo: null }, 'c');
+    expect(item.priceKobo).toBeNull();
+  });
+
+  it('refuses a supervisor who sends a price, changing nothing', async () => {
+    const { repo, service, audit } = setup();
+    const update = jest.spyOn(repo, 'updateItem');
+    const err = await service
+      .updateItem(supervisor, SOUP, { priceKobo: 1000, isAvailable: false }, 'c')
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenException);
+    expect(codeOf(err)).toBe('SUPER_ADMIN_ONLY');
+    expect(update).not.toHaveBeenCalled();
+    expect(repo.items[0]?.isAvailable).toBe(true);
+    expect(audit).toEqual([]);
   });
 });

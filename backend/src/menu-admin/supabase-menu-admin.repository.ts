@@ -25,7 +25,10 @@ export class SupabaseMenuAdminRepository implements MenuAdminRepository {
     const { data, error } = await callUpstream('supabase', op, () =>
       this.db
         .from('menu_items')
-        .update({ ...(patch.isAvailable !== undefined && { is_available: patch.isAvailable }) })
+        .update({
+          ...(patch.priceKobo !== undefined && { price_kobo: patch.priceKobo }),
+          ...(patch.isAvailable !== undefined && { is_available: patch.isAvailable }),
+        })
         .eq('id', id)
         .select('id, name, category, price_kobo, is_available')
         .maybeSingle<ItemRow>(),

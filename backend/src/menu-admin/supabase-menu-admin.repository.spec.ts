@@ -42,4 +42,19 @@ describe('SupabaseMenuAdminRepository', () => {
       UpstreamUnavailableException,
     );
   });
+
+  it('saves a price, or no price, in kobo', async () => {
+    const row = { id: 'i1', name: 'Zobo', category: 'fresh_juices', is_available: true };
+    const priced = fakeSupabase(ok({ ...row, price_kobo: 90000 }));
+    await expect(repo(priced.client).updateItem('i1', { priceKobo: 90000 })).resolves.toMatchObject(
+      {
+        priceKobo: 90000,
+      },
+    );
+    expect(priced.calls.update).toEqual([{ price_kobo: 90000 }]);
+
+    const cleared = fakeSupabase(ok({ ...row, price_kobo: null }));
+    await repo(cleared.client).updateItem('i1', { priceKobo: null, isAvailable: false });
+    expect(cleared.calls.update).toEqual([{ price_kobo: null, is_available: false }]);
+  });
 });
