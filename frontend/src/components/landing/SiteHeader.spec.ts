@@ -111,4 +111,36 @@ describe('SiteHeader', () => {
     expect(auth.status).toBe('signed-out');
     expect(useToastStore().messages.at(-1)?.text).toBe('You’ve signed out.');
   });
+
+  it.each(['supervisor', 'super_admin'] as const)('offers the staff area to a %s', async (role) => {
+    const auth = useAuthStore();
+    auth.status = 'signed-in';
+    auth.user = {
+      id: 'u-2',
+      email: 'staff@example.com',
+      firstName: 'Ime',
+      fullName: 'Ime Udo',
+      avatarUrl: null,
+      role,
+    };
+    const wrapper = mount(SiteHeader);
+    await wrapper.get('[data-test="account"]').trigger('click');
+    expect(wrapper.get('[data-test="staff-area"]').attributes('href')).toBe('/admin');
+  });
+
+  it('does not offer the staff area to a customer', async () => {
+    const auth = useAuthStore();
+    auth.status = 'signed-in';
+    auth.user = {
+      id: 'u-1',
+      email: 'ekaette@example.com',
+      firstName: 'Ekaette',
+      fullName: 'Ekaette Bassey',
+      avatarUrl: null,
+      role: 'customer',
+    };
+    const wrapper = mount(SiteHeader);
+    await wrapper.get('[data-test="account"]').trigger('click');
+    expect(wrapper.find('[data-test="staff-area"]').exists()).toBe(false);
+  });
 });

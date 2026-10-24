@@ -5,6 +5,7 @@ import IconClose from '@/components/icons/IconClose.vue';
 import IconMenu from '@/components/icons/IconMenu.vue';
 import IconUser from '@/components/icons/IconUser.vue';
 import BrandMark from '@/components/ui/BrandMark.vue';
+import { isStaff } from '@/admin/sections';
 import { landing } from '@/content/landing';
 import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
@@ -72,6 +73,9 @@ async function closeMenu(returnFocus = false): Promise<void> {
             <span class="sign-in-text">{{ auth.user.firstName || 'Account' }}</span>
           </button>
           <div v-if="accountOpen" class="account-menu" role="menu">
+            <a v-if="isStaff(auth.user.role)" href="/admin" role="menuitem" data-test="staff-area">
+              Staff area
+            </a>
             <button type="button" role="menuitem" data-test="sign-out" @click="signOut">
               Sign out
             </button>
@@ -241,7 +245,9 @@ async function closeMenu(returnFocus = false): Promise<void> {
   border-radius: 0.75rem;
   box-shadow: 0 8px 24px color-mix(in srgb, var(--color-charcoal) 15%, transparent);
 }
-.account-menu button {
+.account-menu button,
+.account-menu a {
+  display: block;
   width: 100%;
   padding: 0.5rem 0.75rem;
   border: 0;
@@ -252,7 +258,11 @@ async function closeMenu(returnFocus = false): Promise<void> {
   text-align: left;
   cursor: pointer;
 }
-.account-menu button:hover {
+.account-menu a {
+  text-decoration: none;
+}
+.account-menu button:hover,
+.account-menu a:hover {
   background: var(--color-surface-soft);
 }
 .order-now {
