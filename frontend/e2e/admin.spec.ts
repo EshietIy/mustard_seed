@@ -167,3 +167,98 @@ test.describe('Feature: switching dishes and meats on and off', () => {
     await expect(page.getByRole('switch', { name: 'Turkey available' })).toBeVisible();
   });
 });
+
+const meatOption = (id: string, name: string, priceDeltaKobo: number) => ({
+  id,
+  name,
+  priceDeltaKobo,
+  isAvailable: true,
+  sortOrder: 10,
+  archived: false,
+  excludedFromItemIds: [],
+  priceOverrides: [],
+});
+
+const soupProtein = (extra: ReturnType<typeof meatOption>[] = []) => ({
+  ...PROTEIN_GROUP,
+  itemIds: ['afang-soup', 'fisherman-soup'],
+  options: [meatOption('o-chicken', 'Chicken', 50000), ...extra],
+});
+
+test.describe('Feature: meats and their prices', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.route(`${API}/admin/option-groups`, (route) =>
+      route.fulfill({ json: [soupProtein()] }),
+    );
+  });
+
+  test('Scenario: a supervisor adds goat meat on one soup only', async ({ page }) => {
+    await page.route(`${API}/admin/option-groups/g-protein/options`, (route) =>
+      route.fulfill({
+        status: 201,
+        json: soupProtein([meatOption('o-goat', 'Goat meat', 90000)]),
+      }),
+    );
+    await page.goto('/admin/meats');
+    const form = page.locator('[data-test="add-meat"]');
+    await form.getByLabel('Name').fill('Goat meat');
+    await form.getByLabel('Extra cost (₦)').fill('900');
+    await form.getByLabel('Fisherman Soup').uncheck();
+    const sent = page.waitForRequest(`${API}/admin/option-groups/g-protein/options`);
+    await form.getByRole('button', { name: 'Add' }).click();
+    expect((await sent).postDataJSON()).toEqual({
+      name: 'Goat meat',
+      priceDeltaKobo: 90000,
+      itemIds: ['afang-soup'],
+    });
+    await expect(page.getByRole('heading', { name: 'Goat meat' })).toBeVisible();
+    await expect(page.getByText('Goat meat added.')).toBeVisible();
+  });
+
+  test('Scenario: a supervisor charges more for chicken on Fisherman Soup', async ({ page }) => {
+    await page.route(`${API}/admin/menu-items/fisherman-soup/options/o-chicken`, (route) =>
+      route.fulfill({
+        json: {
+          itemId: 'fisherman-soup',
+          optionId: 'o-chicken',
+          isExcluded: false,
+          priceDeltaKobo: 80000,
+        },
+      }),
+    );
+    await page.goto('/admin/meats');
+    await page.getByRole('button', { name: 'Set a different price on a dish' }).click();
+    await page.getByLabel('Chicken extra cost on Fisherman Soup').fill('800');
+    const sent = page.waitForRequest(`${API}/admin/menu-items/fisherman-soup/options/o-chicken`);
+    await page
+      .locator('[data-test="dish-price"]', { hasText: 'Fisherman Soup' })
+      .getByRole('button', { name: 'Save' })
+      .click();
+    expect((await sent).postDataJSON()).toEqual({ priceDeltaKobo: 80000 });
+    await expect(page.getByText('Chicken now adds ₦800 on Fisherman Soup.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Different price on 1 dish' })).toBeVisible();
+  });
+
+  test('Scenario: adding a meat whose name is already used', async ({ page }) => {
+    await page.route(`${API}/admin/option-groups/g-protein/options`, (route) =>
+      route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: 'OPTION_NAME_TAKEN',
+            message: 'That name is already in use here. Choose a different name.',
+          },
+        },
+      }),
+    );
+    await page.goto('/admin/meats');
+    const form = page.locator('[data-test="add-meat"]');
+    await form.getByLabel('Name').fill('Chicken');
+    await form.getByLabel('Extra cost (₦)').fill('0');
+    await form.getByRole('button', { name: 'Add' }).click();
+    await expect(form.getByRole('alert')).toHaveText(
+      'That name is already in use here. Choose a different name.',
+    );
+  });
+});

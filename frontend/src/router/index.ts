@@ -7,6 +7,7 @@ const AdminPendingView = () => import('@/views/admin/AdminPendingView.vue');
 /** Built staff screens; the rest show AdminPendingView until slice 8 builds them. */
 const adminScreens: Record<string, () => Promise<unknown>> = {
   'admin-availability': () => import('@/views/admin/AdminAvailabilityView.vue'),
+  'admin-meats': () => import('@/views/admin/AdminMeatsView.vue'),
 };
 
 export const routes = [

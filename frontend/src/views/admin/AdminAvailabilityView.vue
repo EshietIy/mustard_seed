@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { api, type ApiError } from '@/api/client';
 import { asApiError } from '@/api/errors';
 import type { AdminOptionGroup, Menu } from '@/api/types';
+import OnOffSwitch from '@/components/admin/OnOffSwitch.vue';
 import InlineError from '@/components/ui/InlineError.vue';
 import { useToastStore } from '@/stores/toast';
 
@@ -120,17 +121,12 @@ onMounted(load);
                 <span class="state-label" :class="{ off: !row.isAvailable }">
                   {{ row.isAvailable ? 'On' : 'Off' }}
                 </span>
-                <button
-                  type="button"
-                  role="switch"
-                  class="switch"
-                  :aria-checked="row.isAvailable"
-                  :aria-label="`${row.name} available`"
+                <OnOffSwitch
+                  :checked="row.isAvailable"
+                  :label="`${row.name} available`"
                   :disabled="saving.has(row.key)"
-                  @click="toggle(row, 'switched off')"
-                >
-                  <span class="knob" aria-hidden="true" />
-                </button>
+                  @toggle="toggle(row, 'switched off')"
+                />
               </div>
               <p v-if="rowErrors.get(row.key)" class="row-error" role="alert">
                 {{ rowErrors.get(row.key)?.message }}
@@ -155,17 +151,12 @@ onMounted(load);
                 <span class="state-label" :class="{ off: !row.isAvailable }">
                   {{ row.isAvailable ? 'Available' : 'Sold out' }}
                 </span>
-                <button
-                  type="button"
-                  role="switch"
-                  class="switch"
-                  :aria-checked="row.isAvailable"
-                  :aria-label="`${row.name} available`"
+                <OnOffSwitch
+                  :checked="row.isAvailable"
+                  :label="`${row.name} available`"
                   :disabled="saving.has(row.key)"
-                  @click="toggle(row, 'sold out')"
-                >
-                  <span class="knob" aria-hidden="true" />
-                </button>
+                  @toggle="toggle(row, 'sold out')"
+                />
               </div>
               <p v-if="rowErrors.get(row.key)" class="row-error" role="alert">
                 {{ rowErrors.get(row.key)?.message }}
@@ -250,38 +241,6 @@ h1 {
   color: var(--color-crimson);
   font-weight: 600;
 }
-.switch {
-  position: relative;
-  flex: none;
-  width: 3rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--color-border);
-  cursor: pointer;
-}
-.switch[aria-checked='true'] {
-  background: var(--color-charcoal);
-}
-.switch:disabled {
-  opacity: 0.5;
-  cursor: progress;
-}
-.knob {
-  position: absolute;
-  top: 0.1875rem;
-  left: 0.1875rem;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: 50%;
-  background: var(--color-white);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--color-charcoal) 30%, transparent);
-  transition: transform 0.15s ease;
-}
-.switch[aria-checked='true'] .knob {
-  transform: translateX(1.25rem);
-}
 .row-error {
   margin: 0.5rem 0 0;
   font-size: 0.875rem;
@@ -291,10 +250,5 @@ h1 {
   display: block;
   font-size: 0.75rem;
   color: var(--color-text-muted);
-}
-@media (prefers-reduced-motion: reduce) {
-  .knob {
-    transition: none;
-  }
 }
 </style>
