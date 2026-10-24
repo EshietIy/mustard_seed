@@ -2,9 +2,12 @@ import type { Role } from '@/stores/auth';
 
 export type StaffRole = Exclude<Role, 'customer'>;
 
+export type AdminSectionName =
+  'admin-availability' | 'admin-meats' | 'admin-prices' | 'admin-photos';
+
 export interface AdminSection {
   /** Route name, also the key the router and nav share. */
-  name: string;
+  name: AdminSectionName;
   /** Path under /admin. */
   path: string;
   label: string;

@@ -333,3 +333,91 @@ test.describe('Feature: dish prices', () => {
     await expect(page.locator('[data-test="dish"]')).toHaveCount(0);
   });
 });
+
+test.describe('Feature: dish photos', () => {
+  const PNG_1PX = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const usage = (percent: number) => ({
+    usedBytes: 13_000_000,
+    allowanceBytes: 1_073_741_824,
+    percent,
+    nearLimit: percent >= 70,
+  });
+
+  test('Scenario: a super admin uploads a photo for a dish', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/storage-usage`, (route) => route.fulfill({ json: usage(1.2) }));
+    await page.route('https://img.test/**', (route) =>
+      route.fulfill({ contentType: 'image/png', body: PNG_1PX }),
+    );
+    await page.route(`${API}/admin/menu-items/edikang-ikong/image`, (route) =>
+      route.fulfill({
+        status: 201,
+        json: {
+          itemId: 'edikang-ikong',
+          image: {
+            thumbnailUrl: 'https://img.test/edikang/thumb.webp',
+            fullUrl: 'https://img.test/edikang/full.webp',
+          },
+          sizes: { originalBytes: 70, thumbBytes: 40, fullBytes: 50 },
+          oldFilesRemoved: true,
+          storage: usage(1.3),
+        },
+      }),
+    );
+    await page.goto('/admin/photos');
+    await expect(page.getByText('Photo storage: 12.4 MB of 1 GB used (1.2%)')).toBeVisible();
+    const row = page.locator('[data-test="dish"]', { hasText: 'Edikang Ikong' });
+    await expect(row).toContainText('Photo coming');
+    const sent = page.waitForRequest(`${API}/admin/menu-items/edikang-ikong/image`);
+    await row.getByLabel('Upload a photo of Edikang Ikong').setInputFiles({
+      name: 'edikang.png',
+      mimeType: 'image/png',
+      buffer: PNG_1PX,
+    });
+    expect((await sent).headers()['content-type']).toMatch(/^multipart\/form-data; boundary=/);
+    await expect(page.getByText('Photo of Edikang Ikong saved.')).toBeVisible();
+    await expect(row.getByRole('img', { name: 'Edikang Ikong' })).toHaveAttribute(
+      'src',
+      'https://img.test/edikang/thumb.webp',
+    );
+    await expect(page.getByText('(1.3%)')).toBeVisible();
+  });
+
+  test('Scenario: a refused photo is explained and nothing changes', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/storage-usage`, (route) => route.fulfill({ json: usage(1.2) }));
+    await page.route(`${API}/admin/menu-items/edikang-ikong/image`, (route) =>
+      route.fulfill({
+        status: 415,
+        json: {
+          error: {
+            code: 'IMAGE_TYPE_MISMATCH',
+            message:
+              'That file’s contents don’t match its type. Save it again as JPEG, PNG or WebP.',
+            requestId: 'req-77',
+          },
+        },
+      }),
+    );
+    await page.goto('/admin/photos');
+    const row = page.locator('[data-test="dish"]', { hasText: 'Edikang Ikong' });
+    await row.getByLabel('Upload a photo of Edikang Ikong').setInputFiles({
+      name: 'edikang.png',
+      mimeType: 'image/png',
+      buffer: PNG_1PX,
+    });
+    await expect(row.getByRole('alert')).toContainText('don’t match its type');
+    await expect(row.getByRole('alert')).toContainText('Reference: req-77');
+    await expect(row).toContainText('Photo coming');
+  });
+
+  test('Scenario: storage past 70% warns the super admin', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/storage-usage`, (route) => route.fulfill({ json: usage(72.5) }));
+    await page.goto('/admin/photos');
+    await expect(page.getByRole('alert')).toContainText('Photo storage is 72.5% full');
+  });
+});

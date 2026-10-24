@@ -185,3 +185,21 @@ export interface AdminMenuItem {
   priceKobo: number | null;
   isAvailable: boolean;
 }
+
+/** Photo storage used against the plan's allowance (super admins). */
+export interface StorageUsage {
+  usedBytes: number;
+  allowanceBytes: number;
+  percent: number;
+  /** True from 70%: the owner should be told. */
+  nearLimit: boolean;
+}
+
+export interface ImageUploadResult {
+  itemId: string;
+  image: MenuImage;
+  sizes: { originalBytes: number; thumbBytes: number; fullBytes: number };
+  oldFilesRemoved: boolean;
+  /** Null when the total could not be read. */
+  storage: StorageUsage | null;
+}

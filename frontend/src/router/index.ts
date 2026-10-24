@@ -1,14 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { adminSections } from '@/admin/sections';
+import { adminSections, type AdminSectionName } from '@/admin/sections';
 import HomeView from '@/views/HomeView.vue';
 
-const AdminPendingView = () => import('@/views/admin/AdminPendingView.vue');
-
-/** Built staff screens; the rest show AdminPendingView until slice 8 builds them. */
-const adminScreens: Record<string, () => Promise<unknown>> = {
+/** One screen per staff section (admin/sections.ts). */
+const adminScreens: Record<AdminSectionName, () => Promise<unknown>> = {
   'admin-availability': () => import('@/views/admin/AdminAvailabilityView.vue'),
   'admin-meats': () => import('@/views/admin/AdminMeatsView.vue'),
   'admin-prices': () => import('@/views/admin/AdminPricesView.vue'),
+  'admin-photos': () => import('@/views/admin/AdminPhotosView.vue'),
 };
 
 export const routes = [
@@ -24,7 +23,7 @@ export const routes = [
       ...adminSections.map((section) => ({
         path: section.path,
         name: section.name,
-        component: adminScreens[section.name] ?? AdminPendingView,
+        component: adminScreens[section.name],
         meta: { roles: section.roles },
       })),
     ],

@@ -125,6 +125,9 @@ export interface ApiClient {
   delete<T>(path: string): Promise<T>;
 }
 
+/** Photo uploads can be several MB on a slow connection. */
+const UPLOAD_TIMEOUT_MS = 60_000;
+
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const timeoutMs = options.timeoutMs ?? 15_000;
   const isOnline = options.isOnline ?? (() => navigator.onLine);
@@ -132,8 +135,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const fetchImpl = options.fetch ?? globalThis.fetch;
+    // A file form goes as-is: the browser sets the multipart type and boundary.
+    const isForm = body instanceof FormData;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), isForm ? UPLOAD_TIMEOUT_MS : timeoutMs);
     let res: Response;
     try {
       res = await fetchImpl(`${baseUrl}${path}`, {
@@ -142,9 +147,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         signal: controller.signal,
         headers: {
           Accept: 'application/json',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+          ...(body === undefined || isForm ? {} : { 'Content-Type': 'application/json' }),
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (err) {
       const aborted = err instanceof DOMException && err.name === 'AbortError';

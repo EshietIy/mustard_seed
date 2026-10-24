@@ -47,6 +47,39 @@ describe('createApiClient', () => {
     expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
   });
 
+  it('sends a file form as-is, letting the browser set the multipart type', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, { ok: true }));
+    const form = new FormData();
+    form.append('image', new Blob(['x'], { type: 'image/jpeg' }), 'soup.jpg');
+    await clientWith(fetchMock).post('/admin/menu-items/i1/image', form);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBe(form);
+    expect(init.headers as Record<string, string>).not.toHaveProperty('Content-Type');
+  });
+
+  it('gives file uploads a minute before timing out', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+        }),
+    );
+    let settled = false;
+    const pending = caught(
+      clientWith(fetchMock as unknown as typeof fetch, { timeoutMs: 1000 }).post(
+        '/upload',
+        new FormData(),
+      ),
+    ).finally(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_001);
+    expect((await pending).kind).toBe('timeout');
+  });
+
   it('returns undefined for 204 No Content', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     await expect(clientWith(fetchMock).post('/x')).resolves.toBeUndefined();

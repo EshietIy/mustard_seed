@@ -96,16 +96,17 @@ describe('AdminLayout', () => {
     expect(wrapper.get('[data-test="admin-role-refused"]').text()).toContain(
       'Your role can’t use this screen',
     );
-    expect(wrapper.find('[data-test="admin-pending"]').exists()).toBe(false);
+    expect(wrapper.findAll('h1').map((h) => h.text())).not.toContain('Item prices');
     // The rest of the staff area stays usable.
     expect(wrapper.find('[data-test="admin-nav"]').exists()).toBe(true);
   });
 
   it('lets a super_admin open the same screen', async () => {
     signIn('super_admin');
-    const { wrapper } = await mountAdmin('/admin/photos');
+    routeFetch({ 'GET /menu': () => Response.json({ categories: [] }) });
+    const { wrapper } = await mountAdmin('/admin/prices');
     expect(wrapper.find('[data-test="admin-role-refused"]').exists()).toBe(false);
-    expect(wrapper.find('[data-test="admin-pending"]').exists()).toBe(true);
+    expect(wrapper.get('h1').text()).toBe('Item prices');
   });
 
   it('shows confirmation messages from staff screens', async () => {
