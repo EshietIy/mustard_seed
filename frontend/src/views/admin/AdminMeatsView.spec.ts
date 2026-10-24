@@ -2,6 +2,7 @@ import { enableAutoUnmount, flushPromises, mount, type VueWrapper } from '@vue/t
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { AdminOption, AdminOptionGroup, Menu } from '@/api/types';
+import { useAuthStore, type Role } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 import { bodyOf, routeFetch } from '@/test-utils/fetch';
 import { menuItem } from '@/test-utils/fixtures';
@@ -75,6 +76,19 @@ function okRoutes(extra: Record<string, (init?: RequestInit) => Response> = {}) 
     'GET /menu': () => json(menu()),
     ...extra,
   });
+}
+
+function signIn(role: Role): void {
+  const auth = useAuthStore();
+  auth.status = 'signed-in';
+  auth.user = {
+    id: 'u-1',
+    email: 'staff@example.com',
+    firstName: 'Nse',
+    fullName: 'Nse Etim',
+    avatarUrl: null,
+    role,
+  };
 }
 
 async function mountView() {
@@ -430,6 +444,260 @@ describe('AdminMeatsView', () => {
       const alert = form(wrapper).get('[data-test="add-error"]');
       expect(alert.text()).toContain('Something went wrong on our side.');
       expect(alert.text()).toContain('Reference: ref-7');
+    });
+  });
+
+  describe('what a supervisor does not see', () => {
+    it('has no rename, reorder, archive, restore or offer controls', async () => {
+      signIn('supervisor');
+      okRoutes();
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="per-dish-toggle"]').trigger('click');
+      for (const test of ['rename', 'move-up', 'move-down', 'archive', 'offered', 'archived']) {
+        expect(wrapper.find(`[data-test="${test}"]`).exists()).toBe(false);
+      }
+    });
+  });
+
+  describe('super admin tools', () => {
+    beforeEach(() => signIn('super_admin'));
+
+    it('renames a meat', async () => {
+      const renamed = protein();
+      renamed.options[0]!.name = 'Hen';
+      const fetchMock = okRoutes({ 'PATCH /admin/options/o-chicken': () => json(renamed) });
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="rename"]').trigger('click');
+      const form = meat(wrapper, 'Chicken').get('[data-test="rename-form"]');
+      await form.get('input').setValue(' Hen ');
+      await form.trigger('submit');
+      await flushPromises();
+      expect(bodyOf(fetchMock, 'PATCH /admin/options/o-chicken')).toEqual({ name: 'Hen' });
+      expect(wrapper.findAll('[data-test="meat"] h3').map((h) => h.text())).toContain('Hen');
+      expect(useToastStore().messages.at(-1)?.text).toBe('Chicken is now called Hen.');
+    });
+
+    it('shows a taken name next to the rename field', async () => {
+      okRoutes({
+        'PATCH /admin/options/o-chicken': () =>
+          failure(
+            409,
+            'OPTION_NAME_TAKEN',
+            'That name is already in use here. Choose a different name.',
+          ),
+      });
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="rename"]').trigger('click');
+      const form = meat(wrapper, 'Chicken').get('[data-test="rename-form"]');
+      await form.get('input').setValue('Beef');
+      await form.trigger('submit');
+      await flushPromises();
+      expect(form.get('[role="alert"]').text()).toContain('already in use');
+      expect((form.get('input').element as HTMLInputElement).value).toBe('Beef');
+    });
+
+    it('needs a name to rename, and can be cancelled', async () => {
+      const fetchMock = okRoutes();
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="rename"]').trigger('click');
+      const form = meat(wrapper, 'Chicken').get('[data-test="rename-form"]');
+      await form.get('input').setValue('  ');
+      await form.trigger('submit');
+      expect(form.get('[role="alert"]').text()).toBe('Enter a name.');
+      await form.get('[data-test="rename-cancel"]').trigger('click');
+      expect(meat(wrapper, 'Chicken').find('[data-test="rename-form"]').exists()).toBe(false);
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false);
+    });
+
+    it('moves a meat up by renumbering the group in its new order', async () => {
+      const reordered = protein();
+      reordered.options[0]!.sortOrder = 10;
+      reordered.options[1]!.sortOrder = 20;
+      const fetchMock = okRoutes({
+        'PATCH /admin/options/o-chicken': () => json(reordered),
+        'PATCH /admin/options/o-beef': () => json(reordered),
+      });
+      const wrapper = await mountView();
+      // Beef (5) is first, Chicken (10) second; moving Chicken up renumbers to Chicken 10, Beef 20.
+      expect(
+        meat(wrapper, 'Beef').get('[data-test="move-up"]').attributes('disabled'),
+      ).toBeDefined();
+      expect(
+        meat(wrapper, 'Chicken').get('[data-test="move-down"]').attributes('disabled'),
+      ).toBeDefined();
+      await meat(wrapper, 'Chicken').get('[data-test="move-up"]').trigger('click');
+      await flushPromises();
+      // Chicken already sits at 10, so only Beef needs saving.
+      expect(bodyOf(fetchMock, 'PATCH /admin/options/o-chicken')).toBeUndefined();
+      expect(bodyOf(fetchMock, 'PATCH /admin/options/o-beef')).toEqual({ sortOrder: 20 });
+      expect(wrapper.findAll('[data-test="meat"] h3').map((h) => h.text())).toEqual([
+        'Chicken',
+        'Beef',
+      ]);
+    });
+
+    it('explains a failed move above the list', async () => {
+      okRoutes({
+        'PATCH /admin/options/o-chicken': () => failure(503, 'SERVICE_UNAVAILABLE', 'down'),
+        'PATCH /admin/options/o-beef': () => failure(503, 'SERVICE_UNAVAILABLE', 'down'),
+      });
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="move-up"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.get('[data-test="order-error"]').text()).toContain('Reference: ref-7');
+      expect(wrapper.findAll('[data-test="meat"] h3').map((h) => h.text())).toEqual([
+        'Beef',
+        'Chicken',
+      ]);
+    });
+
+    it('archives a meat after asking, and lists it under Archived', async () => {
+      const archived = protein();
+      archived.options[0]!.archived = true;
+      const fetchMock = okRoutes({ 'PATCH /admin/options/o-chicken': () => json(archived) });
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="archive"]').trigger('click');
+      const confirm = meat(wrapper, 'Chicken').get('[data-test="archive-confirm"]');
+      expect(confirm.text()).toContain('Archive Chicken?');
+      expect(confirm.text()).toContain('Past orders still show it.');
+      await confirm.get('[data-test="archive-yes"]').trigger('click');
+      await flushPromises();
+      expect(bodyOf(fetchMock, 'PATCH /admin/options/o-chicken')).toEqual({ archived: true });
+      expect(wrapper.findAll('[data-test="meat"] h3').map((h) => h.text())).toEqual(['Beef']);
+      const list = wrapper.get('[data-test="archived"]');
+      expect(list.text()).toContain('Chicken');
+      expect(list.text()).toContain('Snail');
+      expect(useToastStore().messages.at(-1)?.text).toBe('Chicken archived.');
+    });
+
+    it('keeps the meat when archiving is cancelled', async () => {
+      okRoutes();
+      const wrapper = await mountView();
+      await meat(wrapper, 'Chicken').get('[data-test="archive"]').trigger('click');
+      await meat(wrapper, 'Chicken').get('[data-test="archive-no"]').trigger('click');
+      expect(meat(wrapper, 'Chicken').find('[data-test="archive-confirm"]').exists()).toBe(false);
+    });
+
+    it('restores an archived meat', async () => {
+      const restored = protein();
+      restored.options[2]!.archived = false;
+      const fetchMock = okRoutes({ 'PATCH /admin/options/o-snail': () => json(restored) });
+      const wrapper = await mountView();
+      const row = wrapper
+        .get('[data-test="archived"]')
+        .findAll('li')
+        .find((li) => li.text().includes('Snail'))!;
+      await row.get('button').trigger('click');
+      await flushPromises();
+      expect(bodyOf(fetchMock, 'PATCH /admin/options/o-snail')).toEqual({ archived: false });
+      expect(wrapper.findAll('[data-test="meat"] h3').map((h) => h.text())).toContain('Snail');
+      expect(useToastStore().messages.at(-1)?.text).toBe('Snail is back on the menu.');
+    });
+
+    it('explains a failed restore on that row', async () => {
+      okRoutes({
+        'PATCH /admin/options/o-snail': () =>
+          failure(
+            409,
+            'OPTION_NAME_TAKEN',
+            'That name is already in use here. Choose a different name.',
+          ),
+      });
+      const wrapper = await mountView();
+      const archived = wrapper.get('[data-test="archived"]');
+      await archived.get('button').trigger('click');
+      await flushPromises();
+      expect(archived.get('[role="alert"]').text()).toContain('already in use');
+    });
+
+    describe('which dishes offer a meat', () => {
+      const dishRow = (card: ReturnType<typeof meat>, dish: string) =>
+        card.findAll('[data-test="dish-price"]').find((r) => r.text().includes(dish))!;
+
+      it('lists every dish using the group, ticked where the meat is offered', async () => {
+        okRoutes();
+        const wrapper = await mountView();
+        await meat(wrapper, 'Beef').get('[data-test="per-dish-toggle"]').trigger('click');
+        const beef = meat(wrapper, 'Beef');
+        expect(beef.findAll('[data-test="dish-price"]')).toHaveLength(2);
+        const offered = (dish: string) =>
+          (dishRow(beef, dish).get('[data-test="offered"]').element as HTMLInputElement).checked;
+        expect(offered('Afang Soup')).toBe(true);
+        expect(offered('Fisherman Soup')).toBe(false);
+        // No price box where the meat isn't offered.
+        expect(dishRow(beef, 'Fisherman Soup').find('input[inputmode="decimal"]').exists()).toBe(
+          false,
+        );
+      });
+
+      it('stops offering a meat on one dish', async () => {
+        const fetchMock = okRoutes({
+          'PUT /admin/menu-items/i-fisherman/options/o-chicken': () =>
+            json({
+              itemId: FISHERMAN,
+              optionId: 'o-chicken',
+              isExcluded: true,
+              priceDeltaKobo: null,
+            }),
+        });
+        const wrapper = await mountView();
+        await meat(wrapper, 'Chicken').get('[data-test="per-dish-toggle"]').trigger('click');
+        await dishRow(meat(wrapper, 'Chicken'), 'Fisherman Soup')
+          .get('[data-test="offered"]')
+          .setValue(false);
+        await flushPromises();
+        expect(bodyOf(fetchMock, 'PUT /admin/menu-items/i-fisherman/options/o-chicken')).toEqual({
+          isExcluded: true,
+        });
+        const row = dishRow(meat(wrapper, 'Chicken'), 'Fisherman Soup');
+        expect((row.get('[data-test="offered"]').element as HTMLInputElement).checked).toBe(false);
+        // Its special price went with it.
+        expect(meat(wrapper, 'Chicken').get('[data-test="per-dish-toggle"]').text()).not.toContain(
+          'Different price on 1 dish',
+        );
+        expect(useToastStore().messages.at(-1)?.text).toBe(
+          'Fisherman Soup no longer offers Chicken.',
+        );
+      });
+
+      it('offers a meat on a dish again', async () => {
+        const fetchMock = okRoutes({
+          'DELETE /admin/menu-items/i-fisherman/options/o-beef': () =>
+            new Response(null, { status: 204 }),
+        });
+        const wrapper = await mountView();
+        await meat(wrapper, 'Beef').get('[data-test="per-dish-toggle"]').trigger('click');
+        await dishRow(meat(wrapper, 'Beef'), 'Fisherman Soup')
+          .get('[data-test="offered"]')
+          .setValue(true);
+        await flushPromises();
+        expect(
+          fetchMock.mock.calls.some(
+            ([url, init]) =>
+              init?.method === 'DELETE' &&
+              String(url).endsWith('/menu-items/i-fisherman/options/o-beef'),
+          ),
+        ).toBe(true);
+        const row = dishRow(meat(wrapper, 'Beef'), 'Fisherman Soup');
+        expect((row.get('[data-test="offered"]').element as HTMLInputElement).checked).toBe(true);
+        expect(useToastStore().messages.at(-1)?.text).toBe('Fisherman Soup offers Beef again.');
+      });
+
+      it('puts the tick back when the change fails', async () => {
+        okRoutes({
+          'PUT /admin/menu-items/i-afang/options/o-chicken': () =>
+            failure(503, 'SERVICE_UNAVAILABLE', 'down'),
+        });
+        const wrapper = await mountView();
+        await meat(wrapper, 'Chicken').get('[data-test="per-dish-toggle"]').trigger('click');
+        await dishRow(meat(wrapper, 'Chicken'), 'Afang Soup')
+          .get('[data-test="offered"]')
+          .setValue(false);
+        await flushPromises();
+        const row = dishRow(meat(wrapper, 'Chicken'), 'Afang Soup');
+        expect((row.get('[data-test="offered"]').element as HTMLInputElement).checked).toBe(true);
+        expect(row.get('[role="alert"]').text()).toContain('Reference: ref-7');
+      });
     });
   });
 });

@@ -262,3 +262,41 @@ test.describe('Feature: meats and their prices', () => {
     );
   });
 });
+
+test.describe('Feature: super admin tools for meats', () => {
+  test('Scenario: a super admin archives a meat, then restores it', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    const goat = meatOption('o-goat', 'Goat meat', 90000);
+    let archived = false;
+    await page.route(`${API}/admin/option-groups`, (route) =>
+      route.fulfill({ json: [soupProtein([{ ...goat, archived }])] }),
+    );
+    await page.route(`${API}/admin/options/o-goat`, (route) => {
+      archived = (route.request().postDataJSON() as { archived: boolean }).archived;
+      return route.fulfill({ json: soupProtein([{ ...goat, archived }]) });
+    });
+    await page.goto('/admin/meats');
+    const card = page.locator('[data-test="meat"]', { hasText: 'Goat meat' });
+    await card.getByRole('button', { name: 'Archive' }).click();
+    await expect(card.getByText('Past orders still show it.')).toBeVisible();
+    await card.locator('[data-test="archive-yes"]').click();
+    await expect(page.getByText('Goat meat archived.')).toBeVisible();
+    await expect(page.locator('[data-test="meat"]', { hasText: 'Goat meat' })).toHaveCount(0);
+    const archivedList = page.locator('[data-test="archived"]');
+    await archivedList.getByRole('button', { name: 'Restore' }).click();
+    await expect(page.getByText('Goat meat is back on the menu.')).toBeVisible();
+    await expect(page.locator('[data-test="meat"]', { hasText: 'Goat meat' })).toBeVisible();
+  });
+
+  test('Scenario: a supervisor gets no rename, move or archive buttons', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.route(`${API}/admin/option-groups`, (route) =>
+      route.fulfill({ json: [soupProtein()] }),
+    );
+    await page.goto('/admin/meats');
+    await expect(page.getByRole('heading', { name: 'Chicken' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rename' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Archive' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Move Chicken up' })).toHaveCount(0);
+  });
+});
