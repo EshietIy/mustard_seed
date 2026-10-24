@@ -16,6 +16,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './mail/mail.module';
 import { MenuModule } from './menu/menu.module';
+import { MenuAdminModule } from './menu-admin/menu-admin.module';
 import { MenuOptionsModule } from './menu-options/menu-options.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -46,6 +47,7 @@ export class AppModule {
         ConfigPublicModule,
         MenuModule,
         MenuOptionsModule,
+        MenuAdminModule,
         SiteModule,
         AuthModule,
         CartModule,
