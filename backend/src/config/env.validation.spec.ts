@@ -426,4 +426,42 @@ describe('validateEnv', () => {
       expect(validateEnv({ ...prod, ...mailgun }).MAIL_PROVIDER).toBe('mailgun');
     });
   });
+
+  describe('photo storage', () => {
+    it('stores photos in Supabase with a 5 MB limit and a 1 GB allowance by default', () => {
+      const env = validateEnv(base);
+      expect(env.IMAGE_STORAGE).toBe('supabase');
+      expect(env.MAX_IMAGE_UPLOAD_MB).toBe(5);
+      expect(env.IMAGE_STORAGE_ALLOWANCE_MB).toBe(1024);
+    });
+
+    it('reads the upload limit and allowance', () => {
+      const env = validateEnv({
+        ...base,
+        MAX_IMAGE_UPLOAD_MB: '8',
+        IMAGE_STORAGE_ALLOWANCE_MB: '100000',
+      });
+      expect(env.MAX_IMAGE_UPLOAD_MB).toBe(8);
+      expect(env.IMAGE_STORAGE_ALLOWANCE_MB).toBe(100000);
+    });
+
+    it.each([
+      ['MAX_IMAGE_UPLOAD_MB', '0'],
+      ['MAX_IMAGE_UPLOAD_MB', '21'],
+      ['MAX_IMAGE_UPLOAD_MB', 'five'],
+      ['IMAGE_STORAGE_ALLOWANCE_MB', '0'],
+      ['IMAGE_STORAGE', 's3'],
+    ])('refuses %s=%s', (name, value) => {
+      expect(() => validateEnv({ ...base, [name]: value })).toThrow(new RegExp(name));
+    });
+
+    it('keeps photos in memory only for automated tests', () => {
+      expect(validateEnv({ ...base, APP_ENV: 'test', IMAGE_STORAGE: 'memory' }).IMAGE_STORAGE).toBe(
+        'memory',
+      );
+      expect(() => validateEnv({ ...base, IMAGE_STORAGE: 'memory' })).toThrow(
+        /IMAGE_STORAGE=memory/,
+      );
+    });
+  });
 });

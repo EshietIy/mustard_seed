@@ -57,4 +57,40 @@ describe('SupabaseMenuAdminRepository', () => {
     await repo(cleared.client).updateItem('i1', { priceKobo: null, isAvailable: false });
     expect(cleared.calls.update).toEqual([{ price_kobo: null, is_available: false }]);
   });
+
+  it('finds a dish and its photo key', async () => {
+    const { client, calls } = fakeSupabase(
+      ok({ id: 'i1', name: 'Afang Soup', image_path: 'menu-items/i1/v1' }),
+    );
+    await expect(repo(client).findImage('i1')).resolves.toEqual({
+      id: 'i1',
+      name: 'Afang Soup',
+      imagePath: 'menu-items/i1/v1',
+    });
+    expect(calls.from).toEqual(['menu_items']);
+    expect(calls.log).toContainEqual(['eq', 'id', 'i1']);
+  });
+
+  it('finds nothing for an unknown dish', async () => {
+    const { client } = fakeSupabase(ok(null));
+    await expect(repo(client).findImage('nope')).resolves.toBeNull();
+  });
+
+  it('saves or clears the photo key', async () => {
+    const saved = fakeSupabase(ok(null));
+    await repo(saved.client).setImagePath('i1', 'menu-items/i1/v2');
+    expect(saved.calls.update).toEqual([{ image_path: 'menu-items/i1/v2' }]);
+    expect(saved.calls.log).toContainEqual(['eq', 'id', 'i1']);
+    const cleared = fakeSupabase(ok(null));
+    await repo(cleared.client).setImagePath('i1', null);
+    expect(cleared.calls.update).toEqual([{ image_path: null }]);
+  });
+
+  it('turns photo key database errors into 503 upstream failures', async () => {
+    const { client } = fakeSupabase(down);
+    await expect(repo(client).findImage('i1')).rejects.toBeInstanceOf(UpstreamUnavailableException);
+    await expect(repo(client).setImagePath('i1', null)).rejects.toBeInstanceOf(
+      UpstreamUnavailableException,
+    );
+  });
 });

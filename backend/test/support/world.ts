@@ -42,6 +42,8 @@ export const DEFAULT_ENV: Record<string, string> = {
   // (or prompted by a payment), never on a timer.
   MAIL_PROVIDER: 'memory',
   EMAIL_DISPATCH_INTERVAL_MS: '0',
+  // Photos never touch real storage: they stay in memory for the scenario.
+  IMAGE_STORAGE: 'memory',
   ...testSupabaseEnv(),
 };
 

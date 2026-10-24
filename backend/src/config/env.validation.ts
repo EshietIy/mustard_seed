@@ -217,6 +217,23 @@ export class AppConfig {
   })
   SUPABASE_STORAGE_BUCKET = 'site-images';
 
+  /** supabase: the bucket above. memory: keep photos in memory (automated tests only). */
+  @IsIn(['supabase', 'memory'])
+  IMAGE_STORAGE: 'supabase' | 'memory' = 'supabase';
+
+  /** Largest photo staff may upload, before processing (AGENT.md 3.1: default 5 MB). */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  MAX_IMAGE_UPLOAD_MB = 5;
+
+  /** Storage the plan includes (free plan: 1 GB); admins are warned past about 70% of it. */
+  @Transform(toInt)
+  @IsInt()
+  @Min(1)
+  IMAGE_STORAGE_ALLOWANCE_MB = 1024;
+
   /** Per-request timeout for database calls, so a slow upstream fails fast (503). */
   @Transform(toInt)
   @IsInt()
@@ -302,6 +319,9 @@ function businessRuleErrors(config: AppConfig): string[] {
   }
   if (config.MAIL_PROVIDER === 'memory' && config.APP_ENV !== AppEnv.Test) {
     errors.push('MAIL_PROVIDER=memory is only allowed when APP_ENV=test');
+  }
+  if (config.IMAGE_STORAGE === 'memory' && config.APP_ENV !== AppEnv.Test) {
+    errors.push('IMAGE_STORAGE=memory is only allowed when APP_ENV=test');
   }
   if (config.APP_ENV === AppEnv.Production) {
     // Keyed off APP_ENV only, never NODE_ENV (AGENT.md §3.1).

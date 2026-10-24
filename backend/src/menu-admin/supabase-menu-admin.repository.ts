@@ -6,7 +6,12 @@ import {
 } from '../common/errors/upstream-unavailable.exception';
 import { SUPABASE_CLIENT } from '../database/supabase.token';
 import type { MenuCategoryId } from '../menu/menu.types';
-import type { AdminMenuItem, MenuAdminRepository, MenuItemPatch } from './menu-admin.repository';
+import type {
+  AdminMenuItem,
+  MenuAdminRepository,
+  MenuItemImage,
+  MenuItemPatch,
+} from './menu-admin.repository';
 
 interface ItemRow {
   id: string;
@@ -42,5 +47,26 @@ export class SupabaseMenuAdminRepository implements MenuAdminRepository {
       priceKobo: data.price_kobo,
       isAvailable: data.is_available,
     };
+  }
+
+  async findImage(id: string): Promise<MenuItemImage | null> {
+    const op = 'menu_items.find_image';
+    const { data, error } = await callUpstream('supabase', op, () =>
+      this.db
+        .from('menu_items')
+        .select('id, name, image_path')
+        .eq('id', id)
+        .maybeSingle<{ id: string; name: string; image_path: string | null }>(),
+    );
+    if (error) throw new UpstreamUnavailableException('supabase', op, error.message);
+    return data ? { id: data.id, name: data.name, imagePath: data.image_path } : null;
+  }
+
+  async setImagePath(id: string, imagePath: string | null): Promise<void> {
+    const op = 'menu_items.set_image';
+    const { error } = await callUpstream('supabase', op, () =>
+      this.db.from('menu_items').update({ image_path: imagePath }).eq('id', id),
+    );
+    if (error) throw new UpstreamUnavailableException('supabase', op, error.message);
   }
 }
