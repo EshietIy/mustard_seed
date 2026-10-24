@@ -5,6 +5,7 @@ import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router';
 import { routes } from '@/router';
 import { useAuthStore, type Role } from '@/stores/auth';
+import { useToastStore } from '@/stores/toast';
 import { routeFetch } from '@/test-utils/fetch';
 
 enableAutoUnmount(afterEach);
@@ -105,6 +106,14 @@ describe('AdminLayout', () => {
     const { wrapper } = await mountAdmin('/admin/prices');
     expect(wrapper.find('[data-test="admin-role-refused"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="admin-pending"]').exists()).toBe(true);
+  });
+
+  it('shows confirmation messages from staff screens', async () => {
+    signIn('supervisor');
+    const { wrapper } = await mountAdmin();
+    useToastStore().show('Afang Soup is now sold out.');
+    await flushPromises();
+    expect(wrapper.text()).toContain('Afang Soup is now sold out.');
   });
 
   it('signs out and returns to the menu', async () => {

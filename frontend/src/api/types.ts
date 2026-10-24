@@ -150,3 +150,38 @@ export interface Order {
   estimatedReadyAt?: string | null;
   payment: { status: string; channel: string | null; paidAt: string | null } | null;
 }
+
+/** An option as staff manage it (GET /admin/option-groups). */
+export interface AdminOption {
+  id: string;
+  name: string;
+  priceDeltaKobo: number;
+  isAvailable: boolean;
+  sortOrder: number;
+  archived: boolean;
+  /** Items using the group that do not offer this option. */
+  excludedFromItemIds: string[];
+  /** Items charging a different price for this option. */
+  priceOverrides: Array<{ itemId: string; priceDeltaKobo: number }>;
+}
+
+export interface AdminOptionGroup {
+  id: string;
+  name: string;
+  minChoices: number;
+  maxChoices: number;
+  sortOrder: number;
+  archived: boolean;
+  /** Items that offer this group. */
+  itemIds: string[];
+  options: AdminOption[];
+}
+
+/** A dish as staff manage it (PATCH /admin/menu-items/:id). */
+export interface AdminMenuItem {
+  id: string;
+  name: string;
+  category: MenuCategoryId;
+  priceKobo: number | null;
+  isAvailable: boolean;
+}

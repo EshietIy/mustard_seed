@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApi, SIGNED_IN_USER } from './support/mock-api';
+import { API, mockApi, SIGNED_IN_USER } from './support/mock-api';
 
 const SUPERVISOR = { ...SIGNED_IN_USER, id: 'u-sup', firstName: 'Ime', role: 'supervisor' };
 const SUPER_ADMIN = { ...SIGNED_IN_USER, id: 'u-admin', firstName: 'Nse', role: 'super_admin' };
@@ -68,5 +68,102 @@ test.describe('Feature: the staff area', () => {
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByText('You’ve signed out.')).toBeVisible();
+  });
+});
+
+const PROTEIN_GROUP = {
+  id: 'g-protein',
+  name: 'Soup protein',
+  minChoices: 1,
+  maxChoices: 1,
+  sortOrder: 0,
+  archived: false,
+  itemIds: ['fisherman-soup'],
+  options: [
+    {
+      id: 'o-turkey',
+      name: 'Turkey',
+      priceDeltaKobo: 0,
+      isAvailable: false,
+      sortOrder: 0,
+      archived: false,
+      excludedFromItemIds: [],
+      priceOverrides: [],
+    },
+  ],
+};
+
+test.describe('Feature: switching dishes and meats on and off', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.route(`${API}/admin/option-groups`, (route) =>
+      route.fulfill({ json: [PROTEIN_GROUP] }),
+    );
+  });
+
+  test('Scenario: a supervisor marks a dish sold out', async ({ page }) => {
+    await page.route(`${API}/admin/menu-items/afang-soup`, (route) =>
+      route.fulfill({
+        json: {
+          id: 'afang-soup',
+          name: 'Afang Soup',
+          category: 'calabar_soups',
+          priceKobo: 450000,
+          isAvailable: false,
+        },
+      }),
+    );
+    await page.goto('/admin');
+    await page
+      .getByRole('navigation', { name: 'Staff screens' })
+      .getByRole('link', { name: 'Availability' })
+      .click();
+    const afang = page.getByRole('switch', { name: 'Afang Soup available' });
+    await expect(afang).toHaveAttribute('aria-checked', 'true');
+    const saved = page.waitForRequest(`${API}/admin/menu-items/afang-soup`);
+    await afang.click();
+    expect((await saved).postDataJSON()).toEqual({ isAvailable: false });
+    await expect(afang).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByText('Afang Soup is now sold out.')).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Atama Soup available' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+  });
+
+  test('Scenario: switching a meat back on fails and the switch stays off', async ({ page }) => {
+    await page.route(`${API}/admin/options/o-turkey`, (route) =>
+      route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'The service is busy. Please try again.',
+            requestId: 'ref-503',
+          },
+        },
+      }),
+    );
+    await page.goto('/admin/availability');
+    const turkey = page.getByRole('switch', { name: 'Turkey available' });
+    await turkey.click();
+    await expect(page.getByRole('alert')).toContainText('Reference: ref-503');
+    await expect(turkey).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('Scenario: the menu cannot load, and a retry recovers', async ({ page }) => {
+    let calls = 0;
+    await page.route(`${API}/admin/option-groups`, (route) =>
+      ++calls === 1
+        ? route.fulfill({
+            status: 503,
+            json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'Busy.', requestId: 'ref-1' } },
+          })
+        : route.fulfill({ json: [PROTEIN_GROUP] }),
+    );
+    await page.goto('/admin/availability');
+    await expect(page.getByRole('alert')).toContainText('We couldn’t load the menu.');
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByRole('switch', { name: 'Turkey available' })).toBeVisible();
   });
 });

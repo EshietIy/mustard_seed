@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { canUse, isStaff, roleLabel, sectionsFor, type StaffRole } from '@/admin/sections';
 import BrandMark from '@/components/ui/BrandMark.vue';
+import ToastHost from '@/components/ui/ToastHost.vue';
 import ZigzagTrim from '@/components/ui/ZigzagTrim.vue';
 import { landing } from '@/content/landing';
 import { useAuthStore } from '@/stores/auth';
@@ -96,6 +97,7 @@ async function signOut(): Promise<void> {
       </div>
     </div>
   </main>
+  <ToastHost />
 </template>
 
 <style scoped>

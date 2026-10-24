@@ -4,6 +4,11 @@ import HomeView from '@/views/HomeView.vue';
 
 const AdminPendingView = () => import('@/views/admin/AdminPendingView.vue');
 
+/** Built staff screens; the rest show AdminPendingView until slice 8 builds them. */
+const adminScreens: Record<string, () => Promise<unknown>> = {
+  'admin-availability': () => import('@/views/admin/AdminAvailabilityView.vue'),
+};
+
 export const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/checkout', name: 'checkout', component: () => import('@/views/CheckoutView.vue') },
@@ -14,11 +19,10 @@ export const routes = [
     component: () => import('@/views/admin/AdminLayout.vue'),
     children: [
       { path: '', name: 'admin', component: () => import('@/views/admin/AdminHomeView.vue') },
-      // Each screen replaces AdminPendingView as slice 8 builds it.
       ...adminSections.map((section) => ({
         path: section.path,
         name: section.name,
-        component: AdminPendingView,
+        component: adminScreens[section.name] ?? AdminPendingView,
         meta: { roles: section.roles },
       })),
     ],
