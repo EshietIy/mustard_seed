@@ -31,6 +31,7 @@ The first deliverable is the **customer landing page and ordering flow**, matchi
 - Items can be marked "House signature" and can be switched available/unavailable by staff.
 - Items can carry option groups (for example a soup protein or a swallow choice). Options are data managed by staff, never hard-coded (section 14).
 - Each soup protein carries its own price (decided 2026-10-19): the line price is the soup's base price plus the chosen protein's price, so the same soup costs differently with different proteins. Protein prices are placeholders until the owner supplies them.
+- Swallow is its own menu section (decided 2026-10-24): each swallow is a separate item with its own price, ordered on its own line. Soups do not carry a swallow choice; the "Swallow" option group and "Beef · Pounded Yam" note elsewhere in this file are only examples of the options mechanism.
 - Prices, photos, the Calabar address and the phone/WhatsApp number are **placeholders** (`[PRICE]`, `[CALABAR ADDRESS]`, `[PHONE / WHATSAPP]`) until real data is supplied. Never invent real values. Render placeholders from data/config so they can be replaced without code changes.
 
 ---
