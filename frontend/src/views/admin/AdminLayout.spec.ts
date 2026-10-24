@@ -103,7 +103,7 @@ describe('AdminLayout', () => {
 
   it('lets a super_admin open the same screen', async () => {
     signIn('super_admin');
-    const { wrapper } = await mountAdmin('/admin/prices');
+    const { wrapper } = await mountAdmin('/admin/photos');
     expect(wrapper.find('[data-test="admin-role-refused"]').exists()).toBe(false);
     expect(wrapper.find('[data-test="admin-pending"]').exists()).toBe(true);
   });

@@ -300,3 +300,36 @@ test.describe('Feature: super admin tools for meats', () => {
     await expect(page.getByRole('button', { name: 'Move Chicken up' })).toHaveCount(0);
   });
 });
+
+test.describe('Feature: dish prices', () => {
+  test('Scenario: a super admin prices a dish that showed [PRICE]', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items/edikang-ikong`, (route) =>
+      route.fulfill({
+        json: {
+          id: 'edikang-ikong',
+          name: 'Edikang Ikong',
+          category: 'calabar_soups',
+          priceKobo: 550000,
+          isAvailable: true,
+        },
+      }),
+    );
+    await page.goto('/admin/prices');
+    const row = page.locator('[data-test="dish"]', { hasText: 'Edikang Ikong' });
+    await expect(row).toContainText('[PRICE]');
+    await row.getByLabel('Price of Edikang Ikong in naira').fill('5,500');
+    const sent = page.waitForRequest(`${API}/admin/menu-items/edikang-ikong`);
+    await row.getByRole('button', { name: 'Save' }).click();
+    expect((await sent).postDataJSON()).toEqual({ priceKobo: 550000 });
+    await expect(page.getByText('Edikang Ikong now costs ₦5,500.')).toBeVisible();
+    await expect(row).not.toContainText('[PRICE]');
+  });
+
+  test('Scenario: a supervisor cannot open the prices screen', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.goto('/admin/prices');
+    await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
+    await expect(page.locator('[data-test="dish"]')).toHaveCount(0);
+  });
+});

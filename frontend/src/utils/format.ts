@@ -1,17 +1,20 @@
 /** Shown wherever a real price has not been supplied yet (AGENT.md §1). */
 export const PRICE_PLACEHOLDER = '[PRICE]';
 
-const naira = new Intl.NumberFormat('en-NG', {
-  style: 'currency',
-  currency: 'NGN',
-  currencyDisplay: 'narrowSymbol',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+const nairaFormat = (digits: number) =>
+  new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    currencyDisplay: 'narrowSymbol',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+const wholeNaira = nairaFormat(0);
+const nairaAndKobo = nairaFormat(2);
 
-/** Integer kobo → "₦12,500". Money stays in kobo everywhere else. */
+/** Integer kobo → "₦12,500" (or "₦800.50" when there are kobo). Money stays in kobo elsewhere. */
 export function formatNaira(kobo: number): string {
-  return naira.format(kobo / 100);
+  return (kobo % 100 === 0 ? wholeNaira : nairaAndKobo).format(kobo / 100);
 }
 
 export function priceLabel(kobo: number | null): string {

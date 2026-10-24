@@ -8,6 +8,7 @@ const AdminPendingView = () => import('@/views/admin/AdminPendingView.vue');
 const adminScreens: Record<string, () => Promise<unknown>> = {
   'admin-availability': () => import('@/views/admin/AdminAvailabilityView.vue'),
   'admin-meats': () => import('@/views/admin/AdminMeatsView.vue'),
+  'admin-prices': () => import('@/views/admin/AdminPricesView.vue'),
 };
 
 export const routes = [

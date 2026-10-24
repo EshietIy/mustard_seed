@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { koboToInput, parseNairaInput } from './naira-input';
+import { koboToInput, MAX_DISH_KOBO, parseNairaInput } from './naira-input';
 
 describe('parseNairaInput', () => {
   it.each([
@@ -25,6 +25,24 @@ describe('parseNairaInput', () => {
     ['100000.01', 'The price can be at most ₦100,000.'],
   ])('refuses %j', (text, error) => {
     expect(parseNairaInput(text)).toEqual({ error });
+  });
+});
+
+describe('parseNairaInput for a dish price', () => {
+  const dish = { maxKobo: MAX_DISH_KOBO, allowZero: false };
+
+  it('reads a dish price', () => {
+    expect(parseNairaInput('4,500', dish)).toEqual({ kobo: 450000 });
+    expect(parseNairaInput('1000000', dish)).toEqual({ kobo: 100000000 });
+  });
+
+  it.each([
+    ['', 'Enter a price in naira.'],
+    ['0', 'The price must be more than ₦0.'],
+    ['0.00', 'The price must be more than ₦0.'],
+    ['1000000.01', 'The price can be at most ₦1,000,000.'],
+  ])('refuses %j', (text, error) => {
+    expect(parseNairaInput(text, dish)).toEqual({ error });
   });
 });
 
