@@ -164,7 +164,7 @@ Feature: Managing dishes
       | case              | path                                                   | body                                     | status | code                |
       | nothing to change | /menu-items/{{item:Afang Soup}}                        | { }                                      | 400    | VALIDATION_FAILED   |
       | not a yes or no   | /menu-items/{{item:Afang Soup}}                        | { "isAvailable": "no" }                  | 400    | VALIDATION_FAILED   |
-      | unknown field     | /menu-items/{{item:Afang Soup}}                        | { "isAvailable": false, "name": "Afia" } | 400    | VALIDATION_FAILED   |
+      | unknown field     | /menu-items/{{item:Afang Soup}}                        | { "isAvailable": false, "slug": "afia" }   | 400    | VALIDATION_FAILED   |
       | zero price        | /menu-items/{{item:Afang Soup}}                        | { "priceKobo": 0 }                       | 400    | VALIDATION_FAILED   |
       | fractional price  | /menu-items/{{item:Afang Soup}}                        | { "priceKobo": 1500.5 }                  | 400    | VALIDATION_FAILED   |
       | price in text     | /menu-items/{{item:Afang Soup}}                        | { "priceKobo": "4500" }                  | 400    | VALIDATION_FAILED   |

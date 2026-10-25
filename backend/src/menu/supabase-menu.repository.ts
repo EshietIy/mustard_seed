@@ -38,6 +38,7 @@ export class SupabaseMenuRepository implements MenuRepository {
         this.db
           .from('menu_items')
           .select(COLUMNS)
+          .is('archived_at', null)
           .order('category')
           .order('sort_order')
           .order('name'),

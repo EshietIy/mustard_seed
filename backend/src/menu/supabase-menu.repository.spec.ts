@@ -32,6 +32,8 @@ describe('SupabaseMenuRepository', () => {
     ]);
     expect(calls.select.every((cols) => !String(cols).includes('*'))).toBe(true);
     expect(calls.order).toEqual(['category', 'sort_order', 'name']);
+    // Retired dishes leave the menu, the cart and checkout.
+    expect(calls.log).toContainEqual(['is', 'archived_at', null]);
     expect(items).toEqual([
       {
         id: 'id-1',
