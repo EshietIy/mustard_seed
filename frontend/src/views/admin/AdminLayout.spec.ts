@@ -90,6 +90,7 @@ describe('AdminLayout', () => {
       'Overview',
       'Availability',
       'Meats & prices',
+      'Dishes',
       'Item prices',
       'Photos',
       'Staff',

@@ -180,10 +180,17 @@ export interface AdminOptionGroup {
 /** A dish as staff manage it (PATCH /admin/menu-items/:id). */
 export interface AdminMenuItem {
   id: string;
+  slug: string;
   name: string;
+  description: string;
   category: MenuCategoryId;
   priceKobo: number | null;
   isAvailable: boolean;
+  isHouseSignature: boolean;
+  /** Position within the category, lowest first. */
+  sortOrder: number;
+  /** When the dish was retired; null while it is on the menu. */
+  archivedAt: string | null;
 }
 
 /** Photo storage used against the plan's allowance (super admins). */

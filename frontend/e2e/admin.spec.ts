@@ -25,6 +25,7 @@ test.describe('Feature: the staff area', () => {
       'Overview',
       'Availability',
       'Meats & prices',
+      'Dishes',
       'Item prices',
       'Photos',
       'Staff',
@@ -299,6 +300,175 @@ test.describe('Feature: super admin tools for meats', () => {
     await expect(page.getByRole('button', { name: 'Rename' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Archive' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Move Chicken up' })).toHaveCount(0);
+  });
+});
+
+test.describe('Feature: managing dishes', () => {
+  const dish = (overrides: object) => ({
+    id: 'd-x',
+    slug: 'x',
+    name: 'X',
+    description: '',
+    category: 'calabar_soups',
+    priceKobo: 400000,
+    isAvailable: true,
+    isHouseSignature: false,
+    sortOrder: 10,
+    archivedAt: null,
+    ...overrides,
+  });
+  const AFANG = dish({ id: 'd-afang', name: 'Afang Soup' });
+  const EDIKANG = dish({ id: 'd-edikang', name: 'Edikang Ikong', sortOrder: 20 });
+  const conflict = (message: string) => ({
+    status: 409,
+    json: { error: { code: 'DISH_NAME_TAKEN', message, requestId: 'req-2' } },
+  });
+  const soups = (page: import('@playwright/test').Page) =>
+    page.locator('[data-category="calabar_soups"] [data-test="dish"] .name');
+
+  test('Scenario: a super admin adds a new dish, switched off', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items`, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({
+            status: 201,
+            json: dish({
+              id: 'd-atama',
+              name: 'Atama Soup',
+              priceKobo: 420000,
+              isAvailable: false,
+              sortOrder: 30,
+            }),
+          })
+        : route.fulfill({ json: [AFANG, EDIKANG] }),
+    );
+    await page.goto('/admin/dishes');
+    await page.getByLabel('Name').fill('Atama Soup');
+    await page.getByLabel('Category').selectOption('calabar_soups');
+    await page.getByLabel('Price in naira (optional)').fill('4,200');
+    const sent = page.waitForRequest(
+      (r) => r.url() === `${API}/admin/menu-items` && r.method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Add dish' }).click();
+    expect((await sent).postDataJSON()).toEqual({
+      name: 'Atama Soup',
+      category: 'calabar_soups',
+      description: '',
+      isHouseSignature: false,
+      priceKobo: 420000,
+    });
+    await expect(
+      page.getByText(
+        'Atama Soup added, switched off. Add a photo, then switch it on in Availability.',
+      ),
+    ).toBeVisible();
+    await expect(soups(page)).toHaveText(['Afang Soup', 'Edikang Ikong', 'Atama Soup']);
+    await expect(page.locator('[data-test="dish"]', { hasText: 'Atama Soup' })).toContainText(
+      'Switched off',
+    );
+  });
+
+  test('Scenario: a name already on the menu is explained', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items`, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill(conflict('A dish called “Afang Soup” is already on the menu.'))
+        : route.fulfill({ json: [AFANG, EDIKANG] }),
+    );
+    await page.goto('/admin/dishes');
+    await page.getByLabel('Name').fill('afang soup');
+    await page.getByRole('button', { name: 'Add dish' }).click();
+    await expect(
+      page.getByText('A dish called “Afang Soup” is already on the menu.'),
+    ).toBeVisible();
+    await expect(soups(page)).toHaveText(['Afang Soup', 'Edikang Ikong']);
+  });
+
+  test('Scenario: a super admin moves a dish up', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items`, (route) =>
+      route.fulfill({ json: [AFANG, EDIKANG] }),
+    );
+    await page.route(`${API}/admin/menu-items/d-edikang/move`, (route) =>
+      route.fulfill({
+        json: [
+          { ...EDIKANG, sortOrder: 10 },
+          { ...AFANG, sortOrder: 20 },
+        ],
+      }),
+    );
+    await page.goto('/admin/dishes');
+    await expect(page.getByRole('button', { name: 'Move Afang Soup up' })).toBeDisabled();
+    const sent = page.waitForRequest(`${API}/admin/menu-items/d-edikang/move`);
+    await page.getByRole('button', { name: 'Move Edikang Ikong up' }).click();
+    expect((await sent).postDataJSON()).toEqual({ direction: 'up' });
+    await expect(soups(page)).toHaveText(['Edikang Ikong', 'Afang Soup']);
+  });
+
+  test('Scenario: a super admin edits a dish', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items`, (route) =>
+      route.fulfill({ json: [AFANG, EDIKANG] }),
+    );
+    await page.route(`${API}/admin/menu-items/d-afang`, (route) =>
+      route.fulfill({
+        json: { ...AFANG, description: 'Afang and waterleaf', isHouseSignature: true },
+      }),
+    );
+    await page.goto('/admin/dishes');
+    const row = page.locator('[data-test="dish"]', { hasText: 'Afang Soup' });
+    await row.getByRole('button', { name: 'Edit' }).click();
+    await row.getByLabel('Description').fill('Afang and waterleaf');
+    await row.getByLabel('House signature').check();
+    const sent = page.waitForRequest(`${API}/admin/menu-items/d-afang`);
+    await row.getByRole('button', { name: 'Save' }).click();
+    expect((await sent).postDataJSON()).toEqual({
+      description: 'Afang and waterleaf',
+      isHouseSignature: true,
+    });
+    await expect(page.getByText('Afang Soup saved.')).toBeVisible();
+    await expect(row).toContainText('House signature');
+    await expect(row).toContainText('Afang and waterleaf');
+  });
+
+  test('Scenario: a super admin retires a dish and brings it back', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/menu-items`, (route) =>
+      route.fulfill({ json: [AFANG, EDIKANG] }),
+    );
+    await page.route(`${API}/admin/menu-items/d-edikang`, (route) => {
+      const { isArchived } = route.request().postDataJSON() as { isArchived: boolean };
+      return route.fulfill({
+        json: isArchived
+          ? { ...EDIKANG, archivedAt: '2026-10-25T10:00:00Z' }
+          : { ...EDIKANG, isAvailable: false },
+      });
+    });
+    await page.goto('/admin/dishes');
+    const row = page.locator('[data-test="dish"]', { hasText: 'Edikang Ikong' });
+    await row.getByRole('button', { name: 'Retire' }).click();
+    await expect(row).toContainText('Past orders still show it');
+    await row.locator('[data-test="retire-yes"]').click();
+    await expect(page.getByText('Edikang Ikong retired.')).toBeVisible();
+    await expect(soups(page)).toHaveText(['Afang Soup']);
+    const retired = page.locator('[data-test="retired"]', { hasText: 'Edikang Ikong' });
+    await expect(retired).toContainText('Retired 25 Oct 2026');
+
+    await retired.getByRole('button', { name: 'Bring back' }).click();
+    await expect(
+      page.getByText(
+        'Edikang Ikong is back on the menu, switched off. Switch it on in Availability when it’s ready.',
+      ),
+    ).toBeVisible();
+    await expect(soups(page)).toHaveText(['Afang Soup', 'Edikang Ikong']);
+    await expect(page.locator('[data-test="retired"]')).toHaveCount(0);
+  });
+
+  test('Scenario: a supervisor cannot open the dishes screen', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.goto('/admin/dishes');
+    await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
+    await expect(page.locator('[data-test="dish"]')).toHaveCount(0);
   });
 });
 

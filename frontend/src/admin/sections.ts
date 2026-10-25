@@ -3,7 +3,12 @@ import type { Role } from '@/stores/auth';
 export type StaffRole = Exclude<Role, 'customer'>;
 
 export type AdminSectionName =
-  'admin-availability' | 'admin-meats' | 'admin-prices' | 'admin-photos' | 'admin-staff';
+  | 'admin-availability'
+  | 'admin-meats'
+  | 'admin-dishes'
+  | 'admin-prices'
+  | 'admin-photos'
+  | 'admin-staff';
 
 export interface AdminSection {
   /** Route name, also the key the router and nav share. */
@@ -31,6 +36,13 @@ export const adminSections: readonly AdminSection[] = [
     label: 'Meats & prices',
     description: 'Add meats and set their prices, per soup where they differ.',
     roles: ['supervisor', 'super_admin'],
+  },
+  {
+    name: 'admin-dishes',
+    path: 'dishes',
+    label: 'Dishes',
+    description: 'Add new dishes, edit names and descriptions, reorder and retire them.',
+    roles: ['super_admin'],
   },
   {
     name: 'admin-prices',

@@ -13,6 +13,7 @@ describe('admin sections', () => {
     expect(sectionsFor('super_admin').map((s) => s.label)).toEqual([
       'Availability',
       'Meats & prices',
+      'Dishes',
       'Item prices',
       'Photos',
       'Staff',

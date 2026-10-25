@@ -6,6 +6,7 @@ import HomeView from '@/views/HomeView.vue';
 const adminScreens: Record<AdminSectionName, () => Promise<unknown>> = {
   'admin-availability': () => import('@/views/admin/AdminAvailabilityView.vue'),
   'admin-meats': () => import('@/views/admin/AdminMeatsView.vue'),
+  'admin-dishes': () => import('@/views/admin/AdminDishesView.vue'),
   'admin-prices': () => import('@/views/admin/AdminPricesView.vue'),
   'admin-photos': () => import('@/views/admin/AdminPhotosView.vue'),
   'admin-staff': () => import('@/views/admin/AdminStaffView.vue'),
