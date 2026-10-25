@@ -44,3 +44,16 @@ export function formatWatClock(iso: string): string {
   }).format(date);
   return formatTime(hhmm);
 }
+
+const watDate = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Africa/Lagos',
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+});
+
+/** ISO timestamp → calendar date in Calabar (WAT), e.g. "25 Oct 2026". */
+export function formatWatDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? '' : watDate.format(date);
+}

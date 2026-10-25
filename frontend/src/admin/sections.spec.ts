@@ -15,6 +15,7 @@ describe('admin sections', () => {
       'Meats & prices',
       'Item prices',
       'Photos',
+      'Staff',
     ]);
   });
 

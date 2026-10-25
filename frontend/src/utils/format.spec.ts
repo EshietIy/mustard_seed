@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatNaira, formatTime, formatWatClock, priceLabel, PRICE_PLACEHOLDER } from './format';
+import {
+  formatNaira,
+  formatTime,
+  formatWatClock,
+  formatWatDate,
+  priceLabel,
+  PRICE_PLACEHOLDER,
+} from './format';
 
 describe('formatNaira', () => {
   it.each([
@@ -51,5 +58,13 @@ describe('formatWatClock', () => {
 
   it('returns an empty string for an invalid time', () => {
     expect(formatWatClock('nope')).toBe('');
+  });
+});
+
+describe('formatWatDate', () => {
+  it('shows the calendar date in Lagos time', () => {
+    expect(formatWatDate('2026-10-25T09:00:00Z')).toBe('25 Oct 2026');
+    // 23:30 UTC is already the next day in Lagos (UTC+1).
+    expect(formatWatDate('2026-10-25T23:30:00Z')).toBe('26 Oct 2026');
   });
 });

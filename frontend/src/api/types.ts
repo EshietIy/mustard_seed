@@ -203,3 +203,13 @@ export interface ImageUploadResult {
   /** Null when the total could not be read. */
   storage: StorageUsage | null;
 }
+
+/** A provisioned staff account (super admins only). */
+export interface StaffMember {
+  id: string;
+  email: string;
+  role: 'supervisor' | 'super_admin';
+  isActive: boolean;
+  createdAt: string;
+  deactivatedAt: string | null;
+}

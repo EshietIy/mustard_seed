@@ -27,6 +27,7 @@ test.describe('Feature: the staff area', () => {
       'Meats & prices',
       'Item prices',
       'Photos',
+      'Staff',
     ]);
   });
 
@@ -419,5 +420,104 @@ test.describe('Feature: dish photos', () => {
     await page.route(`${API}/admin/storage-usage`, (route) => route.fulfill({ json: usage(72.5) }));
     await page.goto('/admin/photos');
     await expect(page.getByRole('alert')).toContainText('Photo storage is 72.5% full');
+  });
+});
+
+test.describe('Feature: staff management', () => {
+  const OWNER_ROW = {
+    id: 's-owner',
+    email: SUPER_ADMIN.email,
+    role: 'super_admin',
+    isActive: true,
+    createdAt: '2026-10-01T09:00:00Z',
+    deactivatedAt: null,
+  };
+  const CHEF_ROW = {
+    ...OWNER_ROW,
+    id: 's-chef',
+    email: 'chef@example.com',
+    role: 'supervisor',
+    createdAt: '2026-10-20T09:00:00Z',
+  };
+
+  test('Scenario: a super admin adds a kitchen supervisor', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/staff`, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({
+            status: 201,
+            json: { ...CHEF_ROW, id: 's-ime', email: 'ime@example.com' },
+          })
+        : route.fulfill({ json: [OWNER_ROW] }),
+    );
+    await page.goto('/admin/staff');
+    await expect(page.locator('[data-test="staff"]', { hasText: SUPER_ADMIN.email })).toContainText(
+      'You',
+    );
+    await page.getByLabel('Google email').fill('ime@example.com');
+    await page.getByLabel('Role').selectOption('supervisor');
+    const sent = page.waitForRequest(
+      (r) => r.url() === `${API}/admin/staff` && r.method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    expect((await sent).postDataJSON()).toEqual({ email: 'ime@example.com', role: 'supervisor' });
+    await expect(
+      page.getByText(
+        'ime@example.com added as Kitchen supervisor. They sign in with that Google account.',
+      ),
+    ).toBeVisible();
+    await expect(page.locator('[data-test="staff"]', { hasText: 'ime@example.com' })).toContainText(
+      'Kitchen supervisor',
+    );
+  });
+
+  test('Scenario: a super admin removes a supervisor’s access', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/staff`, (route) =>
+      route.fulfill({ json: [OWNER_ROW, CHEF_ROW] }),
+    );
+    await page.route(`${API}/admin/staff/s-chef`, (route) =>
+      route.fulfill({
+        json: { ...CHEF_ROW, isActive: false, deactivatedAt: '2026-10-25T10:00:00Z' },
+      }),
+    );
+    await page.goto('/admin/staff');
+    const row = page.locator('[data-test="staff"]', { hasText: 'chef@example.com' });
+    await row.getByRole('button', { name: 'Remove access' }).click();
+    const sent = page.waitForRequest(`${API}/admin/staff/s-chef`);
+    await row.locator('[data-test="confirm-yes"]').click();
+    expect((await sent).postDataJSON()).toEqual({ isActive: false });
+    await expect(row).toContainText('No staff access since 25 Oct 2026');
+    await expect(row.getByRole('button', { name: 'Give access again' })).toBeVisible();
+  });
+
+  test('Scenario: an email already on the list is explained', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/staff`, (route) =>
+      route.request().method() === 'POST'
+        ? route.fulfill({
+            status: 409,
+            json: {
+              error: {
+                code: 'STAFF_EXISTS',
+                message: 'That email is already on the staff list.',
+                requestId: 'req-1',
+              },
+            },
+          })
+        : route.fulfill({ json: [OWNER_ROW, CHEF_ROW] }),
+    );
+    await page.goto('/admin/staff');
+    await page.getByLabel('Google email').fill('chef@example.com');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(page.getByText('That email is already on the staff list.')).toBeVisible();
+    await expect(page.locator('[data-test="staff"]')).toHaveCount(2);
+  });
+
+  test('Scenario: a supervisor cannot open the staff screen', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.goto('/admin/staff');
+    await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
+    await expect(page.locator('[data-test="add-staff"]')).toHaveCount(0);
   });
 });

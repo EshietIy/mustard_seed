@@ -86,7 +86,14 @@ describe('AdminLayout', () => {
       .get('[data-test="admin-nav"]')
       .findAll('a')
       .map((a) => a.text());
-    expect(labels).toEqual(['Overview', 'Availability', 'Meats & prices', 'Item prices', 'Photos']);
+    expect(labels).toEqual([
+      'Overview',
+      'Availability',
+      'Meats & prices',
+      'Item prices',
+      'Photos',
+      'Staff',
+    ]);
     expect(wrapper.text()).toContain('Super admin');
   });
 
