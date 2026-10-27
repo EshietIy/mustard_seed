@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mockApi, SIGNED_IN_USER, type MockOptions } from './support/mock-api';
+import { API, mockApi, SIGNED_IN_USER, type MockOptions } from './support/mock-api';
 
 async function addToOrderAndCheckout(page: Page, options: MockOptions = {}) {
   await mockApi(page, { session: SIGNED_IN_USER, ...options });
@@ -40,6 +40,37 @@ test.describe('Feature: checkout', () => {
     await page.getByRole('link', { name: 'Back to the menu', exact: true }).click();
     // The cart is kept until payment is verified (AGENT.md section 13).
     await expect(page.getByRole('button', { name: /^Your order, 3 items$/ })).toBeVisible();
+  });
+
+  test('Scenario: + and − respond at once on a slow connection', async ({ page }) => {
+    await mockApi(page, { session: SIGNED_IN_USER, serverCart: true });
+    const loaded = page.waitForResponse((r) => r.url() === `${API}/cart`);
+    await page.goto('/');
+    await loaded;
+    await page.getByRole('button', { name: 'Add Afang Soup to your order' }).click();
+    await page.getByRole('button', { name: /^Your order, 1 item$/ }).click();
+    const drawer = page.getByRole('dialog', { name: 'Your order' });
+
+    // Every save now takes 1.5 seconds.
+    const sent: number[] = [];
+    await page.route(`${API}/cart/lines`, async (route) => {
+      sent.push((route.request().postDataJSON() as { quantity: number }).quantity);
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.fallback();
+    });
+    const more = drawer.getByRole('button', { name: /^Add one more Afang Soup/ });
+    await more.click();
+    await more.click();
+    await more.click();
+    await expect(drawer.locator('.qty')).toHaveText('4', { timeout: 500 });
+    await drawer.getByRole('button', { name: /^Remove one Afang Soup/ }).click();
+    await expect(drawer.locator('.qty')).toHaveText('3', { timeout: 500 });
+
+    // Once saved, the server holds the last quantity and the screen still shows it.
+    await expect.poll(() => sent.at(-1), { timeout: 10_000 }).toBe(3);
+    expect(sent.length).toBeLessThanOrEqual(2);
+    await page.waitForTimeout(1600);
+    await expect(drawer.locator('.qty')).toHaveText('3');
   });
 
   test('Scenario: switching to pickup removes the delivery fee and the address field', async ({

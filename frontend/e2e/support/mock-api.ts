@@ -206,10 +206,63 @@ export interface MockOptions {
   config?: { status: number; body: unknown } | 'abort';
   /** Successive answers for GET /orders/track/*; the last one repeats (default: 404). */
   track?: Array<{ status: number; body: unknown }>;
+  /** Signed in: keep the cart on a fake server (/cart endpoints) instead of the device. */
+  serverCart?: boolean;
+}
+
+/** An in-memory saved cart (AGENT.md section 13), priced from the fixture menu. */
+async function mockServerCart(page: Page): Promise<void> {
+  const items = menuFixture().categories.flatMap((c) => c.items);
+  let lines: Array<{ id: string; menuItemId: string; quantity: number }> = [];
+  let next = 1;
+  const view = () => {
+    const out = lines.map((l) => {
+      const found = items.find((i) => i.id === l.menuItemId);
+      const unit = (found?.priceKobo as number | null | undefined) ?? null;
+      return {
+        id: l.id,
+        menuItemId: l.menuItemId,
+        name: found?.name ?? l.menuItemId,
+        optionIds: [],
+        options: [],
+        quantity: l.quantity,
+        unitPriceKobo: unit,
+        lineTotalKobo: unit === null ? null : unit * l.quantity,
+        isAvailable: true,
+        problems: [],
+        priceChange: null,
+      };
+    });
+    return {
+      lines: out,
+      itemCount: out.reduce((n, l) => n + l.quantity, 0),
+      subtotalKobo: out.every((l) => l.lineTotalKobo !== null)
+        ? out.reduce((s, l) => s + (l.lineTotalKobo ?? 0), 0)
+        : null,
+      canCheckout: out.length > 0,
+    };
+  };
+  await page.route(`${API}/cart`, (route) => {
+    if (route.request().method() === 'DELETE') lines = [];
+    return json(route, 200, view());
+  });
+  await page.route(`${API}/cart/lines`, (route) => {
+    const body = route.request().postDataJSON() as { menuItemId: string; quantity: number };
+    const line = lines.find((l) => l.menuItemId === body.menuItemId);
+    if (line) line.quantity = body.quantity;
+    else lines.push({ id: `line-${next++}`, menuItemId: body.menuItemId, quantity: body.quantity });
+    return json(route, 200, view());
+  });
+  await page.route(`${API}/cart/lines/*`, (route) => {
+    const id = route.request().url().split('/').pop();
+    lines = lines.filter((l) => l.id !== id);
+    return json(route, 200, view());
+  });
 }
 
 /** Mocks every API endpoint the landing page calls. Override per test for sad paths. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<void> {
+  if (options.serverCart) await mockServerCart(page);
   await page.route(`${API}/config/public`, (route) =>
     options.config === 'abort'
       ? route.abort('internetdisconnected')

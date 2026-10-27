@@ -422,6 +422,186 @@ describe('cart store', () => {
       expect(useToastStore().messages[0]?.text).toBe('Zobo has just sold out.');
     });
 
+    describe('responsive quantity buttons', () => {
+      /** A PUT /cart/lines handler that answers only when told to, like a slow network. */
+      function slowPut() {
+        const waiting: Array<{ quantity: number; answer: () => void }> = [];
+        const handler = (init: RequestInit | undefined) => {
+          const { quantity } = JSON.parse(String(init?.body)) as { quantity: number };
+          return new Promise<Response>((resolve) => {
+            waiting.push({
+              quantity,
+              answer: () => resolve(Response.json(serverCart([serverLine({ quantity })]))),
+            });
+          });
+        };
+        return { waiting, handler };
+      }
+      const puts = (fetchMock: ReturnType<typeof routeFetch>) =>
+        fetchMock.mock.calls
+          .filter(([, init]) => init?.method === 'PUT')
+          .map(([, init]) => (JSON.parse(String(init?.body)) as { quantity: number }).quantity);
+
+      it('shows the new quantity before the server answers', async () => {
+        const put = slowPut();
+        routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': put.handler,
+        });
+        const cart = useCartStore();
+        await signIn();
+        const done = cart.increment(cart.lines[0]!.key);
+        expect(cart.lines[0]!.quantity).toBe(3);
+        expect(cart.count).toBe(3);
+        await flushPromises();
+        put.waiting[0]!.answer();
+        await done;
+        expect(cart.lines[0]!.quantity).toBe(3);
+      });
+
+      it('sends quick taps as the newest quantity, without losing any', async () => {
+        const put = slowPut();
+        const fetchMock = routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': put.handler,
+        });
+        const cart = useCartStore();
+        await signIn();
+        const key = cart.lines[0]!.key;
+        for (let i = 0; i < 5; i++) void cart.increment(key);
+        expect(cart.lines[0]!.quantity).toBe(7);
+        await flushPromises();
+        expect(puts(fetchMock)).toEqual([3]);
+
+        // The answer for 3 must not undo the taps made since.
+        put.waiting[0]!.answer();
+        await flushPromises();
+        expect(cart.lines[0]!.quantity).toBe(7);
+        expect(puts(fetchMock)).toEqual([3, 7]);
+        put.waiting[1]!.answer();
+        await flushPromises();
+        expect(cart.lines[0]!.quantity).toBe(7);
+        expect(puts(fetchMock)).toEqual([3, 7]);
+      });
+
+      it('makes no second request when taps cancel out', async () => {
+        const put = slowPut();
+        const fetchMock = routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': put.handler,
+        });
+        const cart = useCartStore();
+        await signIn();
+        const key = cart.lines[0]!.key;
+        void cart.increment(key);
+        void cart.increment(key);
+        void cart.decrement(key);
+        await flushPromises();
+        put.waiting[0]!.answer();
+        await flushPromises();
+        expect(puts(fetchMock)).toEqual([3]);
+        expect(cart.lines[0]!.quantity).toBe(3);
+      });
+
+      it('hides a line at once when it reaches zero, then deletes it', async () => {
+        let answer = () => {};
+        const fetchMock = routeFetch({
+          'GET /cart': () => Response.json(serverCart([serverLine({ quantity: 1 })])),
+          'DELETE /cart/lines/line-1': () =>
+            new Promise<Response>((resolve) => {
+              answer = () => resolve(Response.json(serverCart([])));
+            }),
+        });
+        const cart = useCartStore();
+        await signIn();
+        const done = cart.decrement(cart.lines[0]!.key);
+        expect(cart.isEmpty).toBe(true);
+        await flushPromises();
+        answer();
+        await done;
+        expect(cart.isEmpty).toBe(true);
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://api.test/api/v1/cart/lines/line-1',
+          expect.objectContaining({ method: 'DELETE' }),
+        );
+      });
+
+      it('shows a new item at once, and can remove it before the server has answered', async () => {
+        const put = slowPut();
+        const fetchMock = routeFetch({
+          'GET /cart': () => Response.json(serverCart([])),
+          'PUT /cart/lines': put.handler,
+          'DELETE /cart/lines/line-1': () => Response.json(serverCart([])),
+        });
+        const cart = useCartStore();
+        await signIn();
+        void cart.add(zobo());
+        expect(cart.lines.map((l) => [l.name, l.quantity, l.unitPriceKobo])).toEqual([
+          ['Zobo', 1, 80000],
+        ]);
+        void cart.remove(cart.lines[0]!.key);
+        expect(cart.isEmpty).toBe(true);
+        await flushPromises();
+        put.waiting[0]!.answer();
+        await flushPromises();
+        expect(cart.isEmpty).toBe(true);
+        expect(fetchMock.mock.calls.at(-1)?.[1]).toMatchObject({ method: 'DELETE' });
+      });
+
+      it('puts the quantity back and explains when a change is refused', async () => {
+        routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': () =>
+            Response.json(
+              { error: { code: 'ITEM_UNAVAILABLE', message: 'Zobo has just sold out.' } },
+              { status: 422 },
+            ),
+        });
+        const cart = useCartStore();
+        await signIn();
+        const done = cart.increment(cart.lines[0]!.key);
+        expect(cart.lines[0]!.quantity).toBe(3);
+        await done;
+        expect(cart.lines[0]!.quantity).toBe(2);
+        expect(useToastStore().messages[0]?.text).toBe('Zobo has just sold out.');
+      });
+
+      it('reloads (and so checks out) only after every change is saved', async () => {
+        const put = slowPut();
+        const fetchMock = routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': put.handler,
+        });
+        const cart = useCartStore();
+        await signIn();
+        void cart.increment(cart.lines[0]!.key);
+        const reloaded = cart.refresh();
+        await flushPromises();
+        const gets = () => fetchMock.mock.calls.filter(([, i]) => (i?.method ?? 'GET') === 'GET');
+        expect(gets()).toHaveLength(1);
+        put.waiting[0]!.answer();
+        await reloaded;
+        expect(gets()).toHaveLength(2);
+      });
+
+      it('ignores a late answer after signing out', async () => {
+        const put = slowPut();
+        routeFetch({
+          'GET /cart': () => Response.json(serverCart()),
+          'PUT /cart/lines': put.handler,
+        });
+        const cart = useCartStore();
+        await signIn();
+        void cart.increment(cart.lines[0]!.key);
+        await flushPromises();
+        useAuthStore().status = 'signed-out';
+        await flushPromises();
+        put.waiting[0]!.answer();
+        await flushPromises();
+        expect(cart.isEmpty).toBe(true);
+      });
+    });
+
     it('goes back to an empty device cart after signing out', async () => {
       routeFetch({ 'GET /cart': () => Response.json(serverCart()) });
       const cart = useCartStore();

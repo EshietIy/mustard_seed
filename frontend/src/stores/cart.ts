@@ -244,20 +244,129 @@ export const useCartStore = defineStore('cart', () => {
 
   const find = (key: string) => lines.value.find((l) => l.key === key);
 
-  /** Runs a server cart call; on failure the cart is unchanged and the reason is shown. */
+  /*
+   * Signed in, a change shows at once and is saved in the background, so the + and − buttons
+   * never wait for the network. Each line sends one request at a time, always with the
+   * newest quantity: five quick taps make at most two requests and no tap is lost.
+   */
+  /** The cart as the server last returned it. */
+  let saved: CartLine[] = [];
+  /** Changes not yet confirmed, by line key; quantity 0 removes the line. */
+  const unsaved = new Map<string, CartLine>();
+  /** The running save for each line. */
+  const saving = new Map<string, Promise<boolean>>();
+  /** Bumped on clear and sign-out, so late answers about an old cart are ignored. */
+  let generation = 0;
+
+  /** The saved cart with the unsaved changes on top. */
+  function show(): void {
+    const shown = saved
+      .map((l) => {
+        const change = unsaved.get(l.key);
+        return change ? { ...l, quantity: change.quantity } : l;
+      })
+      .filter((l) => l.quantity > 0);
+    for (const change of unsaved.values()) {
+      if (change.quantity > 0 && !saved.some((l) => l.key === change.key)) shown.push(change);
+    }
+    lines.value = shown;
+  }
+
+  function useSaved(cart: ServerCart): void {
+    saved = fromServer(cart);
+    show();
+  }
+
+  const failed = (err: unknown) => {
+    const error = asApiError(err);
+    if (error.kind !== 'unauthorized') toast.show(error.message);
+  };
+
+  /** Runs a whole-cart server call; on failure the cart is unchanged and the reason is shown. */
   async function server(call: () => Promise<ServerCart>): Promise<boolean> {
+    const started = generation;
     try {
-      lines.value = fromServer(await call());
+      const cart = await call();
+      if (started === generation) useSaved(cart);
       return true;
     } catch (err) {
-      const error = asApiError(err);
-      if (error.kind !== 'unauthorized') toast.show(error.message);
+      failed(err);
       return false;
     }
   }
 
-  const setOnServer = (menuItemId: string, optionIds: string[], quantity: number) =>
-    server(() => api.put<ServerCart>('/cart/lines', { menuItemId, optionIds, quantity }));
+  /** Saves the newest quantity of one line, then any change made meanwhile. */
+  function save(key: string): Promise<boolean> {
+    const running = saving.get(key);
+    if (running) return running;
+    const started = generation;
+    const run = (async () => {
+      let ok = true;
+      for (let change = unsaved.get(key); change; change = unsaved.get(key)) {
+        const quantity = change.quantity;
+        const serverId = saved.find((l) => l.key === key)?.serverId;
+        if (quantity < 1 && !serverId) {
+          unsaved.delete(key);
+          break;
+        }
+        try {
+          const cart =
+            quantity < 1
+              ? await api.delete<ServerCart>(`/cart/lines/${serverId}`)
+              : await api.put<ServerCart>('/cart/lines', {
+                  menuItemId: change.itemId,
+                  optionIds: change.options.map((o) => o.id).sort(),
+                  quantity,
+                });
+          if (started !== generation) return false;
+          if (unsaved.get(key)?.quantity === quantity) unsaved.delete(key);
+          saved = fromServer(cart);
+          ok = true;
+        } catch (err) {
+          if (started !== generation) return false;
+          // The line goes back to what the server has; the reason is shown.
+          unsaved.delete(key);
+          failed(err);
+          ok = false;
+        }
+        show();
+      }
+      return ok;
+    })().finally(() => {
+      if (saving.get(key) === run) saving.delete(key);
+    });
+    saving.set(key, run);
+    return run;
+  }
+
+  /** Shows the new quantity now and saves it (quantity 0 removes the line). */
+  function change(line: CartLine, quantity: number): Promise<boolean> {
+    unsaved.set(line.key, { ...line, quantity });
+    show();
+    return save(line.key);
+  }
+
+  /** Waits for every change to reach the server. */
+  async function settled(): Promise<void> {
+    while (saving.size > 0) await Promise.all(saving.values());
+  }
+
+  /** A line for an item not yet in the cart (details for display; the server prices it). */
+  function newLine(item: MenuItem, optionIds: readonly string[], quantity: number): CartLine {
+    const options = item.optionGroups
+      .flatMap((g) => g.options)
+      .filter((o) => optionIds.includes(o.id))
+      .map((o) => ({ id: o.id, name: o.name, priceDeltaKobo: o.priceDeltaKobo }));
+    return guestLine({
+      itemId: item.id,
+      name: item.name,
+      priceKobo: item.priceKobo,
+      quantity,
+      isAvailable: true,
+      options,
+      needsChoice: resolveOptions(item, optionIds) === null,
+    });
+  }
 
   /**
    * Adds one of the item with the given choices (the choice sheet has already checked them).
@@ -269,27 +378,13 @@ export const useCartStore = defineStore('cart', () => {
     const line = find(key);
     if (line && line.quantity >= MAX_QUANTITY) return false;
     if (mode.value === 'server') {
-      return setOnServer(item.id, [...optionIds].sort(), (line?.quantity ?? 0) + 1);
+      return change(line ?? newLine(item, optionIds, 0), (line?.quantity ?? 0) + 1);
     }
     if (line) {
       line.quantity += 1;
       return true;
     }
-    const options = item.optionGroups
-      .flatMap((g) => g.options)
-      .filter((o) => optionIds.includes(o.id))
-      .map((o) => ({ id: o.id, name: o.name, priceDeltaKobo: o.priceDeltaKobo }));
-    lines.value.push(
-      guestLine({
-        itemId: item.id,
-        name: item.name,
-        priceKobo: item.priceKobo,
-        quantity: 1,
-        isAvailable: true,
-        options,
-        needsChoice: resolveOptions(item, optionIds) === null,
-      }),
-    );
+    lines.value.push(newLine(item, optionIds, 1));
     return true;
   }
 
@@ -307,7 +402,7 @@ export const useCartStore = defineStore('cart', () => {
     const wanted = Math.min(quantity, MAX_QUANTITY);
     const line = find(lineKey(item.id, optionIds));
     if (line && line.quantity >= wanted) return true;
-    if (mode.value === 'server') return setOnServer(item.id, [...optionIds].sort(), wanted);
+    if (mode.value === 'server') return change(line ?? newLine(item, optionIds, 0), wanted);
     if (!(await add(item, optionIds))) return false;
     const added = find(lineKey(item.id, optionIds));
     if (added) added.quantity = wanted;
@@ -319,11 +414,7 @@ export const useCartStore = defineStore('cart', () => {
     if (!line) return;
     if (quantity < 1) return remove(key);
     if (mode.value === 'server') {
-      await setOnServer(
-        line.itemId,
-        line.options.map((o) => o.id),
-        quantity,
-      );
+      await change(line, quantity);
     } else {
       line.quantity = quantity;
     }
@@ -344,8 +435,8 @@ export const useCartStore = defineStore('cart', () => {
   async function remove(key: string): Promise<void> {
     const line = find(key);
     if (!line) return;
-    if (mode.value === 'server' && line.serverId) {
-      await server(() => api.delete<ServerCart>(`/cart/lines/${line.serverId}`));
+    if (mode.value === 'server') {
+      await change(line, 0);
     } else {
       lines.value = lines.value.filter((l) => l.key !== key);
     }
@@ -357,14 +448,25 @@ export const useCartStore = defineStore('cart', () => {
     if (line) await setQuantity(key, line.quantity);
   }
 
+  function forget(): void {
+    generation += 1;
+    saved = [];
+    unsaved.clear();
+    saving.clear();
+  }
+
   function clear(): void {
+    forget();
     lines.value = [];
     if (mode.value === 'server') void server(() => api.delete<ServerCart>('/cart'));
   }
 
   /** Reloads the server cart (on load, return to the tab, before checkout, after payment). */
   async function refresh(): Promise<void> {
-    if (mode.value === 'server') await server(() => api.get<ServerCart>('/cart'));
+    if (mode.value !== 'server') return;
+    // Changes still being saved go first, so the reload (and checkout) sees them.
+    await settled();
+    await server(() => api.get<ServerCart>('/cart'));
   }
 
   /** Guest cart only: brings stored lines up to date with the live menu. */
@@ -407,7 +509,7 @@ export const useCartStore = defineStore('cart', () => {
     mode.value = 'server';
     try {
       if (guest.length === 0) {
-        lines.value = fromServer(await api.get<ServerCart>('/cart'));
+        useSaved(await api.get<ServerCart>('/cart'));
         return;
       }
       const result = await api.post<{ cart: ServerCart; skipped: number }>('/cart/merge', {
@@ -417,7 +519,7 @@ export const useCartStore = defineStore('cart', () => {
           quantity: l.quantity,
         })),
       });
-      lines.value = fromServer(result.cart);
+      useSaved(result.cart);
       writeStoredLines([]);
       if (result.skipped > 0) {
         toast.show(
@@ -447,6 +549,7 @@ export const useCartStore = defineStore('cart', () => {
     (status) => {
       if (status === 'signed-in' && mode.value === 'guest') void useServerCart();
       if (status === 'signed-out' && mode.value === 'server') {
+        forget();
         mode.value = 'guest';
         lines.value = [];
       }
