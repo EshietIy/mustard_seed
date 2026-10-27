@@ -1,5 +1,6 @@
 package ng.mustardseed.app.cart
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,15 +86,30 @@ private class FakeCartRepository(
     var merged: List<CartLineInputDto>? = null
     var mergeSkipped = 0L
 
+    /** Slow network: each set waits in [waiting] until the test completes it. */
+    var slow = false
+    val waiting = mutableListOf<CompletableDeferred<Unit>>()
+
+    /** When set, a set answers with the cart holding the quantity sent. */
+    var echo: ((Int) -> Outcome<CartDto>)? = null
+
     override suspend fun get() = answer.also { calls += "get" }
 
     override suspend fun setLine(
         menuItemId: String,
         optionIds: List<String>,
         quantity: Int,
-    ) = answer.also { calls += "set $menuItemId $optionIds $quantity" }
+    ): Outcome<CartDto> {
+        calls += "set $menuItemId $optionIds $quantity"
+        if (slow) CompletableDeferred<Unit>().also { waiting += it }.await()
+        return echo?.invoke(quantity) ?: answer
+    }
 
-    override suspend fun deleteLine(lineId: String) = answer.also { calls += "delete $lineId" }
+    override suspend fun deleteLine(lineId: String): Outcome<CartDto> {
+        calls += "delete $lineId"
+        if (slow) CompletableDeferred<Unit>().also { waiting += it }.await()
+        return answer
+    }
 
     override suspend fun clear() = answer.also { calls += "clear" }
 
@@ -309,6 +325,150 @@ class CartStoreTest {
             )
             assertEquals(listOf<CartMessage>(CartMessage.Failed(refused)), messages)
             collector.cancel()
+        }
+
+    // ---------- responsive + and − (signed in) ----------
+
+    private fun TestScope.signedInSlowly(quantity: Long = 2): CartStore {
+        repo.answer = Outcome.Success(cart(line(quantity = quantity)))
+        val cart = store()
+        session.value = SessionState.SignedIn(user)
+        repo.slow = true
+        repo.echo = { Outcome.Success(cart(line(quantity = it.toLong()))) }
+        return cart
+    }
+
+    private fun CartStore.qty() =
+        state.value.lines
+            .single()
+            .quantity
+
+    private fun sets() = repo.calls.filter { it.startsWith("set") }.map { it.substringAfterLast(' ').toInt() }
+
+    @Test
+    fun `the new quantity shows before the server answers`() =
+        runTest {
+            val cart = signedInSlowly()
+            val key =
+                cart.state.value.lines
+                    .single()
+                    .key
+            scope().launch { cart.increment(key) }
+            assertEquals(3, cart.qty())
+            assertEquals(3, cart.state.value.count)
+            repo.waiting.single().complete(Unit)
+            assertEquals(3, cart.qty())
+        }
+
+    @Test
+    fun `quick taps are sent as the newest quantity, without losing any`() =
+        runTest {
+            val cart = signedInSlowly()
+            val key =
+                cart.state.value.lines
+                    .single()
+                    .key
+            repeat(5) { scope().launch { cart.increment(key) } }
+            assertEquals(7, cart.qty())
+            assertEquals(listOf(3), sets())
+            // The answer for 3 must not undo the taps made since.
+            repo.waiting[0].complete(Unit)
+            assertEquals(7, cart.qty())
+            assertEquals(listOf(3, 7), sets())
+            repo.waiting[1].complete(Unit)
+            assertEquals(7, cart.qty())
+            assertEquals(listOf(3, 7), sets())
+        }
+
+    @Test
+    fun `taps that cancel out make no second request`() =
+        runTest {
+            val cart = signedInSlowly()
+            val key =
+                cart.state.value.lines
+                    .single()
+                    .key
+            scope().launch { cart.increment(key) }
+            scope().launch { cart.increment(key) }
+            scope().launch { cart.decrement(key) }
+            repo.waiting[0].complete(Unit)
+            assertEquals(listOf(3), sets())
+            assertEquals(3, cart.qty())
+        }
+
+    @Test
+    fun `a line disappears at once at zero, then is deleted`() =
+        runTest {
+            val cart = signedInSlowly(quantity = 1)
+            repo.answer = Outcome.Success(cart())
+            scope().launch {
+                cart.decrement(
+                    cart.state.value.lines
+                        .single()
+                        .key,
+                )
+            }
+            assertTrue(cart.state.value.isEmpty)
+            repo.waiting.single().complete(Unit)
+            assertEquals("delete 00000000-0000-4000-8000-000000000001", repo.calls.last())
+            assertTrue(cart.state.value.isEmpty)
+        }
+
+    @Test
+    fun `a refused tap puts the quantity back and explains`() =
+        runTest {
+            val cart = signedInSlowly()
+            val messages = mutableListOf<CartMessage>()
+            val collector = scope().launchCollect(cart, messages)
+            val refused = AppError.Rejected(422, "ITEM_UNAVAILABLE", "Zobo has just sold out.", emptyMap())
+            repo.echo = { Outcome.Failure(refused) }
+            scope().launch {
+                cart.increment(
+                    cart.state.value.lines
+                        .single()
+                        .key,
+                )
+            }
+            assertEquals(3, cart.qty())
+            repo.waiting.single().complete(Unit)
+            assertEquals(2, cart.qty())
+            assertEquals(listOf<CartMessage>(CartMessage.Failed(refused)), messages)
+            collector.cancel()
+        }
+
+    @Test
+    fun `reloading waits until every change is saved`() =
+        runTest {
+            val cart = signedInSlowly()
+            scope().launch {
+                cart.increment(
+                    cart.state.value.lines
+                        .single()
+                        .key,
+                )
+            }
+            scope().launch { cart.refresh() }
+            assertEquals(1, repo.calls.count { it == "get" })
+            repo.answer = Outcome.Success(cart(line(quantity = 3)))
+            repo.waiting.single().complete(Unit)
+            assertEquals(2, repo.calls.count { it == "get" })
+            assertEquals(3, cart.qty())
+        }
+
+    @Test
+    fun `a late answer after signing out is ignored`() =
+        runTest {
+            val cart = signedInSlowly()
+            scope().launch {
+                cart.increment(
+                    cart.state.value.lines
+                        .single()
+                        .key,
+                )
+            }
+            session.value = SessionState.SignedOut
+            repo.waiting.single().complete(Unit)
+            assertTrue(cart.state.value.isEmpty)
         }
 
     @Test

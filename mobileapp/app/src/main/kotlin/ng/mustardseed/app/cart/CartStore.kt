@@ -3,6 +3,10 @@ package ng.mustardseed.app.cart
 import android.content.Context
 import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -11,8 +15,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -151,7 +153,7 @@ class CartStore(
     session: StateFlow<SessionState>,
     private val repo: CartRepository,
     private val storage: GuestCartStorage,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow(CartState(lines = storage.read().map(::fromStored)))
     val state: StateFlow<CartState> = _state.asStateFlow()
@@ -159,14 +161,39 @@ class CartStore(
     private val _messages = MutableSharedFlow<CartMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<CartMessage> = _messages.asSharedFlow()
 
-    private val lock = Mutex()
+    /*
+     * Signed in, a change shows at once and is saved in the background, so the + and − buttons
+     * never wait for the network. Each line sends one request at a time, always with the newest
+     * quantity: quick taps are never lost and make at most two requests. Same as the website.
+     * Everything below is used from the main thread only (the app scope and the screens).
+     */
+
+    /** The cart as the server last returned it. */
+    private var saved: List<CartLine> = emptyList()
+
+    /** Changes not yet confirmed, by line key; quantity 0 removes the line. */
+    private val unsaved = mutableMapOf<String, CartLine>()
+
+    /** The running save for each line. */
+    private val saving = mutableMapOf<String, Deferred<Boolean>>()
+
+    /** Bumped on sign-out, so late answers about an old cart are ignored. */
+    private var generation = 0
 
     init {
         scope.launch {
             session.collect { state ->
                 when (state) {
-                    is SessionState.SignedIn -> if (!_state.value.signedIn) useServerCart()
-                    SessionState.SignedOut -> if (_state.value.signedIn) _state.value = CartState()
+                    is SessionState.SignedIn -> {
+                        if (!_state.value.signedIn) useServerCart()
+                    }
+
+                    SessionState.SignedOut -> {
+                        if (_state.value.signedIn) {
+                            forget()
+                            _state.value = CartState()
+                        }
+                    }
                 }
             }
         }
@@ -227,7 +254,15 @@ class CartStore(
 
     /** Reloads the saved cart (on open, on return, before checkout, after payment). */
     suspend fun refresh() {
-        if (_state.value.signedIn) server { repo.get() }
+        if (!_state.value.signedIn) return
+        // Changes still being saved go first, so the reload (and checkout) sees them.
+        settled()
+        server { repo.get() }
+    }
+
+    /** Waits for every change to reach the server. */
+    private suspend fun settled() {
+        while (saving.isNotEmpty()) saving.values.toList().awaitAll()
     }
 
     private suspend fun setQuantityOf(
@@ -235,25 +270,10 @@ class CartStore(
         optionIds: List<String>,
         quantity: Int,
     ): Boolean {
-        if (_state.value.signedIn) return server { repo.setLine(item.id, optionIds.sorted(), quantity) }
-        val options =
-            item.optionGroups
-                .flatMap { it.options }
-                .filter { it.id in optionIds }
-                .map { CartOption(it.id, it.name, it.priceDeltaKobo) }
         val key = lineKey(item.id, optionIds)
         val existing = find(key)
-        val updated =
-            existing?.copy(quantity = quantity)
-                ?: CartLine(
-                    key = key,
-                    itemId = item.id,
-                    name = item.name,
-                    unitPriceKobo = item.priceKobo?.let { base -> base + options.sumOf { it.priceDeltaKobo } },
-                    quantity = quantity,
-                    isAvailable = true,
-                    options = options,
-                )
+        if (_state.value.signedIn) return change(existing ?: newLine(item, optionIds), quantity)
+        val updated = (existing ?: newLine(item, optionIds)).copy(quantity = quantity)
         saveGuest(
             if (existing ==
                 null
@@ -271,11 +291,7 @@ class CartStore(
         quantity: Int,
     ) {
         if (_state.value.signedIn) {
-            if (quantity < 1) {
-                line.serverId?.let { id -> server { repo.deleteLine(id) } }
-            } else {
-                server { repo.setLine(line.itemId, line.options.map { it.id }, quantity) }
-            }
+            change(line, quantity.coerceAtLeast(0))
             return
         }
         saveGuest(
@@ -287,20 +303,132 @@ class CartStore(
         )
     }
 
-    private suspend fun server(call: suspend () -> Outcome<CartDto>): Boolean =
-        lock.withLock {
-            when (val outcome = call()) {
-                is Outcome.Success -> {
-                    _state.update { it.copy(lines = fromServer(outcome.value), signedIn = true) }
-                    true
-                }
+    /** A line for an item not yet in the cart (details for display; the server prices it). */
+    private fun newLine(
+        item: MenuItem,
+        optionIds: List<String>,
+    ): CartLine {
+        val options =
+            item.optionGroups
+                .flatMap { it.options }
+                .filter { it.id in optionIds }
+                .map { CartOption(it.id, it.name, it.priceDeltaKobo) }
+        return CartLine(
+            key = lineKey(item.id, optionIds),
+            itemId = item.id,
+            name = item.name,
+            unitPriceKobo = item.priceKobo?.let { base -> base + options.sumOf { it.priceDeltaKobo } },
+            quantity = 0,
+            isAvailable = true,
+            options = options,
+        )
+    }
 
-                is Outcome.Failure -> {
-                    if (outcome.error !is AppError.SignInRequired) _messages.tryEmit(CartMessage.Failed(outcome.error))
-                    false
+    /** The saved cart with the unsaved changes on top. */
+    private fun show() {
+        val shown =
+            saved
+                .map { line -> unsaved[line.key]?.let { line.copy(quantity = it.quantity) } ?: line }
+                .filter { it.quantity > 0 }
+                .toMutableList()
+        unsaved.values
+            .filter { change -> change.quantity > 0 && saved.none { it.key == change.key } }
+            .forEach { shown += it }
+        _state.update { it.copy(lines = shown) }
+    }
+
+    private fun useSaved(cart: CartDto) {
+        saved = fromServer(cart)
+        show()
+    }
+
+    private fun forget() {
+        generation += 1
+        saved = emptyList()
+        unsaved.clear()
+        saving.clear()
+    }
+
+    private fun failed(error: AppError) {
+        if (error !is AppError.SignInRequired) _messages.tryEmit(CartMessage.Failed(error))
+    }
+
+    /** Shows the new quantity now and saves it (0 removes the line). False if refused. */
+    private suspend fun change(
+        line: CartLine,
+        quantity: Int,
+    ): Boolean {
+        unsaved[line.key] = line.copy(quantity = quantity)
+        show()
+        return save(line.key).await()
+    }
+
+    /** Saves the newest quantity of one line, then any change made meanwhile. */
+    private fun save(key: String): Deferred<Boolean> {
+        saving[key]?.let { return it }
+        val started = generation
+        var run: Deferred<Boolean>? = null
+        run =
+            scope.async(start = CoroutineStart.LAZY) {
+                try {
+                    var ok = true
+                    while (true) {
+                        val change = unsaved[key] ?: break
+                        val quantity = change.quantity
+                        val serverId = saved.find { it.key == key }?.serverId
+                        if (quantity < 1 && serverId == null) {
+                            unsaved.remove(key)
+                            show()
+                            break
+                        }
+                        val outcome =
+                            if (quantity < 1 && serverId != null) {
+                                repo.deleteLine(serverId)
+                            } else {
+                                repo.setLine(change.itemId, change.options.map { it.id }.sorted(), quantity)
+                            }
+                        if (started != generation) return@async false
+                        when (outcome) {
+                            is Outcome.Success -> {
+                                if (unsaved[key]?.quantity == quantity) unsaved.remove(key)
+                                saved = fromServer(outcome.value)
+                                ok = true
+                            }
+
+                            is Outcome.Failure -> {
+                                // The line goes back to what the server has; the reason is shown.
+                                unsaved.remove(key)
+                                failed(outcome.error)
+                                ok = false
+                            }
+                        }
+                        show()
+                    }
+                    ok
+                } finally {
+                    if (saving[key] === run) saving.remove(key)
                 }
             }
+        saving[key] = run
+        run.start()
+        return run
+    }
+
+    /** Runs a whole-cart server call; on failure the cart is unchanged and the reason is shown. */
+    private suspend fun server(call: suspend () -> Outcome<CartDto>): Boolean {
+        val started = generation
+        return when (val outcome = call()) {
+            is Outcome.Success -> {
+                if (started == generation) useSaved(outcome.value)
+                true
+            }
+
+            is Outcome.Failure -> {
+                failed(outcome.error)
+                false
+            }
         }
+    }
 
     private suspend fun useServerCart() {
         val guest = _state.value.lines
@@ -321,7 +449,7 @@ class CartStore(
             )
         when (outcome) {
             is Outcome.Success -> {
-                _state.update { it.copy(lines = fromServer(outcome.value.cart)) }
+                useSaved(outcome.value.cart)
                 storage.write(emptyList())
                 if (outcome.value.skipped > 0) _messages.tryEmit(CartMessage.SomeLeftOut)
             }
