@@ -233,7 +233,8 @@ function saveCsv(name: string, rows: Cell[][]): void {
   link.href = url;
   link.download = `${name}-${r.from}-to-${r.to}.csv`;
   link.click();
-  URL.revokeObjectURL(url);
+  // Freed a little later: revoking at once can cancel the download before the browser reads it.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 const downloads = {
@@ -827,8 +828,12 @@ input {
   padding: 0;
   list-style: none;
 }
+/* Text links, but with a full-size tap area (44px) so a thumb on a phone can't miss them. */
 .link {
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
   border: 0;
   background: none;
   color: var(--color-crimson);

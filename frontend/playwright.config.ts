@@ -15,6 +15,8 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
+    // The site scrolls smoothly; a page still gliding when a tap lands can make it miss.
+    reducedMotion: 'reduce',
   },
   projects: [
     { name: 'mobile', use: { ...devices['Pixel 7'] } },

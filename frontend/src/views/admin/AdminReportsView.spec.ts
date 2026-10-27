@@ -448,6 +448,17 @@ describe('AdminReportsView', () => {
       });
     });
 
+    it('frees the file only after the browser has had time to save it', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      // afterEach puts the real timers back.
+      vi.useFakeTimers({ toFake: ['Date', 'setTimeout'] });
+      await wrapper.get('[data-test="download-totals"]').trigger('click');
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(10_000);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:report');
+    });
+
     it('labels each download for screen readers', async () => {
       routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
       const wrapper = await mountView();
