@@ -21,6 +21,7 @@ import { MenuOptionsModule } from './menu-options/menu-options.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReportsModule } from './reports/reports.module';
+import { SettingsModule } from './settings/settings.module';
 import { PaystackSimulatorModule } from './simulator/paystack/simulator.module';
 import { SiteModule } from './site/site.module';
 import { ROOT_LOGGER } from './logging/logger.token';
@@ -50,6 +51,7 @@ export class AppModule {
         MenuOptionsModule,
         MenuAdminModule,
         ReportsModule,
+        SettingsModule,
         SiteModule,
         AuthModule,
         CartModule,
