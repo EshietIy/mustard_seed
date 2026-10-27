@@ -22,10 +22,12 @@ import {
  * and the menu. Only paid orders count, on the Calabar day and hour the payment cleared.
  */
 type Rank = 'sold' | 'sales';
+type Grouping = 'day' | 'month';
+type Cell = string | number;
 
 /** Opening hours: these always show, so a quiet hour is visible as a quiet hour. */
 const OPEN_HOURS = { first: 8, last: 22 };
-/** Longer periods are added up by month so the list stays readable. */
+/** Longer periods start out added up by month so the list stays readable. */
 const MAX_DAY_ROWS = 92;
 
 const status = ref<'loading' | 'ready' | 'error'>('loading');
@@ -37,6 +39,7 @@ const preset = ref<Preset | null>('last-30');
 const period = ref<Period>(presetPeriod('last-30', watToday(new Date())));
 const custom = ref<Period>({ ...period.value });
 const rank = ref<Rank>('sold');
+const grouping = ref<Grouping>('day');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -127,7 +130,7 @@ const bestSellers = computed(() => {
 const timeline = computed(() => {
   const r = report.value;
   const days = r?.days ?? [];
-  const byMonth = r ? periodDays(r) > MAX_DAY_ROWS : false;
+  const byMonth = grouping.value === 'month';
   const rows: Array<{ key: string; label: string; orders: number; salesKobo: number }> = [];
   for (const d of days) {
     const key = byMonth ? d.date.slice(0, 7) : d.date;
@@ -186,7 +189,9 @@ async function load(): Promise<void> {
   const { from, to } = period.value;
   try {
     const params = new URLSearchParams({ from, to });
-    report.value = await api.get<SalesReport>(`/admin/reports/sales?${params.toString()}`);
+    const loaded = await api.get<SalesReport>(`/admin/reports/sales?${params.toString()}`);
+    report.value = loaded;
+    grouping.value = periodDays(loaded) > MAX_DAY_ROWS ? 'month' : 'day';
     status.value = 'ready';
   } catch (err) {
     const apiError = asApiError(err);
@@ -219,26 +224,90 @@ function chooseCustom(): void {
   void load();
 }
 
-function download(): void {
+/** Saves rows as "<name>-<from>-to-<to>.csv". */
+function saveCsv(name: string, rows: Cell[][]): void {
   const r = report.value;
   if (!r) return;
-  const rows = [
-    ['Rank', 'Dish', 'Category', 'Number sold', 'Sales (naira)', 'Orders'],
-    ...bestSellers.value.map((d, i) => [
-      i + 1,
-      d.name,
-      d.retired ? 'Retired' : categoryLabel(d.category),
-      d.quantity,
-      csvNaira(d.salesKobo),
-      d.orders,
-    ]),
-  ];
   const url = URL.createObjectURL(new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
-  link.download = `best-sellers-${r.from}-to-${r.to}.csv`;
+  link.download = `${name}-${r.from}-to-${r.to}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+const downloads = {
+  totals(r: SalesReport) {
+    const s = r.summary;
+    saveCsv('totals', [
+      ['Measure', 'Value'],
+      ['From', r.from],
+      ['To', r.to],
+      ['Sales (naira)', csvNaira(s.salesKobo)],
+      ['Food sales (naira)', csvNaira(s.foodSalesKobo)],
+      ['Delivery fees (naira)', csvNaira(s.deliveryFeesKobo)],
+      ['Paid orders', s.orders],
+      ['Average order (naira)', csvNaira(s.averageOrderKobo)],
+      ['Items sold', s.itemsSold],
+      ['Delivery orders', s.deliveryOrders],
+      ['Pickup orders', s.pickupOrders],
+      ['Payments failed', s.unpaid.paymentFailed],
+      ['Not paid in time', s.unpaid.expired],
+    ]);
+  },
+  bestSellers() {
+    saveCsv('best-sellers', [
+      ['Rank', 'Dish', 'Category', 'Number sold', 'Sales (naira)', 'Orders'],
+      ...bestSellers.value.map((d, i) => [
+        i + 1,
+        d.name,
+        d.retired ? 'Retired' : categoryLabel(d.category),
+        d.quantity,
+        csvNaira(d.salesKobo),
+        d.orders,
+      ]),
+    ]);
+  },
+  options(r: SalesReport) {
+    saveCsv('meats-and-choices', [
+      ['Choice', 'Option', 'Times chosen', 'Extra sales (naira)'],
+      ...r.options.map((o) => [o.groupName, o.name, o.quantity, csvNaira(o.extraSalesKobo)]),
+    ]);
+  },
+  timeline() {
+    const byMonth = timeline.value.byMonth;
+    saveCsv(byMonth ? 'sales-by-month' : 'sales-by-day', [
+      [byMonth ? 'Month' : 'Date', 'Orders', 'Sales (naira)'],
+      ...timeline.value.rows.map((row) => [row.key, row.orders, csvNaira(row.salesKobo)]),
+    ]);
+  },
+  hours(r: SalesReport) {
+    saveCsv('orders-by-hour', [
+      ['Hour', 'Orders', 'Sales (naira)'],
+      ...r.hours.map((h) => [
+        `${String(h.hour).padStart(2, '0')}:00`,
+        h.orders,
+        csvNaira(h.salesKobo),
+      ]),
+    ]);
+  },
+  weekdays(r: SalesReport) {
+    saveCsv('orders-by-weekday', [
+      ['Weekday', 'Orders', 'Sales (naira)'],
+      ...r.weekdays.map((w) => [capitalise(w.weekday), w.orders, csvNaira(w.salesKobo)]),
+    ]);
+  },
+  unsold(r: SalesReport) {
+    saveCsv('sold-nothing', [
+      ['Dish', 'Category'],
+      ...r.unsoldDishes.map((d) => [d.name, categoryLabel(d.category)]),
+    ]);
+  },
+};
+
+/** The browser's print dialog; "Save as PDF" there gives a PDF of the report. */
+function print(): void {
+  window.print();
 }
 
 onMounted(() => {
@@ -256,7 +325,7 @@ onMounted(() => {
       payment cleared.
     </p>
 
-    <div class="card period">
+    <div class="card period no-print">
       <div class="presets" role="group" aria-label="Period">
         <button
           v-for="p in PRESETS"
@@ -291,7 +360,23 @@ onMounted(() => {
     </div>
 
     <template v-else-if="report">
-      <p class="period-label">{{ periodLabel }}</p>
+      <div class="report-head">
+        <p class="period-label">Sales report · {{ periodLabel }}</p>
+        <div class="actions no-print">
+          <button
+            type="button"
+            class="link"
+            data-test="download-totals"
+            aria-label="Download totals as CSV"
+            @click="downloads.totals(report)"
+          >
+            Download totals (CSV)
+          </button>
+          <button type="button" class="btn-primary btn-sm" data-test="print" @click="print">
+            Print / Save as PDF
+          </button>
+        </div>
+      </div>
 
       <ul class="tiles">
         <li v-for="t in tiles" :key="t.label" class="tile" data-test="tile">
@@ -307,7 +392,7 @@ onMounted(() => {
         <section class="card" aria-labelledby="best-heading">
           <div class="head">
             <h2 id="best-heading">Best sellers</h2>
-            <div class="presets" role="group" aria-label="Rank by">
+            <div class="presets no-print" role="group" aria-label="Rank by">
               <button
                 type="button"
                 class="pill"
@@ -326,7 +411,13 @@ onMounted(() => {
               >
                 Highest sales
               </button>
-              <button type="button" class="link" data-test="download" @click="download">
+              <button
+                type="button"
+                class="link"
+                data-test="download-best-sellers"
+                aria-label="Download best sellers as CSV"
+                @click="downloads.bestSellers()"
+              >
                 Download CSV
               </button>
             </div>
@@ -358,7 +449,18 @@ onMounted(() => {
         </section>
 
         <section v-if="report.options.length" class="card" aria-labelledby="options-heading">
-          <h2 id="options-heading">Meats and other choices</h2>
+          <div class="head">
+            <h2 id="options-heading">Meats and other choices</h2>
+            <button
+              type="button"
+              class="link no-print"
+              data-test="download-options"
+              aria-label="Download meats and other choices as CSV"
+              @click="downloads.options(report)"
+            >
+              Download CSV
+            </button>
+          </div>
           <table class="table">
             <thead>
               <tr>
@@ -378,7 +480,40 @@ onMounted(() => {
         </section>
 
         <section class="card" aria-labelledby="timeline-heading">
-          <h2 id="timeline-heading">{{ timeline.byMonth ? 'Sales by month' : 'Sales by day' }}</h2>
+          <div class="head">
+            <h2 id="timeline-heading">
+              {{ timeline.byMonth ? 'Sales by month' : 'Sales by day' }}
+            </h2>
+            <div class="presets no-print" role="group" aria-label="Show sales">
+              <button
+                type="button"
+                class="pill"
+                data-test="group-day"
+                :aria-pressed="grouping === 'day' ? 'true' : 'false'"
+                @click="grouping = 'day'"
+              >
+                By day
+              </button>
+              <button
+                type="button"
+                class="pill"
+                data-test="group-month"
+                :aria-pressed="grouping === 'month' ? 'true' : 'false'"
+                @click="grouping = 'month'"
+              >
+                By month
+              </button>
+              <button
+                type="button"
+                class="link"
+                data-test="download-timeline"
+                :aria-label="`Download sales by ${grouping} as CSV`"
+                @click="downloads.timeline()"
+              >
+                Download CSV
+              </button>
+            </div>
+          </div>
           <ul class="bars">
             <li v-for="row in timeline.rows" :key="row.key" data-test="day">
               <span class="bar-label">{{ row.label }}</span>
@@ -391,7 +526,29 @@ onMounted(() => {
         </section>
 
         <section class="card" aria-labelledby="busy-heading">
-          <h2 id="busy-heading">Busiest times</h2>
+          <div class="head">
+            <h2 id="busy-heading">Busiest times</h2>
+            <div class="actions no-print">
+              <button
+                type="button"
+                class="link"
+                data-test="download-hours"
+                aria-label="Download orders by hour as CSV"
+                @click="downloads.hours(report)"
+              >
+                Hours (CSV)
+              </button>
+              <button
+                type="button"
+                class="link"
+                data-test="download-weekdays"
+                aria-label="Download orders by weekday as CSV"
+                @click="downloads.weekdays(report)"
+              >
+                Weekdays (CSV)
+              </button>
+            </div>
+          </div>
           <p v-if="busiest" class="note" data-test="busiest">{{ busiest }}</p>
           <div class="split">
             <ul class="bars" aria-label="Orders by hour">
@@ -413,7 +570,18 @@ onMounted(() => {
       </template>
 
       <section v-if="report.unsoldDishes.length" class="card" aria-labelledby="unsold-heading">
-        <h2 id="unsold-heading">Sold nothing in this period</h2>
+        <div class="head">
+          <h2 id="unsold-heading">Sold nothing in this period</h2>
+          <button
+            type="button"
+            class="link no-print"
+            data-test="download-unsold"
+            aria-label="Download dishes that sold nothing as CSV"
+            @click="downloads.unsold(report)"
+          >
+            Download CSV
+          </button>
+        </div>
         <ul class="unsold" data-test="unsold">
           <li v-for="d in report.unsoldDishes" :key="d.menuItemId">
             {{ d.name }} <span class="muted">{{ categoryLabel(d.category) }}</span>
@@ -425,6 +593,40 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+.report-head .period-label {
+  margin: 0;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+/* Print / Save as PDF: the figures only, with the bars kept, and no card split over pages. */
+@media print {
+  .card,
+  .tile,
+  .bars li,
+  .table tr {
+    break-inside: avoid;
+  }
+  .card {
+    overflow: visible;
+  }
+  .bar,
+  .bar > span {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
 h1 {
   margin: 0.25rem 0 0.5rem;
   font-size: 2rem;

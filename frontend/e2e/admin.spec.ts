@@ -567,8 +567,51 @@ test.describe('Feature: sales reports', () => {
     await page.route(`${API}/admin/reports/sales?**`, (route) => route.fulfill({ json: REPORT }));
     await page.goto('/admin/reports');
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Download CSV' }).click();
+    await page.getByRole('button', { name: 'Download best sellers as CSV' }).click();
     expect((await download).suggestedFilename()).toBe('best-sellers-2026-10-01-to-2026-10-07.csv');
+    const daily = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download sales by day as CSV' }).click();
+    expect((await daily).suggestedFilename()).toBe('sales-by-day-2026-10-01-to-2026-10-07.csv');
+  });
+
+  test('Scenario: a super admin prints the report without the controls', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/reports/sales?**`, (route) => route.fulfill({ json: REPORT }));
+    await page.goto('/admin/reports');
+    await page.evaluate(() => {
+      (window as unknown as { printed: number }).printed = 0;
+      window.print = () => {
+        (window as unknown as { printed: number }).printed += 1;
+      };
+    });
+    await page.getByRole('button', { name: 'Print / Save as PDF' }).click();
+    expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByRole('navigation', { name: 'Staff screens' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Last 7 days' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Print / Save as PDF' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Download best sellers as CSV' })).toBeHidden();
+    await expect(page.getByText('Sales report · 1 Oct 2026 – 7 Oct 2026')).toBeVisible();
+    await expect(page.locator('[data-test="best-seller"]').first()).toBeVisible();
+  });
+
+  test('Scenario: a super admin looks at yesterday', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    const asked: string[] = [];
+    await page.route(`${API}/admin/reports/sales?**`, (route) => {
+      asked.push(new URL(route.request().url()).search);
+      return route.fulfill({ json: REPORT });
+    });
+    await page.goto('/admin/reports');
+    await expect(page.locator('[data-test="best-seller"]').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Yesterday' }).click();
+    await expect(page.getByRole('button', { name: 'Yesterday' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const [, from, to] = /from=([\d-]+)&to=([\d-]+)/.exec(asked.at(-1) ?? '') ?? [];
+    expect(from).toBe(to);
   });
 
   test('Scenario: a failed report can be tried again', async ({ page }) => {

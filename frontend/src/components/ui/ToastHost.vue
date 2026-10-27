@@ -5,7 +5,7 @@ const toast = useToastStore();
 </script>
 
 <template>
-  <div class="toasts" aria-live="polite" aria-atomic="false">
+  <div class="toasts no-print" aria-live="polite" aria-atomic="false">
     <TransitionGroup name="toast">
       <p v-for="m in toast.messages" :key="m.id" class="toast" @click="toast.dismiss(m.id)">
         {{ m.text }}

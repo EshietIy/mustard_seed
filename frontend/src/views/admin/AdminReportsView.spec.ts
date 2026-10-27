@@ -331,29 +331,214 @@ describe('AdminReportsView', () => {
     expect(texts(wrapper, '[data-test="best-seller"]')[0]).toBe('1 Zobo 4 ₦3,200');
   });
 
-  it('downloads the best sellers as a spreadsheet file', async () => {
-    routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
-    let saved: Blob | undefined;
-    const create = vi.fn((blob: Blob) => {
-      saved = blob;
-      return 'blob:report';
+  describe('exporting', () => {
+    let saved: Blob[];
+    let names: string[];
+
+    beforeEach(() => {
+      saved = [];
+      names = [];
+      vi.stubGlobal(
+        'URL',
+        Object.assign(URL, {
+          createObjectURL: vi.fn((blob: Blob) => {
+            saved.push(blob);
+            return 'blob:report';
+          }),
+          revokeObjectURL: vi.fn(),
+        }),
+      );
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+        this: HTMLAnchorElement,
+      ) {
+        names.push(this.download);
+      });
     });
-    const revoke = vi.fn();
-    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    const wrapper = await mountView();
-    await wrapper.get('[data-test="download"]').trigger('click');
-    expect(click).toHaveBeenCalled();
-    const anchor = click.mock.contexts[0] as HTMLAnchorElement;
-    expect(anchor.download).toBe('best-sellers-2026-09-28-to-2026-10-27.csv');
-    expect(await saved!.text()).toBe(
-      [
-        'Rank,Dish,Category,Number sold,Sales (naira),Orders',
-        '1,Zobo,Fresh juices,4,3200.00,2',
-        '2,Afang Soup,Calabar soups,3,13800.00,2',
-        '3,Old Stew,Retired,1,4500.00,1',
-      ].join('\r\n'),
-    );
-    expect(revoke).toHaveBeenCalledWith('blob:report');
+
+    async function download(wrapper: VueWrapper, test: string) {
+      await wrapper.get(`[data-test="${test}"]`).trigger('click');
+      return { name: names.at(-1), text: await saved.at(-1)!.text() };
+    }
+
+    it('downloads the best sellers, in the order shown', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(await download(wrapper, 'download-best-sellers')).toEqual({
+        name: 'best-sellers-2026-09-28-to-2026-10-27.csv',
+        text: [
+          'Rank,Dish,Category,Number sold,Sales (naira),Orders',
+          '1,Zobo,Fresh juices,4,3200.00,2',
+          '2,Afang Soup,Calabar soups,3,13800.00,2',
+          '3,Old Stew,Retired,1,4500.00,1',
+        ].join('\r\n'),
+      });
+      await wrapper.get('[data-test="rank-sales"]').trigger('click');
+      expect((await download(wrapper, 'download-best-sellers')).text.split('\r\n')[1]).toBe(
+        '1,Afang Soup,Calabar soups,3,13800.00,2',
+      );
+    });
+
+    it('downloads the totals', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(await download(wrapper, 'download-totals')).toEqual({
+        name: 'totals-2026-09-28-to-2026-10-27.csv',
+        text: [
+          'Measure,Value',
+          'From,2026-09-28',
+          'To,2026-10-27',
+          'Sales (naira),23000.00',
+          'Food sales (naira),21500.00',
+          'Delivery fees (naira),1500.00',
+          'Paid orders,3',
+          'Average order (naira),7666.67',
+          'Items sold,8',
+          'Delivery orders,1',
+          'Pickup orders,2',
+          'Payments failed,2',
+          'Not paid in time,1',
+        ].join('\r\n'),
+      });
+    });
+
+    it('downloads sales by day, or by month when switched', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(await download(wrapper, 'download-timeline')).toEqual({
+        name: 'sales-by-day-2026-09-28-to-2026-10-27.csv',
+        text: [
+          'Date,Orders,Sales (naira)',
+          '2026-10-20,2,16100.00',
+          '2026-10-21,0,0.00',
+          '2026-10-22,1,6900.00',
+        ].join('\r\n'),
+      });
+      await wrapper.get('[data-test="group-month"]').trigger('click');
+      expect(await download(wrapper, 'download-timeline')).toEqual({
+        name: 'sales-by-month-2026-09-28-to-2026-10-27.csv',
+        text: ['Month,Orders,Sales (naira)', '2026-10,3,23000.00'].join('\r\n'),
+      });
+    });
+
+    it('downloads the meats, hours, weekdays and dishes that sold nothing', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(await download(wrapper, 'download-options')).toEqual({
+        name: 'meats-and-choices-2026-09-28-to-2026-10-27.csv',
+        text: [
+          'Choice,Option,Times chosen,Extra sales (naira)',
+          'Soup protein,Beef,2,1000.00',
+          'Soup protein,Fish,1,800.00',
+        ].join('\r\n'),
+      });
+      const hours = await download(wrapper, 'download-hours');
+      expect(hours.name).toBe('orders-by-hour-2026-09-28-to-2026-10-27.csv');
+      expect(hours.text.split('\r\n')).toHaveLength(25);
+      expect(hours.text).toContain('13:00,2,16100.00');
+      const weekdays = await download(wrapper, 'download-weekdays');
+      expect(weekdays.name).toBe('orders-by-weekday-2026-09-28-to-2026-10-27.csv');
+      expect(weekdays.text.split('\r\n').slice(0, 3)).toEqual([
+        'Weekday,Orders,Sales (naira)',
+        'Monday,0,0.00',
+        'Tuesday,2,16100.00',
+      ]);
+      expect(await download(wrapper, 'download-unsold')).toEqual({
+        name: 'sold-nothing-2026-09-28-to-2026-10-27.csv',
+        text: ['Dish,Category', 'Garri,Swallow'].join('\r\n'),
+      });
+    });
+
+    it('labels each download for screen readers', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(wrapper.get('[data-test="download-timeline"]').attributes('aria-label')).toBe(
+        'Download sales by day as CSV',
+      );
+      expect(wrapper.get('[data-test="download-unsold"]').attributes('aria-label')).toBe(
+        'Download dishes that sold nothing as CSV',
+      );
+    });
+
+    it('opens the print dialog, with the controls kept off the page', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+      const wrapper = await mountView();
+      await wrapper.get('[data-test="print"]').trigger('click');
+      expect(print).toHaveBeenCalledOnce();
+      expect(wrapper.get('[data-test="custom"]').element.closest('.no-print')).not.toBeNull();
+      expect(wrapper.get('[data-test="print"]').element.closest('.no-print')).not.toBeNull();
+      expect(wrapper.get('[data-test="rank-sold"]').element.closest('.no-print')).not.toBeNull();
+      expect(wrapper.get('[data-test="best-seller"]').element.closest('.no-print')).toBeNull();
+      expect(wrapper.text()).toContain('Sales report · 28 Sep 2026 – 27 Oct 2026');
+    });
+  });
+
+  describe('more periods and grouping', () => {
+    it('offers every period button, in order', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(wrapper.findAll('[data-test^="preset-"]').map((b) => b.text())).toEqual([
+        'Today',
+        'Yesterday',
+        'Last 7 days',
+        'Last 30 days',
+        'This month',
+        'Last month',
+        'Last 12 months',
+        'This year',
+        'Last year',
+      ]);
+    });
+
+    it.each([
+      ['today', 'from=2026-10-27&to=2026-10-27'],
+      ['yesterday', 'from=2026-10-26&to=2026-10-26'],
+      ['last-12-months', 'from=2025-10-28&to=2026-10-27'],
+      ['last-year', 'from=2025-01-01&to=2025-12-31'],
+    ])('asks for %s', async (id, query) => {
+      const fetchMock = routeFetch({
+        'GET /menu': () => json(MENU),
+        [LAST_30]: () => json(report()),
+        [`GET /admin/reports/sales?${query}`]: () => json(report()),
+      });
+      const wrapper = await mountView();
+      await wrapper.get(`[data-test="preset-${id}"]`).trigger('click');
+      await flushPromises();
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(query), expect.anything());
+      expect(wrapper.get(`[data-test="preset-${id}"]`).attributes('aria-pressed')).toBe('true');
+    });
+
+    it('switches a short period to months and back to days', async () => {
+      routeFetch({ 'GET /menu': () => json(MENU), [LAST_30]: () => json(report()) });
+      const wrapper = await mountView();
+      expect(wrapper.get('[data-test="group-day"]').attributes('aria-pressed')).toBe('true');
+      await wrapper.get('[data-test="group-month"]').trigger('click');
+      expect(wrapper.text()).toContain('Sales by month');
+      expect(texts(wrapper, '[data-test="day"]')).toEqual(['Oct 2026 3 orders · ₦23,000']);
+      await wrapper.get('[data-test="group-day"]').trigger('click');
+      expect(texts(wrapper, '[data-test="day"]')).toHaveLength(3);
+    });
+
+    it('starts a long period by month, and can show it by day', async () => {
+      const days = [
+        { date: '2026-01-31', orders: 2, salesKobo: 100000 },
+        { date: '2026-02-01', orders: 1, salesKobo: 50000 },
+      ];
+      routeFetch({
+        'GET /menu': () => json(MENU),
+        [LAST_30]: () => json(report()),
+        'GET /admin/reports/sales?from=2025-10-28&to=2026-10-27': () =>
+          json(report({ from: '2025-10-28', days })),
+      });
+      const wrapper = await mountView();
+      await wrapper.get('[data-test="preset-last-12-months"]').trigger('click');
+      await flushPromises();
+      expect(wrapper.get('[data-test="group-month"]').attributes('aria-pressed')).toBe('true');
+      await wrapper.get('[data-test="group-day"]').trigger('click');
+      expect(texts(wrapper, '[data-test="day"]')).toEqual([
+        'Sat 31 Jan 2 orders · ₦1,000',
+        'Sun 1 Feb 1 order · ₦500',
+      ]);
+    });
   });
 });

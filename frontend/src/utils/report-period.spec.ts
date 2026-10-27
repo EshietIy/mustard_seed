@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { periodDays, periodProblem, presetPeriod, watToday } from './report-period';
+import { PRESETS, periodDays, periodProblem, presetPeriod, watToday } from './report-period';
 
 describe('watToday', () => {
   it('is the date in Calabar, an hour ahead of UTC', () => {
@@ -15,8 +15,24 @@ describe('presetPeriod', () => {
     ['this-month', '2026-10-01', '2026-10-27'],
     ['last-month', '2026-09-01', '2026-09-30'],
     ['this-year', '2026-01-01', '2026-10-27'],
+    ['today', '2026-10-27', '2026-10-27'],
+    ['yesterday', '2026-10-26', '2026-10-26'],
+    ['last-12-months', '2025-10-28', '2026-10-27'],
+    ['last-year', '2025-01-01', '2025-12-31'],
   ] as const)('%s ends where it should', (preset, from, to) => {
     expect(presetPeriod(preset, '2026-10-27')).toEqual({ from, to });
+  });
+
+  it('finds yesterday across a month end, and keeps every preset within the API limit', () => {
+    expect(presetPeriod('yesterday', '2026-03-01')).toEqual({
+      from: '2026-02-28',
+      to: '2026-02-28',
+    });
+    for (const today of ['2024-02-29', '2024-03-01', '2026-01-01', '2026-12-31']) {
+      for (const p of PRESETS) {
+        expect(periodProblem(presetPeriod(p.id, today))).toBeNull();
+      }
+    }
   });
 
   it('finds last month across a new year, and February’s length', () => {

@@ -45,7 +45,7 @@ async function signOut(): Promise<void> {
           <span class="brand-sub">Staff area</span>
         </span>
       </RouterLink>
-      <div v-if="staff && auth.user" class="who">
+      <div v-if="staff && auth.user" class="who no-print">
         <span class="name">{{ auth.user.firstName || auth.user.email }}</span>
         <span class="role">{{ roleLabel(auth.user.role) }}</span>
         <button type="button" class="sign-out" data-test="admin-sign-out" @click="signOut">
@@ -76,7 +76,7 @@ async function signOut(): Promise<void> {
     </section>
 
     <div v-else class="frame">
-      <nav class="nav" aria-label="Staff screens" data-test="admin-nav">
+      <nav class="nav no-print" aria-label="Staff screens" data-test="admin-nav">
         <RouterLink :to="{ name: 'admin' }" exact-active-class="active">Overview</RouterLink>
         <RouterLink
           v-for="section in sections"
@@ -214,6 +214,11 @@ async function signOut(): Promise<void> {
   .nav {
     flex-direction: column;
     overflow: visible;
+  }
+}
+@media print {
+  .frame {
+    display: block;
   }
 }
 </style>

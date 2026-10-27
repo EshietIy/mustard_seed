@@ -123,3 +123,13 @@ img {
     transition: none !important;
   }
 }
+
+/* Printing (Reports: "Print / Save as PDF"): controls and navigation stay off the page. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: var(--color-white);
+  }
+}
