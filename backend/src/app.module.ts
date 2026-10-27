@@ -20,6 +20,7 @@ import { MenuAdminModule } from './menu-admin/menu-admin.module';
 import { MenuOptionsModule } from './menu-options/menu-options.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReportsModule } from './reports/reports.module';
 import { PaystackSimulatorModule } from './simulator/paystack/simulator.module';
 import { SiteModule } from './site/site.module';
 import { ROOT_LOGGER } from './logging/logger.token';
@@ -48,6 +49,7 @@ export class AppModule {
         MenuModule,
         MenuOptionsModule,
         MenuAdminModule,
+        ReportsModule,
         SiteModule,
         AuthModule,
         CartModule,
