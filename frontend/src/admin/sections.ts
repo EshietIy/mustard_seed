@@ -8,6 +8,7 @@ export type AdminSectionName =
   | 'admin-dishes'
   | 'admin-prices'
   | 'admin-photos'
+  | 'admin-reports'
   | 'admin-staff';
 
 export interface AdminSection {
@@ -56,6 +57,13 @@ export const adminSections: readonly AdminSection[] = [
     path: 'photos',
     label: 'Photos',
     description: 'Upload and replace dish photos.',
+    roles: ['super_admin'],
+  },
+  {
+    name: 'admin-reports',
+    path: 'reports',
+    label: 'Reports',
+    description: 'Best-selling dishes, sales by day, and the busiest hours and weekdays.',
     roles: ['super_admin'],
   },
   {

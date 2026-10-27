@@ -40,6 +40,6 @@ describe('AdminHomeView', () => {
 
   it('lists every section for a super_admin', async () => {
     const wrapper = await mountHome('super_admin');
-    expect(wrapper.findAll('[data-test="admin-section"]')).toHaveLength(6);
+    expect(wrapper.findAll('[data-test="admin-section"]')).toHaveLength(7);
   });
 });

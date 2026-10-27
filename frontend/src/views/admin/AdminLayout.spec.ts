@@ -93,6 +93,7 @@ describe('AdminLayout', () => {
       'Dishes',
       'Item prices',
       'Photos',
+      'Reports',
       'Staff',
     ]);
     expect(wrapper.text()).toContain('Super admin');

@@ -28,6 +28,7 @@ test.describe('Feature: the staff area', () => {
       'Dishes',
       'Item prices',
       'Photos',
+      'Reports',
       'Staff',
     ]);
   });
@@ -469,6 +470,128 @@ test.describe('Feature: managing dishes', () => {
     await page.goto('/admin/dishes');
     await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
     await expect(page.locator('[data-test="dish"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Feature: sales reports', () => {
+  const hours = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    orders: hour === 13 ? 2 : 0,
+    salesKobo: hour === 13 ? 1610000 : 0,
+  }));
+  const weekdays = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ].map((weekday) => ({
+    weekday,
+    orders: weekday === 'tuesday' ? 2 : 0,
+    salesKobo: weekday === 'tuesday' ? 1610000 : 0,
+  }));
+  const REPORT = {
+    from: '2026-10-01',
+    to: '2026-10-07',
+    timezone: 'Africa/Lagos',
+    summary: {
+      orders: 2,
+      salesKobo: 1610000,
+      foodSalesKobo: 1460000,
+      deliveryFeesKobo: 150000,
+      averageOrderKobo: 805000,
+      itemsSold: 4,
+      deliveryOrders: 1,
+      pickupOrders: 1,
+      unpaid: { paymentFailed: 1, expired: 0 },
+    },
+    dishes: [
+      {
+        menuItemId: 'zobo',
+        name: 'Zobo',
+        category: 'fresh_juices',
+        retired: false,
+        quantity: 3,
+        salesKobo: 240000,
+        orders: 2,
+      },
+      {
+        menuItemId: 'afang-soup',
+        name: 'Afang Soup',
+        category: 'calabar_soups',
+        retired: false,
+        quantity: 1,
+        salesKobo: 1220000,
+        orders: 1,
+      },
+    ],
+    unsoldDishes: [{ menuItemId: 'garri', name: 'Garri', category: 'swallow' }],
+    options: [{ groupName: 'Soup protein', name: 'Beef', quantity: 1, extraSalesKobo: 0 }],
+    days: [{ date: '2026-10-06', orders: 2, salesKobo: 1610000 }],
+    hours,
+    weekdays,
+  };
+
+  test('Scenario: a super admin sees the best sellers and switches period', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    const asked: string[] = [];
+    await page.route(`${API}/admin/reports/sales?**`, (route) => {
+      asked.push(new URL(route.request().url()).search);
+      return route.fulfill({ json: REPORT });
+    });
+    await page.goto('/admin/reports');
+    await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
+    await expect(page.locator('[data-test="best-seller"]').first()).toContainText('Zobo');
+    await expect(page.locator('[data-test="tile"]').first()).toContainText('₦16,100');
+    await expect(page.getByText('Busiest: Tuesdays, and 1pm to 2pm.')).toBeVisible();
+    await expect(page.locator('[data-test="unsold"]')).toContainText('Garri');
+
+    await page.getByRole('button', { name: 'Highest sales' }).click();
+    await expect(page.locator('[data-test="best-seller"]').first()).toContainText('Afang Soup');
+
+    await page.getByRole('button', { name: 'Last 7 days' }).click();
+    await expect(page.getByRole('button', { name: 'Last 7 days' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(asked).toHaveLength(2);
+    expect(asked.every((q) => /^\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/.test(q))).toBe(
+      true,
+    );
+  });
+
+  test('Scenario: a super admin downloads the best sellers', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    await page.route(`${API}/admin/reports/sales?**`, (route) => route.fulfill({ json: REPORT }));
+    await page.goto('/admin/reports');
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download CSV' }).click();
+    expect((await download).suggestedFilename()).toBe('best-sellers-2026-10-01-to-2026-10-07.csv');
+  });
+
+  test('Scenario: a failed report can be tried again', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    let calls = 0;
+    await page.route(`${API}/admin/reports/sales?**`, (route) =>
+      ++calls === 1
+        ? route.fulfill({
+            status: 503,
+            json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'down', requestId: 'req-3' } },
+          })
+        : route.fulfill({ json: REPORT }),
+    );
+    await page.goto('/admin/reports');
+    await expect(page.getByText('We couldn’t load the report.')).toBeVisible();
+    await page.getByRole('button', { name: /try again/i }).click();
+    await expect(page.locator('[data-test="best-seller"]')).toHaveCount(2);
+  });
+
+  test('Scenario: a supervisor cannot open reports', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.goto('/admin/reports');
+    await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
   });
 });
 

@@ -220,3 +220,36 @@ export interface StaffMember {
   createdAt: string;
   deactivatedAt: string | null;
 }
+
+/** GET /admin/reports/sales: paid orders in a WAT period (super admins). Money in kobo. */
+export interface SalesReport {
+  from: string;
+  to: string;
+  timezone: string;
+  summary: {
+    orders: number;
+    salesKobo: number;
+    foodSalesKobo: number;
+    deliveryFeesKobo: number;
+    averageOrderKobo: number;
+    itemsSold: number;
+    deliveryOrders: number;
+    pickupOrders: number;
+    unpaid: { paymentFailed: number; expired: number };
+  };
+  /** Best sellers first. */
+  dishes: Array<{
+    menuItemId: string;
+    name: string;
+    category: MenuCategoryId | null;
+    retired: boolean;
+    quantity: number;
+    salesKobo: number;
+    orders: number;
+  }>;
+  unsoldDishes: Array<{ menuItemId: string; name: string; category: MenuCategoryId }>;
+  options: Array<{ groupName: string; name: string; quantity: number; extraSalesKobo: number }>;
+  days: Array<{ date: string; orders: number; salesKobo: number }>;
+  hours: Array<{ hour: number; orders: number; salesKobo: number }>;
+  weekdays: Array<{ weekday: string; orders: number; salesKobo: number }>;
+}
