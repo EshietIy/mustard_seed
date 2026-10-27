@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { API, mockApi, SIGNED_IN_USER } from './support/mock-api';
 
 const SUPERVISOR = { ...SIGNED_IN_USER, id: 'u-sup', firstName: 'Ime', role: 'supervisor' };
@@ -30,6 +30,7 @@ test.describe('Feature: the staff area', () => {
       'Photos',
       'Reports',
       'Staff',
+      'Settings',
     ]);
   });
 
@@ -562,16 +563,51 @@ test.describe('Feature: sales reports', () => {
     );
   });
 
-  test('Scenario: a super admin downloads the best sellers', async ({ page }) => {
+  /**
+   * Records the files the page asks the browser to save. Chromium's phone emulation does not
+   * report downloads reliably, so the journey checks what our code hands over instead.
+   */
+  async function captureDownloads(page: Page) {
+    await page.addInitScript(() => {
+      const saved: Array<Promise<{ name: string; text: string }>> = [];
+      (window as unknown as { saved: typeof saved }).saved = saved;
+      const click = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+        if (!this.download) return click.call(this);
+        const name = this.download;
+        // Read straight away, as the browser would, before the page frees the file.
+        saved.push(
+          fetch(this.href)
+            .then((r) => r.text())
+            .then((text) => ({ name, text })),
+        );
+      };
+    });
+    return () =>
+      page.evaluate(() =>
+        Promise.all(
+          (window as unknown as { saved: Array<Promise<{ name: string; text: string }>> }).saved,
+        ),
+      );
+  }
+
+  test('Scenario: a super admin downloads the best sellers and sales by day', async ({ page }) => {
     await mockApi(page, { session: SUPER_ADMIN });
     await page.route(`${API}/admin/reports/sales?**`, (route) => route.fulfill({ json: REPORT }));
+    const downloads = await captureDownloads(page);
     await page.goto('/admin/reports');
-    const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download best sellers as CSV' }).click();
-    expect((await download).suggestedFilename()).toBe('best-sellers-2026-10-01-to-2026-10-07.csv');
-    const daily = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download sales by day as CSV' }).click();
-    expect((await daily).suggestedFilename()).toBe('sales-by-day-2026-10-01-to-2026-10-07.csv');
+    const files = await downloads();
+    expect(files.map((f) => f.name)).toEqual([
+      'best-sellers-2026-10-01-to-2026-10-07.csv',
+      'sales-by-day-2026-10-01-to-2026-10-07.csv',
+    ]);
+    expect(files[0]!.text.split('\r\n')[0]).toBe(
+      'Rank,Dish,Category,Number sold,Sales (naira),Orders',
+    );
+    expect(files[0]!.text).toContain('Zobo');
+    expect(files[1]!.text.split('\r\n')[0]).toBe('Date,Orders,Sales (naira)');
   });
 
   test('Scenario: a super admin prints the report without the controls', async ({ page }) => {
@@ -855,5 +891,91 @@ test.describe('Feature: staff management', () => {
     await page.goto('/admin/staff');
     await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
     await expect(page.locator('[data-test="add-staff"]')).toHaveCount(0);
+  });
+});
+
+test.describe('Feature: restaurant settings', () => {
+  const SETTINGS = {
+    deliveryFeeKobo: 150000,
+    deliveryArea: 'Calabar',
+    opensAt: '08:00',
+    closesAt: '23:00',
+    onlineOrdersCloseAt: '22:30',
+    timezone: 'Africa/Lagos',
+  };
+
+  test('Scenario: a super admin changes the delivery fee and the hours', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    const sent: unknown[] = [];
+    let current = { ...SETTINGS };
+    await page.route(`${API}/admin/settings`, async (route) => {
+      if (route.request().method() === 'PATCH') {
+        const body = route.request().postDataJSON() as object;
+        sent.push(body);
+        current = { ...current, ...body };
+      }
+      await route.fulfill({ json: current });
+    });
+    await page.goto('/admin');
+    await page
+      .getByRole('navigation', { name: 'Staff screens' })
+      .getByRole('link', { name: 'Settings' })
+      .click();
+    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible();
+    await expect(page.getByText('Now: ₦1,500')).toBeVisible();
+
+    await page.getByLabel('Delivery fee in naira').fill('2,000');
+    await page.getByRole('button', { name: 'Save fee' }).click();
+    await expect(page.getByText('Now: ₦2,000')).toBeVisible();
+    await expect(page.getByText('Delivery now costs ₦2,000 from the next order.')).toBeVisible();
+
+    await page.getByLabel('Opens').fill('09:00');
+    await page.getByRole('button', { name: 'Save hours' }).click();
+    await expect(page.getByText('Now: open 9am – 11pm, online orders until 10:30pm')).toBeVisible();
+    expect(sent).toEqual([
+      { deliveryFeeKobo: 200000 },
+      { opensAt: '09:00', onlineOrdersCloseAt: '22:30', closesAt: '23:00' },
+    ]);
+  });
+
+  test('Scenario: hours with no time to order are explained, not sent', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    let patched = false;
+    await page.route(`${API}/admin/settings`, (route) => {
+      if (route.request().method() === 'PATCH') patched = true;
+      return route.fulfill({ json: SETTINGS });
+    });
+    await page.goto('/admin/settings');
+    await page.getByLabel('Closes').fill('22:00');
+    await page.getByRole('button', { name: 'Save hours' }).click();
+    await expect(page.getByRole('alert')).toHaveText(
+      'The online order cut-off can’t be after closing time.',
+    );
+    expect(patched).toBe(false);
+  });
+
+  test('Scenario: settings that fail to load can be tried again', async ({ page }) => {
+    await mockApi(page, { session: SUPER_ADMIN });
+    let calls = 0;
+    await page.route(`${API}/admin/settings`, (route) =>
+      ++calls === 1
+        ? route.fulfill({
+            status: 503,
+            json: {
+              error: { code: 'SERVICE_UNAVAILABLE', message: 'Try again.', requestId: 'r-1' },
+            },
+          })
+        : route.fulfill({ json: SETTINGS }),
+    );
+    await page.goto('/admin/settings');
+    await expect(page.getByText('We couldn’t load the settings.')).toBeVisible();
+    await page.getByRole('button', { name: /try again/i }).click();
+    await expect(page.getByText('Now: ₦1,500')).toBeVisible();
+  });
+
+  test('Scenario: a supervisor cannot open settings', async ({ page }) => {
+    await mockApi(page, { session: SUPERVISOR });
+    await page.goto('/admin/settings');
+    await expect(page.getByRole('alert')).toContainText('Your role can’t use this screen');
   });
 });

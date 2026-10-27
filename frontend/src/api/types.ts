@@ -253,3 +253,13 @@ export interface SalesReport {
   hours: Array<{ hour: number; orders: number; salesKobo: number }>;
   weekdays: Array<{ weekday: string; orders: number; salesKobo: number }>;
 }
+
+/** GET/PATCH /admin/settings (super admins only). Times are 24-hour "HH:MM" in WAT. */
+export interface RestaurantSettings {
+  deliveryFeeKobo: number;
+  deliveryArea: string;
+  opensAt: string;
+  closesAt: string;
+  onlineOrdersCloseAt: string;
+  timezone: string;
+}

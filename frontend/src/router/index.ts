@@ -11,6 +11,7 @@ const adminScreens: Record<AdminSectionName, () => Promise<unknown>> = {
   'admin-photos': () => import('@/views/admin/AdminPhotosView.vue'),
   'admin-reports': () => import('@/views/admin/AdminReportsView.vue'),
   'admin-staff': () => import('@/views/admin/AdminStaffView.vue'),
+  'admin-settings': () => import('@/views/admin/AdminSettingsView.vue'),
 };
 
 export const routes = [

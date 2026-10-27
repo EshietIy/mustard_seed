@@ -18,6 +18,7 @@ describe('admin sections', () => {
       'Photos',
       'Reports',
       'Staff',
+      'Settings',
     ]);
   });
 

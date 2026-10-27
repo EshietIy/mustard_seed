@@ -95,6 +95,7 @@ describe('AdminLayout', () => {
       'Photos',
       'Reports',
       'Staff',
+      'Settings',
     ]);
     expect(wrapper.text()).toContain('Super admin');
   });
