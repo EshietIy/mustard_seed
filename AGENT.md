@@ -25,6 +25,7 @@ The first deliverable is the **customer landing page and ordering flow**, matchi
 
 - Online payment only. Never send an unpaid order to the kitchen.
 - Delivery is a flat **₦1,500 anywhere in Calabar**. Pickup is free.
+- The delivery fee and the opening, closing and online-order cut-off times are stored in `restaurant_info` and a `super_admin` can change them on the Settings screen (decided 2026-10-27). The figures above are the starting values. Orders keep the fee they were charged. The delivery area itself (Calabar only) is not a setting.
 - Online ordering is live for **Calabar only**. Uyo shows "Online ordering coming soon".
 - Alcohol is **not** sold online. Menu covers food, soups, swallow and sides, continental dishes, and non-alcoholic drinks (including fresh juices).
 - Menu categories: Calabar soups, Swallow, Rice & native dishes, Continental, Fresh juices, Soft drinks & water (approved 2026-10-18 with the redesigned landing page). "All" is a filter in the UI, not a category.
@@ -275,7 +276,7 @@ The approved design is `docs/email-order-confirmation.pdf`. Build the email to m
 
 - Roles: `customer`, `supervisor` and `super_admin`.
   - `supervisor` (kitchen supervisor): the kitchen board; switching menu items and options available/unavailable; and adding options (for example a new soup protein) and setting option prices, including per-item price overrides (decided 2026-10-19). Nothing else: item prices, renaming, reordering and archiving options, photos and staff stay `super_admin` only.
-  - `super_admin`: everything, including prices (item prices and option price differences), photos, managing options (add, rename, reorder, re-price, archive), reports and staff management.
+  - `super_admin`: everything, including prices (item prices and option price differences), photos, managing options (add, rename, reorder, re-price, archive), reports, settings (delivery fee and hours) and staff management.
 - **Customers** are created automatically on first Google sign-in with the `customer` role.
 - **Staff are provisioned on the backend only.** There is no staff self-signup, no "become staff" option in the UI, and the client can never choose or change a role.
   - Staff accounts are created by a protected backend mechanism: a seed/CLI script for the first `super_admin` (email from `SEED_SUPER_ADMIN_EMAIL`), and a `super_admin`-only endpoint (`/api/v1/admin/staff`) to add, change the role of, deactivate or reactivate other staff.
