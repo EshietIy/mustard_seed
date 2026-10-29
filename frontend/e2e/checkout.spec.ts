@@ -51,11 +51,13 @@ test.describe('Feature: checkout', () => {
     await page.getByRole('button', { name: /^Your order, 1 item$/ }).click();
     const drawer = page.getByRole('dialog', { name: 'Your order' });
 
-    // Every save now takes 1.5 seconds.
+    // Saves hang until the clicks are done, like a very slow connection.
     const sent: number[] = [];
+    let release!: () => void;
+    const connection = new Promise<void>((resolve) => (release = resolve));
     await page.route(`${API}/cart/lines`, async (route) => {
       sent.push((route.request().postDataJSON() as { quantity: number }).quantity);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await connection;
       await route.fallback();
     });
     const more = drawer.getByRole('button', { name: /^Add one more Afang Soup/ });
@@ -65,11 +67,11 @@ test.describe('Feature: checkout', () => {
     await expect(drawer.locator('.qty')).toHaveText('4', { timeout: 500 });
     await drawer.getByRole('button', { name: /^Remove one Afang Soup/ }).click();
     await expect(drawer.locator('.qty')).toHaveText('3', { timeout: 500 });
+    release();
 
     // Once saved, the server holds the last quantity and the screen still shows it.
     await expect.poll(() => sent.at(-1), { timeout: 10_000 }).toBe(3);
-    expect(sent.length).toBeLessThanOrEqual(2);
-    await page.waitForTimeout(1600);
+    expect(sent).toEqual([2, 3]);
     await expect(drawer.locator('.qty')).toHaveText('3');
   });
 
