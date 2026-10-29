@@ -97,11 +97,15 @@ function addWithOptions(optionIds: string[]): void {
 .media {
   position: relative;
   aspect-ratio: 400 / 260;
+  /* Without this a tall photo stretches the frame past its ratio. */
+  overflow: hidden;
 }
 .card--compact .media {
   aspect-ratio: 400 / 290;
 }
 .media img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;

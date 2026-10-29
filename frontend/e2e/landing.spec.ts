@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { mockApi } from './support/mock-api';
+import { menuFixture, mockApi } from './support/mock-api';
 
 test.describe('Feature: landing page', () => {
   test('Scenario: every section from the design renders with live data and placeholders', async ({
@@ -46,6 +46,33 @@ test.describe('Feature: landing page', () => {
     await expect(
       menu.getByRole('article').filter({ hasText: 'Atama Soup' }).getByRole('button'),
     ).toBeDisabled();
+  });
+
+  test('Scenario: a tall photo keeps the same frame as the placeholder', async ({ page }) => {
+    const menu = menuFixture();
+    const soups = menu.categories[0]!.items as Array<Record<string, unknown>>;
+    soups[1]!.image = {
+      thumbnailUrl: 'https://img.test/afang/thumb.webp',
+      fullUrl: 'https://img.test/afang/full.webp',
+    };
+    await mockApi(page, { menu: { status: 200, body: menu } });
+    await page.route('https://img.test/**', (route) =>
+      route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="700"><rect width="400" height="700" fill="black"/></svg>',
+      }),
+    );
+    await page.goto('/');
+    const cards = page.locator('#menu').getByRole('article');
+    const photo = cards.filter({ hasText: 'Afang Soup' }).getByRole('img', { name: 'Afang Soup' });
+    await expect(photo).toBeVisible();
+    await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.naturalHeight)).toBe(700);
+    const frame = async (name: string) =>
+      (await cards.filter({ hasText: name }).locator('.media').boundingBox())!;
+    const placeholder = await frame('Edikang Ikong');
+    const real = await frame('Afang Soup');
+    expect(Math.abs(real.height - placeholder.height)).toBeLessThan(1);
+    expect(Math.abs(real.height - (real.width * 260) / 400)).toBeLessThan(1);
   });
 
   test('Scenario: house signatures appear under Top dishes and can be added', async ({ page }) => {
