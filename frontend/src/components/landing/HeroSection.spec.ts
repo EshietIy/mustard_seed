@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ALL_CATEGORIES, useMenuStore } from '@/stores/menu';
 import { useSiteStore } from '@/stores/site';
 import { sampleSite } from '@/test-utils/fixtures';
@@ -89,10 +89,120 @@ describe('HeroSection', () => {
       await wrapper.findAll('[data-test="dot"]')[4]!.trigger('click');
       expect(caption(wrapper)).toBe('5 / 5 · Fresh juices, pressed daily');
     });
+  });
 
-    it('announces slide changes politely', () => {
+  describe('slideshow', () => {
+    const caption = (wrapper: ReturnType<typeof mount>) =>
+      wrapper.get('[data-test="slide-caption"]').text();
+    const pauseButton = (wrapper: ReturnType<typeof mount>) =>
+      wrapper.get('[data-test="autoplay"]');
+    const wait = (ms: number) => vi.advanceTimersByTimeAsync(ms);
+
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it('moves to the next photo every 6 seconds, wrapping at the end', async () => {
       const wrapper = mount(HeroSection);
+      await wait(5_999);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+      await wait(1);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+      await wait(6_000 * 4);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+    });
+
+    it('starts the wait again after the visitor picks a photo', async () => {
+      const wrapper = mount(HeroSection);
+      await wait(4_000);
+      await wrapper.get('button[aria-label="Next photo"]').trigger('click');
+      await wait(4_000);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+      await wait(2_000);
+      expect(caption(wrapper)).toBe('3 / 5 · Photo coming');
+    });
+
+    it('can be paused and played again with its button', async () => {
+      const wrapper = mount(HeroSection);
+      expect(pauseButton(wrapper).attributes('aria-label')).toBe('Pause the slideshow');
+      await pauseButton(wrapper).trigger('click');
+      expect(pauseButton(wrapper).attributes('aria-label')).toBe('Play the slideshow');
+      await wait(30_000);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+      await pauseButton(wrapper).trigger('click');
+      await wait(6_000);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+    });
+
+    it('holds still while the pointer is over it', async () => {
+      const wrapper = mount(HeroSection);
+      await wrapper.get('[data-test="carousel"]').trigger('mouseenter');
+      await wait(30_000);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+      await wrapper.get('[data-test="carousel"]').trigger('mouseleave');
+      await wait(6_000);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+    });
+
+    it('holds still while keyboard focus is inside it', async () => {
+      const wrapper = mount(HeroSection, { attachTo: document.body });
+      const next = wrapper.get('button[aria-label="Next photo"]');
+      await next.trigger('focusin');
+      await wait(30_000);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+      await next.trigger('focusout', { relatedTarget: null });
+      await wait(6_000);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+      wrapper.unmount();
+    });
+
+    it('plays on after a mouse click once the pointer leaves', async () => {
+      const wrapper = mount(HeroSection, { attachTo: document.body });
+      const carousel = wrapper.get('[data-test="carousel"]');
+      await carousel.trigger('mouseenter');
+      const next = wrapper.get('button[aria-label="Next photo"]');
+      await next.trigger('focusin');
+      await next.trigger('click');
+      await carousel.trigger('mouseleave');
+      await wait(6_000);
+      expect(caption(wrapper)).toBe('3 / 5 · Photo coming');
+      wrapper.unmount();
+    });
+
+    it('waits while the browser tab is hidden', async () => {
+      const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+      const wrapper = mount(HeroSection);
+      await wait(30_000);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+      hidden.mockReturnValue(false);
+      await wait(6_000);
+      expect(caption(wrapper)).toBe('2 / 5 · Photo coming');
+      hidden.mockRestore();
+    });
+
+    it('starts paused for visitors who ask for less motion', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+      }));
+      const wrapper = mount(HeroSection);
+      expect(pauseButton(wrapper).attributes('aria-label')).toBe('Play the slideshow');
+      await wait(30_000);
+      expect(caption(wrapper)).toBe('1 / 5 · Photo coming');
+    });
+
+    it('does not announce every automatic change to screen readers', async () => {
+      const wrapper = mount(HeroSection);
+      expect(wrapper.get('[data-test="slide-caption"]').attributes('aria-live')).toBe('off');
+      await pauseButton(wrapper).trigger('click');
       expect(wrapper.get('[data-test="slide-caption"]').attributes('aria-live')).toBe('polite');
+    });
+
+    it('stops when the page leaves', async () => {
+      const wrapper = mount(HeroSection);
+      wrapper.unmount();
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 

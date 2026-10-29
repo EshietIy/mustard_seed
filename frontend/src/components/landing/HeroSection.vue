@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BrandMark from '@/components/ui/BrandMark.vue';
 import IconChevronLeft from '@/components/icons/IconChevronLeft.vue';
 import IconChevronRight from '@/components/icons/IconChevronRight.vue';
 import IconClock from '@/components/icons/IconClock.vue';
+import IconPause from '@/components/icons/IconPause.vue';
 import IconPin from '@/components/icons/IconPin.vue';
+import IconPlay from '@/components/icons/IconPlay.vue';
 import IconSearch from '@/components/icons/IconSearch.vue';
 import PhotoPlaceholder from '@/components/ui/PhotoPlaceholder.vue';
 import { landing } from '@/content/landing';
@@ -22,10 +24,50 @@ const slide = computed(() => hero.slides[slideIndex.value]!);
 const hours = computed(() => site.info?.hours ?? null);
 const delivery = computed(() => site.info?.delivery ?? null);
 
+/** How long each photo shows before the slideshow moves on. */
+const AUTOPLAY_MS = 6_000;
+
+const prefersLessMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+// A pause button is required for anything that moves by itself (WCAG 2.2.2).
+const paused = ref(prefersLessMotion());
+const pointerInside = ref(false);
+const focusInside = ref(false);
+const playing = computed(() => !paused.value && !pointerInside.value && !focusInside.value);
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+/** Starts the wait for the next photo again, so a visitor's choice gets the full time. */
+function restartTimer(): void {
+  clearTimeout(timer);
+  timer = undefined;
+  if (!playing.value) return;
+  timer = setTimeout(() => {
+    // A hidden tab just keeps waiting, so the visitor comes back to the photo they left.
+    if (document.hidden) restartTimer();
+    else show(slideIndex.value + 1);
+  }, AUTOPLAY_MS);
+}
+
 function show(index: number): void {
   const count = hero.slides.length;
   slideIndex.value = (index + count) % count;
+  restartTimer();
 }
+
+/** A mouse click leaves focus on the button, so the pointer leaving ends that pause too. */
+function leave(): void {
+  pointerInside.value = false;
+  focusInside.value = false;
+}
+
+function onFocusOut(event: FocusEvent): void {
+  const art = event.currentTarget as HTMLElement;
+  if (!art.contains(event.relatedTarget as Node | null)) focusInside.value = false;
+}
+
+watch(playing, restartTimer);
+onMounted(restartTimer);
+onBeforeUnmount(() => clearTimeout(timer));
 
 function search(query: string): void {
   menu.search(query);
@@ -70,16 +112,22 @@ function search(query: string): void {
         </div>
       </div>
 
-      <div class="art">
+      <div
+        class="art"
+        data-test="carousel"
+        @mouseenter="pointerInside = true"
+        @mouseleave="leave"
+        @focusin="focusInside = true"
+        @focusout="onFocusOut"
+      >
         <div class="blob" aria-hidden="true" />
         <div class="arch-trim">
           <div class="arch">
-            <PhotoPlaceholder
-              :key="slideIndex"
-              :label="slide.photoLabel"
-              tone="dark"
-              align="center"
-            />
+            <Transition name="slide">
+              <div :key="slideIndex" class="slide">
+                <PhotoPlaceholder :label="slide.photoLabel" tone="dark" align="center" />
+              </div>
+            </Transition>
           </div>
         </div>
 
@@ -114,7 +162,8 @@ function search(query: string): void {
             <IconChevronLeft />
           </button>
           <div class="status">
-            <p data-test="slide-caption" aria-live="polite">
+            <!-- Announcing every automatic change would talk over the visitor. -->
+            <p data-test="slide-caption" :aria-live="playing ? 'off' : 'polite'">
               {{ slideIndex + 1 }} / {{ hero.slides.length }} · {{ slide.caption }}
             </p>
             <div class="dots">
@@ -137,6 +186,16 @@ function search(query: string): void {
             @click="show(slideIndex + 1)"
           >
             <IconChevronRight />
+          </button>
+          <button
+            type="button"
+            class="ctl ctl--plain"
+            data-test="autoplay"
+            :aria-label="paused ? 'Play the slideshow' : 'Pause the slideshow'"
+            @click="paused = !paused"
+          >
+            <IconPlay v-if="paused" />
+            <IconPause v-else />
           </button>
         </div>
       </div>
@@ -278,7 +337,7 @@ h1 em {
 }
 .arch-trim {
   position: relative;
-  width: min(100%, 16.5rem);
+  width: min(100%, 20rem);
   padding: 8px;
   border-radius: 999px 999px 1.25rem 1.25rem;
   background: repeating-linear-gradient(
@@ -287,18 +346,66 @@ h1 em {
     var(--color-gold) 5px 10px
   );
 }
+@media (min-width: 601px) {
+  .arch-trim {
+    width: min(100%, 23rem);
+  }
+}
 @media (min-width: 1024px) {
   .arch-trim {
-    width: min(70%, 22rem);
+    /* As large as fits, but short enough that the controls stay on a laptop screen. */
+    width: min(84%, 28rem, calc((100svh - 13rem) / 1.3));
   }
   .art {
     padding-bottom: 1rem;
   }
 }
 .arch {
+  position: relative;
   aspect-ratio: 1 / 1.3;
   border-radius: 999px 999px 0.875rem 0.875rem;
   overflow: hidden;
+}
+
+/* Each photo fades in over the last while settling from a slight zoom, then drifts slowly. */
+.slide {
+  position: absolute;
+  inset: 0;
+}
+.slide > * {
+  animation: drift 7s ease-out both;
+}
+.slide-enter-active {
+  transition:
+    opacity 0.9s ease,
+    transform 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.slide-leave-active {
+  transition: opacity 0.9s ease;
+}
+.slide-enter-from {
+  opacity: 0;
+  transform: scale(1.08);
+}
+.slide-leave-to {
+  opacity: 0;
+}
+@keyframes drift {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide > * {
+    animation: none;
+  }
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
 }
 .card {
   position: absolute;
@@ -393,6 +500,12 @@ h1 em {
   background: var(--color-white);
   color: var(--color-text);
   cursor: pointer;
+}
+.ctl--plain {
+  width: 2rem;
+  height: 2rem;
+  border-color: transparent;
+  color: var(--color-text-muted);
 }
 .ctl--dark {
   border-color: var(--color-charcoal);

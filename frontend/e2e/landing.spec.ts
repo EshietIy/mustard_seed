@@ -146,6 +146,33 @@ test.describe('Feature: landing page', () => {
     await expect(page.getByText('4 / 5 · The bar')).toBeVisible();
   });
 
+  test('Scenario: the slideshow plays by itself and can be paused', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.clock.install();
+    await mockApi(page);
+    await page.goto('/');
+    await expect(page.getByText('1 / 5 · Photo coming')).toBeVisible();
+    await page.clock.runFor(6_000);
+    await expect(page.getByText('2 / 5 · Photo coming')).toBeVisible();
+    await page.getByRole('button', { name: 'Pause the slideshow' }).click();
+    await page.mouse.move(0, 0);
+    await page.clock.runFor(30_000);
+    await expect(page.getByText('2 / 5 · Photo coming')).toBeVisible();
+    await page.getByRole('button', { name: 'Play the slideshow' }).click();
+    await page.mouse.move(0, 0);
+    await page.clock.runFor(6_000);
+    await expect(page.getByText('3 / 5 · Photo coming')).toBeVisible();
+  });
+
+  test('Scenario: visitors who ask for less motion get a still slideshow', async ({ page }) => {
+    await page.clock.install();
+    await mockApi(page);
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'Play the slideshow' })).toBeVisible();
+    await page.clock.runFor(30_000);
+    await expect(page.getByText('1 / 5 · Photo coming')).toBeVisible();
+  });
+
   test('Scenario: the menu button on phones opens the section links', async ({
     page,
     isMobile,
